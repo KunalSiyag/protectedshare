@@ -1,0 +1,483 @@
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import {
+  type ApiError,
+  type CreateNoteRequest,
+  type CreateNoteResponse,
+  type CreateSecretRequest,
+  type CreateSecretResponse,
+  CreateNoteRequestSchema,
+  CreateSecretRequestSchema,
+  type GetNoteResponse,
+  type GetSecretResponse,
+  type HealthCheck
+} from "@protectedshare/contracts";
+
+type Bindings = {
+  DB: D1Database;
+  RESEND_API_KEY?: string;
+};
+
+type NoteRow = {
+  id: string;
+  encrypted_blob: string;
+  iv: string;
+  salt: string;
+  password_proof: string;
+  is_burn_after_read: number;
+  expires_at: number;
+  created_at: number;
+};
+
+type SecretRow = {
+  id: string;
+  encrypted_blob: string;
+  iv: string;
+  salt: string;
+  password_proof: string;
+  is_burn_after_read?: number;
+  expires_at: number;
+  created_at: number;
+};
+
+const app = new Hono<{ Bindings: Bindings }>();
+const NANOID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const MILLISECONDS_THRESHOLD = 100_000_000_000;
+const BASE64_URL_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function jsonError(error: string, code: string, status: number): Response {
+  const payload: ApiError = { error, code };
+  return Response.json(payload, { status });
+}
+
+function nowEpochSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+function normalizeExpiresAt(expiresAt: number): number {
+  if (expiresAt > MILLISECONDS_THRESHOLD) {
+    return Math.floor(expiresAt / 1000);
+  }
+  return expiresAt;
+}
+
+const MAX_ID_RETRIES = 10;
+
+function createId(size = 5): string {
+  const random = crypto.getRandomValues(new Uint8Array(size));
+  let result = "";
+
+  for (const item of random) {
+    result += NANOID_ALPHABET[item % NANOID_ALPHABET.length];
+  }
+
+  return result;
+}
+
+/**
+ * Generates a unique ID for the given table by checking the DB for collisions
+ * before inserting. Retries up to MAX_ID_RETRIES times.
+ */
+async function generateUniqueId(db: D1Database, table: "notes" | "secrets"): Promise<string> {
+  for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
+    const candidate = createId();
+    const existing = await db.prepare(
+      `SELECT id FROM ${table} WHERE id = ?`
+    ).bind(candidate).first<{ id: string }>();
+
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Unable to generate a unique ID after ${MAX_ID_RETRIES} attempts.`);
+}
+
+function getPasswordProof(raw: string | undefined | null): string | null {
+  if (!raw) {
+    return null;
+  }
+
+  if (!BASE64_URL_PATTERN.test(raw)) {
+    return null;
+  }
+
+  return raw;
+}
+
+function toNoteResponse(row: NoteRow): GetNoteResponse {
+  return {
+    id: row.id,
+    payload: {
+      encryptedBlob: row.encrypted_blob,
+      iv: row.iv,
+      salt: row.salt
+    },
+    expiresAt: row.expires_at,
+    isBurnAfterRead: row.is_burn_after_read === 1,
+    createdAt: row.created_at
+  };
+}
+
+function toSecretResponse(row: SecretRow): GetSecretResponse {
+  return {
+    id: row.id,
+    payload: {
+      encryptedBlob: row.encrypted_blob,
+      iv: row.iv,
+      salt: row.salt
+    },
+    expiresAt: row.expires_at,
+    createdAt: row.created_at
+  };
+}
+
+function isMissingBurnAfterReadColumnError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("no such column: is_burn_after_read");
+}
+
+app.use(
+  "/api/*",
+  cors({
+    origin: "*",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"]
+  })
+);
+
+app.get("/health", () => {
+  const payload: HealthCheck = { status: "ok" };
+  return Response.json(payload);
+});
+
+app.post("/api/notes", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = CreateNoteRequestSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return jsonError("Invalid note request payload.", "INVALID_NOTE_REQUEST", 400);
+  }
+
+  const request: CreateNoteRequest = parsed.data;
+  const createdAt = nowEpochSeconds();
+  const expiresAt = normalizeExpiresAt(request.expiresAt);
+
+  if (expiresAt <= createdAt) {
+    return jsonError("expiresAt must be in the future.", "INVALID_EXPIRES_AT", 400);
+  }
+
+  let noteId: string;
+  try {
+    noteId = await generateUniqueId(c.env.DB, "notes");
+  } catch {
+    return jsonError("Unable to generate a unique link. Please try again.", "ID_GENERATION_FAILED", 503);
+  }
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO notes (
+        id,
+        encrypted_blob,
+        iv,
+        salt,
+        password_proof,
+        is_burn_after_read,
+        expires_at,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        noteId,
+        request.payload.encryptedBlob,
+        request.payload.iv,
+        request.payload.salt,
+        request.passwordProof,
+        request.isBurnAfterRead ? 1 : 0,
+        expiresAt,
+        createdAt
+      )
+      .run();
+  } catch (error: unknown) {
+    if (!isMissingBurnAfterReadColumnError(error)) {
+      throw error;
+    }
+
+    await c.env.DB.prepare(
+      `INSERT INTO notes (
+        id,
+        encrypted_blob,
+        iv,
+        salt,
+        password_proof,
+        expires_at,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        noteId,
+        request.payload.encryptedBlob,
+        request.payload.iv,
+        request.payload.salt,
+        request.passwordProof,
+        expiresAt,
+        createdAt
+      )
+      .run();
+  }
+
+  const response: CreateNoteResponse = { id: noteId };
+  return c.json(response, 201);
+});
+
+app.get("/api/notes/:id", async (c) => {
+  const { id } = c.req.param();
+  const proof = getPasswordProof(c.req.query("proof"));
+  const now = nowEpochSeconds();
+
+  if (!proof) {
+    return jsonError("A valid password proof is required.", "INVALID_PASSWORD_PROOF", 400);
+  }
+
+  let existing: NoteRow | null = null;
+  try {
+    existing = await c.env.DB.prepare(
+      `SELECT id, encrypted_blob, iv, salt, password_proof, is_burn_after_read, expires_at, created_at
+       FROM notes
+       WHERE id = ? AND password_proof = ? AND expires_at > ?`
+    )
+      .bind(id, proof, now)
+      .first<NoteRow>();
+  } catch (error: unknown) {
+    if (!isMissingBurnAfterReadColumnError(error)) {
+      throw error;
+    }
+
+    existing = await c.env.DB.prepare(
+      `SELECT id, encrypted_blob, iv, salt, password_proof, 0 AS is_burn_after_read, expires_at, created_at
+       FROM notes
+       WHERE id = ? AND password_proof = ? AND expires_at > ?`
+    )
+      .bind(id, proof, now)
+      .first<NoteRow>();
+  }
+
+  if (!existing) {
+    const availableWithoutPassword = await c.env.DB.prepare(
+      "SELECT id FROM notes WHERE id = ? AND expires_at > ?"
+    )
+      .bind(id, now)
+      .first<{ id: string }>();
+
+    if (availableWithoutPassword) {
+      return jsonError("Invalid password.", "INVALID_PASSWORD", 401);
+    }
+
+    return jsonError("Note not found or expired.", "NOTE_NOT_FOUND", 404);
+  }
+
+  if (existing.is_burn_after_read === 1) {
+    const deleted = await c.env.DB.prepare(
+      `DELETE FROM notes
+       WHERE id = ? AND password_proof = ? AND expires_at > ?
+       RETURNING id, encrypted_blob, iv, salt, password_proof, is_burn_after_read, expires_at, created_at`
+    )
+      .bind(id, proof, now)
+      .first<NoteRow>();
+
+    if (!deleted) {
+      return jsonError("Invalid password.", "INVALID_PASSWORD", 401);
+    }
+
+    return c.json(toNoteResponse(deleted));
+  }
+
+  return c.json(toNoteResponse(existing));
+});
+
+app.post("/api/secrets", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = CreateSecretRequestSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return jsonError("Invalid secret request payload.", "INVALID_SECRET_REQUEST", 400);
+  }
+
+  const request: CreateSecretRequest = parsed.data;
+  const createdAt = nowEpochSeconds();
+  const expiresAt = normalizeExpiresAt(request.expiresAt);
+
+  if (expiresAt <= createdAt) {
+    return jsonError("expiresAt must be in the future.", "INVALID_EXPIRES_AT", 400);
+  }
+
+  let secretId: string;
+  try {
+    secretId = await generateUniqueId(c.env.DB, "secrets");
+  } catch {
+    return jsonError("Unable to generate a unique link. Please try again.", "ID_GENERATION_FAILED", 503);
+  }
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO secrets (
+        id,
+        encrypted_blob,
+        iv,
+        salt,
+        password_proof,
+        is_burn_after_read,
+        expires_at,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(secretId, request.payload.encryptedBlob, request.payload.iv, request.payload.salt, request.passwordProof, 1, expiresAt, createdAt)
+      .run();
+  } catch (error: unknown) {
+    if (!isMissingBurnAfterReadColumnError(error)) {
+      throw error;
+    }
+
+    await c.env.DB.prepare(
+      `INSERT INTO secrets (
+        id,
+        encrypted_blob,
+        iv,
+        salt,
+        password_proof,
+        expires_at,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(secretId, request.payload.encryptedBlob, request.payload.iv, request.payload.salt, request.passwordProof, expiresAt, createdAt)
+      .run();
+  }
+
+  const response: CreateSecretResponse = { id: secretId };
+  return c.json(response, 201);
+});
+
+app.get("/api/secrets/:id", async (c) => {
+  const { id } = c.req.param();
+  const proof = getPasswordProof(c.req.query("proof"));
+  const now = nowEpochSeconds();
+
+  if (!proof) {
+    return jsonError("A valid password proof is required.", "INVALID_PASSWORD_PROOF", 400);
+  }
+
+  let row: SecretRow | null = null;
+  try {
+    row = await c.env.DB.prepare(
+      `DELETE FROM secrets
+       WHERE id = ? AND password_proof = ? AND expires_at > ?
+       RETURNING id, encrypted_blob, iv, salt, password_proof, is_burn_after_read, expires_at, created_at`
+    )
+      .bind(id, proof, now)
+      .first<SecretRow>();
+  } catch (error: unknown) {
+    if (!isMissingBurnAfterReadColumnError(error)) {
+      throw error;
+    }
+
+    row = await c.env.DB.prepare(
+      `DELETE FROM secrets
+       WHERE id = ? AND password_proof = ? AND expires_at > ?
+       RETURNING id, encrypted_blob, iv, salt, password_proof, expires_at, created_at`
+    )
+      .bind(id, proof, now)
+      .first<SecretRow>();
+  }
+
+  if (!row) {
+    const availableWithoutPassword = await c.env.DB.prepare(
+      "SELECT id FROM secrets WHERE id = ? AND expires_at > ?"
+    )
+      .bind(id, now)
+      .first<{ id: string }>();
+
+    if (availableWithoutPassword) {
+      return jsonError("Invalid password.", "INVALID_PASSWORD", 401);
+    }
+
+    return jsonError("Secret not found or expired.", "SECRET_NOT_FOUND", 404);
+  }
+
+  return c.json(toSecretResponse(row));
+});
+
+app.post("/api/inquiries", async (c) => {
+  let body: { name?: string; email?: string; company?: string; message?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return jsonError("Invalid JSON body", "INVALID_JSON", 400);
+  }
+
+  const { name, email, company, message } = body;
+  if (!name?.trim() || !email?.trim() || !message?.trim()) {
+    return jsonError("Name, email, and message are required fields.", "MISSING_FIELDS", 400);
+  }
+
+  const id = Math.random().toString(36).substring(2, 10);
+  const createdAt = nowEpochSeconds();
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO inquiries (id, name, email, company, message, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+      .bind(id, name.trim(), email.trim(), company?.trim() || null, message.trim(), createdAt)
+      .run();
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Database write error";
+    return jsonError(`Failed to save inquiry: ${msg}`, "DATABASE_ERROR", 500);
+  }
+
+  if (c.env.RESEND_API_KEY) {
+    try {
+      const emailBody = {
+        from: "ProtectedShare Deals <deals@protectedshare.me>",
+        to: "admin@protectedshare.me",
+        subject: `New Enterprise Deal Inquiry from ${name}`,
+        html: `
+          <h2>New Deal Inquiry</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Company:</strong> ${company || "Not provided"}</p>
+          <p><strong>Message:</strong></p>
+          <blockquote style="background: #f4f4f5; border-left: 4px solid #3b82f6; padding: 10px; margin: 10px 0;">
+            ${message.replace(/\n/g, "<br>")}
+          </blockquote>
+          <hr />
+          <p style="font-size: 11px; color: #71717a;">Stored securely in D1 with ID: <strong>${id}</strong></p>
+        `
+      };
+
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${c.env.RESEND_API_KEY}`
+        },
+        body: JSON.stringify(emailBody)
+      });
+    } catch {
+      // Fail silently to guarantee client success response
+    }
+  }
+
+  return c.json({ success: true, id }, 201);
+});
+
+const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (_event, env) => {
+  const now = nowEpochSeconds();
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM notes WHERE expires_at <= ?").bind(now),
+    env.DB.prepare("DELETE FROM secrets WHERE expires_at <= ?").bind(now)
+  ]);
+};
+
+export default {
+  fetch: app.fetch,
+  scheduled
+};

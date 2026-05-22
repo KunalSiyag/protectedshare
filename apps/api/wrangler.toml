@@ -1,0 +1,12 @@
+name = "protectedshare-api"
+main = "src/index.ts"
+compatibility_date = "2025-05-10"
+
+[observability]
+enabled = true
+
+# Configure D1 binding for this Worker.
+[[d1_databases]]
+binding = "DB"
+database_name = "protectedshare"
+database_id = "36a87f23-cbee-4380-858b-bd713d5c82f5"

@@ -1,0 +1,19 @@
+{
+  "name": "protectedshare",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -ws --if-present",
+    "dev:web": "npm run dev -w @protectedshare/web",
+    "dev:api": "npm run dev -w @protectedshare/api",
+    "lint": "npm run lint -ws --if-present",
+    "typecheck": "npm run typecheck -ws --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
+
