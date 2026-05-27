@@ -25,7 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             href="/"
             className="font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2 shrink-0"
           >
-            <span className="text-blue-600 dark:text-emerald-500 font-mono text-lg">{"//"}</span>
+            <img src="/logo.svg" alt="ProtectedShare Logo" className="w-6 h-6 text-blue-600 dark:text-emerald-500" style={{ filter: 'currentColor' }} />
             <span className="text-sm sm:text-base">ProtectedShare</span>
           </Link>
 
