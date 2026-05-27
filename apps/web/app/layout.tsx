@@ -7,8 +7,11 @@ export const metadata: Metadata = {
     default: "ProtectedShare — Zero-Knowledge Encrypted Notes & One-Time Secrets",
     template: "%s | ProtectedShare",
   },
-  description: "Share passwords, API keys, and sensitive documents securely. Features client-side AES-256-GCM encryption, self-destructing links, and a built-in offline-first encrypted notepad.",
+  description: "Share Protectedtext, passwords, API keys, and sensitive documents securely with no signups. Features client-side AES-256-GCM encryption, secure text, self-destructing links, and a built-in offline-first encrypted notepad.",
   keywords: [
+    "Protectedtext",
+    "secure text",
+    "no signups",
     "zero-knowledge",
     "secure note sharing",
     "one-time secret",

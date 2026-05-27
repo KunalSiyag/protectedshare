@@ -4,8 +4,15 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: "/",
-      disallow: ["/notes/*", "/secrets/*", "/api/*"],
+      allow: ["/", "/notes", "/secrets", "/notepad"],
+      disallow: [
+        "/notes/*",
+        "/secrets/*",
+        "/api/*",
+        "/n/*",
+        "/s/*",
+        "/workspace",
+      ],
     },
     sitemap: "https://protectedshare.me/sitemap.xml",
   };
