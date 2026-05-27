@@ -3,10 +3,7 @@ import AppShell from "./app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: {
-    default: "ProtectedShare — Zero-Knowledge Encrypted Notes & One-Time Secrets",
-    template: "%s | ProtectedShare",
-  },
+  title: "Online encrypted notes, API - no sign ups required",
   description: "Share Protectedtext, passwords, API keys, and sensitive documents securely with no signups. Features client-side AES-256-GCM encryption, secure text, self-destructing links, and a built-in offline-first encrypted notepad.",
   keywords: [
     "Protectedtext",
@@ -72,7 +69,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" sizes="any" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var t=window.localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d);})();`,
