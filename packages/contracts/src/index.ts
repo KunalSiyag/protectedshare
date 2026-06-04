@@ -40,7 +40,8 @@ export const CreateSecretRequestSchema = z.object({
   payload: NotePayloadSchema,
   passwordProof: Base64UrlSchema,
   expiresAt: z.number().int().positive(),
-  isBurnAfterRead: z.literal(true).default(true)
+  isBurnAfterRead: z.literal(true).default(true),
+  maxReads: z.number().int().min(1).max(100).default(1)
 });
 
 export const CreateSecretResponseSchema = z.object({
@@ -51,7 +52,8 @@ export const GetSecretResponseSchema = z.object({
   id: z.string().min(1),
   payload: NotePayloadSchema,
   expiresAt: z.number().int().positive(),
-  createdAt: z.number().int().nonnegative()
+  createdAt: z.number().int().nonnegative(),
+  remainingReads: z.number().int().nonnegative().optional()
 });
 
 export const ApiErrorSchema = z.object({

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS secrets (
   salt TEXT NOT NULL,
   password_proof TEXT NOT NULL,
   is_burn_after_read INTEGER NOT NULL DEFAULT 1,
+  reads_remaining INTEGER DEFAULT 1,
   expires_at INTEGER NOT NULL,
   created_at INTEGER NOT NULL
 );

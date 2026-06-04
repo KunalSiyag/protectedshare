@@ -38,7 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 Secure Notes
               </Link>
               <Link href="/secrets" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
-                One-Time Secrets
+                EnvShare
               </Link>
               <Link href="/notepad" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
                 Notepad

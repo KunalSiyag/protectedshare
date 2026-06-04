@@ -36,6 +36,7 @@ type SecretRow = {
   salt: string;
   password_proof: string;
   is_burn_after_read?: number;
+  reads_remaining: number | null;
   expires_at: number;
   created_at: number;
 };
@@ -305,6 +306,7 @@ app.post("/api/secrets", async (c) => {
   const request: CreateSecretRequest = parsed.data;
   const createdAt = nowEpochSeconds();
   const expiresAt = normalizeExpiresAt(request.expiresAt);
+  const maxReads = request.maxReads ?? 1;
 
   if (expiresAt <= createdAt) {
     return jsonError("expiresAt must be in the future.", "INVALID_EXPIRES_AT", 400);
@@ -326,11 +328,12 @@ app.post("/api/secrets", async (c) => {
         salt,
         password_proof,
         is_burn_after_read,
+        reads_remaining,
         expires_at,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(secretId, request.payload.encryptedBlob, request.payload.iv, request.payload.salt, request.passwordProof, 1, expiresAt, createdAt)
+      .bind(secretId, request.payload.encryptedBlob, request.payload.iv, request.payload.salt, request.passwordProof, 1, maxReads, expiresAt, createdAt)
       .run();
   } catch (error: unknown) {
     if (!isMissingBurnAfterReadColumnError(error)) {
@@ -365,12 +368,13 @@ app.get("/api/secrets/:id", async (c) => {
     return jsonError("A valid password proof is required.", "INVALID_PASSWORD_PROOF", 400);
   }
 
+  // First, try to fetch the secret without deleting
   let row: SecretRow | null = null;
   try {
     row = await c.env.DB.prepare(
-      `DELETE FROM secrets
-       WHERE id = ? AND password_proof = ? AND expires_at > ?
-       RETURNING id, encrypted_blob, iv, salt, password_proof, is_burn_after_read, expires_at, created_at`
+      `SELECT id, encrypted_blob, iv, salt, password_proof, is_burn_after_read, reads_remaining, expires_at, created_at
+       FROM secrets
+       WHERE id = ? AND password_proof = ? AND expires_at > ?`
     )
       .bind(id, proof, now)
       .first<SecretRow>();
@@ -378,7 +382,7 @@ app.get("/api/secrets/:id", async (c) => {
     if (!isMissingBurnAfterReadColumnError(error)) {
       throw error;
     }
-
+    // Fallback for DBs without reads_remaining column
     row = await c.env.DB.prepare(
       `DELETE FROM secrets
        WHERE id = ? AND password_proof = ? AND expires_at > ?
@@ -386,6 +390,11 @@ app.get("/api/secrets/:id", async (c) => {
     )
       .bind(id, proof, now)
       .first<SecretRow>();
+
+    if (!row) {
+      return jsonError("Secret not found or expired.", "SECRET_NOT_FOUND", 404);
+    }
+    return c.json(toSecretResponse(row));
   }
 
   if (!row) {
@@ -402,7 +411,25 @@ app.get("/api/secrets/:id", async (c) => {
     return jsonError("Secret not found or expired.", "SECRET_NOT_FOUND", 404);
   }
 
-  return c.json(toSecretResponse(row));
+  const remaining = row.reads_remaining ?? 1;
+
+  if (remaining <= 1) {
+    // Last read — delete the secret entirely
+    await c.env.DB.prepare("DELETE FROM secrets WHERE id = ?")
+      .bind(id)
+      .run();
+    const resp = toSecretResponse(row);
+    return c.json({ ...resp, remainingReads: 0 });
+  } else {
+    // Decrement the counter
+    await c.env.DB.prepare(
+      "UPDATE secrets SET reads_remaining = reads_remaining - 1 WHERE id = ?"
+    )
+      .bind(id)
+      .run();
+    const resp = toSecretResponse(row);
+    return c.json({ ...resp, remainingReads: remaining - 1 });
+  }
 });
 
 app.post("/api/inquiries", async (c) => {
