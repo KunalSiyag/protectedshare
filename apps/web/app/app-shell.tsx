@@ -146,10 +146,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-12 md:mt-16 pt-8 border-t border-zinc-200 dark:border-zinc-800/40 text-center">
-          <p className="text-xs text-zinc-500 dark:text-zinc-600 font-mono">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-12 md:mt-16 pt-8 border-t border-zinc-200 dark:border-zinc-800/40 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+          <p className="text-xs text-zinc-500 dark:text-zinc-600 font-mono order-2 sm:order-1">
             © {new Date().getFullYear()} ProtectedShare.me — Zero-Knowledge Security Protocols.
           </p>
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-mono text-zinc-500 dark:text-zinc-600 order-1 sm:order-2">
+            <Link href="/about" className="hover:text-zinc-950 dark:hover:text-zinc-300 transition-colors">About Us</Link>
+            <Link href="/contact" className="hover:text-zinc-950 dark:hover:text-zinc-300 transition-colors">Contact Us</Link>
+            <Link href="/privacy" className="hover:text-zinc-950 dark:hover:text-zinc-300 transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-zinc-950 dark:hover:text-zinc-300 transition-colors">Terms of Service</Link>
+          </div>
+        </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-4 flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-1.5 text-[10px] font-mono text-zinc-400 dark:text-zinc-700">
+          <span className="text-zinc-300 dark:text-zinc-800">Alternatives:</span>
+          <Link href="/vs/privnote" className="hover:underline">ProtectedShare vs Privnote</Link>
+          <Link href="/vs/protectedtext" className="hover:underline">ProtectedShare vs ProtectedText</Link>
+          <Link href="/vs/envshare" className="hover:underline">ProtectedShare vs EnvShare</Link>
         </div>
       </footer>
 

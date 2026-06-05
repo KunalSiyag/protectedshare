@@ -1,0 +1,4 @@
+# ProtectedShare.me Google AdSense Authorized Sellers list
+# Replace the line below with your own Google AdSense details when approved.
+# Format: google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0

@@ -4,7 +4,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/notes", "/secrets", "/notepad"],
+      allow: "/",
       disallow: [
         "/notes/*",
         "/secrets/*",
