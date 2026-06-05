@@ -1,24 +1,24 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Free Encrypted Notepad — Offline, No Signup, No Cloud",
+  title: "Free Encrypted Notepad — Secure Cloud Sync, No Signup",
   description:
-    "A free, offline-first encrypted notepad. Notes are AES-256 encrypted and stored locally in your browser — no cloud, no server, no signup. Your data never leaves your device.",
+    "A free, zero-knowledge encrypted online notepad. Notes are AES-256 encrypted client-side and synced securely across your devices — no registration, no tracking. Your decryption keys never leave your device.",
   alternates: {
     canonical: "https://protectedshare.me/notepad",
   },
   keywords: [
     "free encrypted notepad",
     "online notepad encrypted",
-    "offline notepad",
+    "cross device notepad",
     "no signup notepad",
     "private notes app",
     "protectedtext notepad alternative",
   ],
   openGraph: {
-    title: "Free Encrypted Notepad — Offline, No Signup",
+    title: "Free Encrypted Notepad — Secure Cloud Sync",
     description:
-      "Free encrypted notepad. AES-256 encrypted notes stored locally in your browser using secure client-side storage.",
+      "Free encrypted notepad with zero-knowledge cloud sync. Notes are AES-256 encrypted client-side and synced across devices.",
     url: "https://protectedshare.me/notepad",
   },
 };

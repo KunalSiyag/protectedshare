@@ -216,19 +216,19 @@ export default function HomePage() {
                 <td className="p-4 font-semibold text-white">Primary Use Case</td>
                 <td className="p-4 text-zinc-400">Passwords, private notes, letters</td>
                 <td className="p-4 text-zinc-400">.env files, API keys, developer secrets</td>
-                <td className="p-4 text-zinc-400">Local scratchpad, personal logs</td>
+                <td className="p-4 text-zinc-400">Cross-device scratchpad, personal logs</td>
               </tr>
               <tr className="border-b border-zinc-850">
                 <td className="p-4 font-semibold text-white">Password Delivery</td>
                 <td className="p-4 text-zinc-400">Custom/auto, sent via separate channel</td>
                 <td className="p-4 text-zinc-400">Embedded in link hash (1-click decryption)</td>
-                <td className="p-4 text-zinc-400">Local master password</td>
+                <td className="p-4 text-zinc-400">User-defined master password (zero-knowledge)</td>
               </tr>
               <tr className="border-b border-zinc-850">
                 <td className="p-4 font-semibold text-white">Persistence</td>
                 <td className="p-4 text-zinc-400">Timed expiration (Optional Burn)</td>
                 <td className="p-4 text-zinc-400">Self-destructs after 1-10 reads</td>
-                <td className="p-4 text-zinc-400">Stored locally in browser (infinite)</td>
+                <td className="p-4 text-zinc-400">Cloud-synced vault (persists until deleted)</td>
               </tr>
               <tr>
                 <td className="p-4 font-semibold text-white">Security Rating</td>
@@ -247,7 +247,7 @@ export default function HomePage() {
                 <td className="p-4 text-zinc-400">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-emerald-400">★★★★★</span>
-                    <span className="text-[10px] text-zinc-500">Local client storage, zero server sync</span>
+                    <span className="text-[10px] text-zinc-500">Cloudflare-backed, client-side decryption</span>
                   </div>
                 </td>
               </tr>
