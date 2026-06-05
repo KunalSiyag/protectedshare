@@ -277,7 +277,7 @@ export default function HomePage() {
           />
           <FaqItem
             question="Can the server read my secrets?"
-            answer="No. Your data is encrypted with AES-256-GCM entirely in your browser before being sent to the server. The encryption key never leaves your device, making it cryptographically impossible for anyone to decrypt your data."
+            answer="No. Your data is encrypted with AES-256-GCM entirely in your browser before being sent to the server. For the Encrypted Notepad, usernames are hashed client-side using SHA-256 before transit so we don't know who owns which notepad, and passwords are never transmitted. The encryption keys never leave your device, making it cryptographically impossible for anyone — including hosts and administrators — to decrypt your data."
           />
           <FaqItem
             question="Is this a good ProtectedText alternative?"
