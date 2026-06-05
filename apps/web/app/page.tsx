@@ -79,6 +79,14 @@ export default function HomePage() {
               },
               {
                 "@type": "Question",
+                name: "What is the difference between Secure Notes and EnvShare?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Secure Notes is designed for two-channel sharing (you send the link via one app like email, and the password via another like SMS/Signal). EnvShare is built for quick one-click sharing of code/dotenv files where the password is automatically embedded in the link's hash fragment (e.g. #password) so the recipient doesn't have to enter it manually.",
+                },
+              },
+              {
+                "@type": "Question",
                 name: "Can the server read my secrets?",
                 acceptedAnswer: {
                   "@type": "Answer",
@@ -90,7 +98,7 @@ export default function HomePage() {
                 name: "How do I share API keys and .env files securely?",
                 acceptedAnswer: {
                   "@type": "Answer",
-                  text: "Go to the EnvShare page, paste your API keys or .env file content, choose an expiration time (1 hour, 24 hours, or 7 days) and read limit (1 to 10 reads), then click 'Encrypt & Generate Link'. The link contains the decryption key in the URL hash fragment, which is never sent to the server.",
+                  text: "Go to the EnvShare page, paste your API keys or .env file content, choose an expiration time (1 hour, 24 hours, or 7 days) and read limit (1 to 10 reads), then click 'Encrypt & Generate Link'. The decryption key stays in the URL hash fragment and is never sent to the server.",
                 },
               },
               {
@@ -166,7 +174,6 @@ export default function HomePage() {
         <FeatureCard
           icon={
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
             </svg>
           }
@@ -184,6 +191,49 @@ export default function HomePage() {
         />
       </div>
 
+      {/* Feature Comparison Table */}
+      <div className="mt-16 w-full max-w-2xl text-left">
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6 text-center">Compare our tools</h2>
+        <div className="overflow-x-auto border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl bg-white/40 dark:bg-zinc-900/10">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-900/40">
+                <th className="p-3.5 font-semibold text-zinc-700 dark:text-zinc-300">Feature</th>
+                <th className="p-3.5 font-semibold text-zinc-700 dark:text-zinc-300">Secure Notes</th>
+                <th className="p-3.5 font-semibold text-zinc-700 dark:text-zinc-300">EnvShare</th>
+                <th className="p-3.5 font-semibold text-zinc-700 dark:text-zinc-300">Notepad</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
+                <td className="p-3.5 font-semibold text-zinc-900 dark:text-zinc-100">Primary Use Case</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Passwords, private notes, letters</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">.env files, API keys, developer secrets</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Local scratchpad, personal logs</td>
+              </tr>
+              <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
+                <td className="p-3.5 font-semibold text-zinc-900 dark:text-zinc-100">Password Delivery</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Custom/auto, sent via separate channel</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Embedded in link hash (1-click decryption)</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Local master password</td>
+              </tr>
+              <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
+                <td className="p-3.5 font-semibold text-zinc-900 dark:text-zinc-100">Persistence</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Timed expiration (Optional Burn)</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Self-destructs after 1-10 reads</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">Stored locally in browser (infinite)</td>
+              </tr>
+              <tr>
+                <td className="p-3.5 font-semibold text-zinc-900 dark:text-zinc-100">Security Rating</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">⚡ Maximum (2 independent channels)</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">🛡️ High (Single link convenience)</td>
+                <td className="p-3.5 text-zinc-600 dark:text-zinc-400">🔒 Maximum (Zero server contact)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* How It Works */}
       <div className="mt-16 w-full max-w-xl">
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6">How it works</h2>
@@ -197,11 +247,15 @@ export default function HomePage() {
 
       {/* FAQ Section — visible to users AND parsed by Google for rich snippets */}
       <div className="mt-16 w-full max-w-xl text-left">
-        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6">Frequently Asked Questions</h2>
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6 text-center">Frequently Asked Questions</h2>
         <div className="space-y-5">
           <FaqItem
             question="Is ProtectedShare really free?"
             answer="Yes, 100% free with no signup, no accounts, and no usage limits. Create unlimited encrypted notes, share .env files, and generate self-destructing secret links at zero cost."
+          />
+          <FaqItem
+            question="What is the difference between Secure Notes and EnvShare?"
+            answer="Secure Notes is designed for high-security, 2-channel sharing (you send the note link via one app like Slack, and the password via another like SMS or Signal). EnvShare is built for quick 1-click sharing of code/dotenv files where the decryption key is embedded in the link's hash fragment (e.g. #password) so the recipient doesn't need to manually copy-paste passwords."
           />
           <FaqItem
             question="How is this different from EnvShare?"
