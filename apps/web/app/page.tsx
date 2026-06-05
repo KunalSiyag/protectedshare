@@ -29,7 +29,7 @@ export default function HomePage() {
             name: "ProtectedShare",
             url: "https://protectedshare.me",
             description:
-              "Free zero-knowledge encrypted note sharing, EnvShare (.env file sharing), and self-destructing secret links. No signup required.",
+              "Free zero-knowledge encrypted note sharing, EnvShare (.env file sharing), and self-destructing secret links. Hosted securely on Cloudflare.",
             applicationCategory: "SecurityApplication",
             operatingSystem: "Any",
             offers: {
@@ -145,18 +145,24 @@ export default function HomePage() {
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex items-center justify-center gap-4 mt-10">
+        <div className="flex flex-wrap items-center justify-center gap-3.5 mt-10">
           <Link
             href="/notes"
-            className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 rounded border border-zinc-800 hover:border-zinc-700 bg-transparent text-sm font-semibold text-zinc-300 hover:text-white transition-all duration-200 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded border border-zinc-800 hover:border-zinc-700 bg-transparent text-sm font-semibold text-zinc-300 hover:text-white transition-all duration-200 cursor-pointer"
           >
             Secure Notes
           </Link>
           <Link
             href="/secrets"
-            className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 rounded bg-white text-zinc-950 hover:bg-zinc-100 text-sm font-semibold transition-all duration-200 cursor-pointer shadow-md"
+            className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded bg-white text-zinc-950 hover:bg-zinc-100 text-sm font-semibold transition-all duration-200 cursor-pointer shadow-md"
           >
             Share .env / Keys →
+          </Link>
+          <Link
+            href="/notepad"
+            className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded border border-zinc-800 hover:border-zinc-700 bg-transparent text-sm font-semibold text-zinc-300 hover:text-white transition-all duration-200 cursor-pointer"
+          >
+            Encrypted Notepad
           </Link>
         </div>
       </div>
@@ -226,24 +232,31 @@ export default function HomePage() {
               </tr>
               <tr>
                 <td className="p-4 font-semibold text-white">Security Rating</td>
-                <td className="p-4 text-zinc-400">⚡ Maximum (2 independent channels)</td>
-                <td className="p-4 text-zinc-400">🛡️ High (Single link convenience)</td>
-                <td className="p-4 text-zinc-400">🔒 Maximum (Zero server contact)</td>
+                <td className="p-4 text-zinc-400">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-emerald-400">★★★★★</span>
+                    <span className="text-[10px] text-zinc-500">Cloudflare-backed, split-delivery keys</span>
+                  </div>
+                </td>
+                <td className="p-4 text-zinc-400">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-emerald-400">★★★★☆</span>
+                    <span className="text-[10px] text-zinc-500">Cloudflare-backed, key-in-link</span>
+                  </div>
+                </td>
+                <td className="p-4 text-zinc-400">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-emerald-400">★★★★★</span>
+                    <span className="text-[10px] text-zinc-500">Local client storage, zero server sync</span>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* How It Works */}
-      <div className="mt-24 w-full max-w-2xl">
-        <h2 className="text-xl font-bold text-white mb-8">How it works</h2>
-        <div className="space-y-5 text-left">
-          <Step number="1" title="Write your secret" description="Paste your password, API key, .env file, or private note into the editor." />
-          <Step number="2" title="Encrypted in your browser" description="AES-256-GCM encryption with PBKDF2 key derivation (210K iterations). Plaintext never leaves your device." />
-          <Step number="3" title="Share the link" description="Get a unique link. For notes, share the password separately via a different channel for maximum security." />
-          <Step number="4" title="Auto-destruct" description="Secrets are permanently deleted after being viewed. Notes expire automatically based on your chosen duration." />
-        </div>
+        <p className="mt-3.5 text-[10px] text-zinc-500 text-center leading-relaxed">
+          * Note: Cloudflare&apos;s global serverless network powers our backend databases, ensuring high availability, edge isolation, and encrypted-at-rest protection.
+        </p>
       </div>
 
       {/* FAQ Section */}
@@ -306,20 +319,6 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
       </div>
       <h3 className="text-sm font-bold text-white mb-2">{title}</h3>
       <p className="text-xs text-zinc-400 leading-relaxed">{description}</p>
-    </div>
-  );
-}
-
-function Step({ number, title, description }: { number: string; title: string; description: string }) {
-  return (
-    <div className="flex items-start gap-4">
-      <div className="shrink-0 w-7 h-7 rounded bg-zinc-900 border border-zinc-800 text-white flex items-center justify-center text-xs font-bold">
-        {number}
-      </div>
-      <div className="pt-0.5">
-        <h3 className="text-sm font-bold text-white">{title}</h3>
-        <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{description}</p>
-      </div>
     </div>
   );
 }

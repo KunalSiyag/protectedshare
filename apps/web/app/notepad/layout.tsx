@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Free Encrypted Notepad — Offline, No Signup",
     description:
-      "Free encrypted notepad. AES-256 encrypted notes stored locally in your browser. Zero server contact.",
+      "Free encrypted notepad. AES-256 encrypted notes stored locally in your browser using secure client-side storage.",
     url: "https://protectedshare.me/notepad",
   },
 };
