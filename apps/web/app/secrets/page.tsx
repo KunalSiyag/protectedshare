@@ -143,6 +143,8 @@ export default function SecretsPage() {
 
             {/* Textarea */}
             <textarea
+              id="secret-content"
+              name="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder={PLACEHOLDER}

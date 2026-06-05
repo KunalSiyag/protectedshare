@@ -119,6 +119,8 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
           <CardContent>
             <form onSubmit={handleUnlock} className="space-y-4">
               <Input
+                id="decrypt-password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}

@@ -261,6 +261,8 @@ export default function WorkspacePage() {
               </div>
 
               <Input
+                id="notepad-username"
+                name="username"
                 type="text"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
@@ -269,6 +271,8 @@ export default function WorkspacePage() {
                 required
               />
               <Input
+                id="notepad-password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -494,8 +498,10 @@ export default function WorkspacePage() {
         {selectedNote ? (
           <>
             {/* Title bar */}
-            <div className="shrink-0 border-b border-zinc-100 dark:border-zinc-900 px-4 py-2">
+             <div className="shrink-0 border-b border-zinc-100 dark:border-zinc-900 px-4 py-2">
               <input
+                id="note-title"
+                name="note-title"
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
@@ -505,6 +511,8 @@ export default function WorkspacePage() {
             </div>
             {/* Body */}
             <textarea
+              id="note-body"
+              name="note-body"
               value={editBody}
               onChange={(e) => setEditBody(e.target.value)}
               placeholder="Start writing..."

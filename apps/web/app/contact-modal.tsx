@@ -117,6 +117,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                     <label htmlFor="inquiry-name" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Name *</label>
                     <Input
                       id="inquiry-name"
+                      name="name"
                       type="text"
                       required
                       value={name}
@@ -129,6 +130,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                     <label htmlFor="inquiry-email" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Email *</label>
                     <Input
                       id="inquiry-email"
+                      name="email"
                       type="email"
                       required
                       value={email}
@@ -143,6 +145,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                   <label htmlFor="inquiry-company" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Company (Optional)</label>
                   <Input
                     id="inquiry-company"
+                    name="company"
                     type="text"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
@@ -155,6 +158,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                   <label htmlFor="inquiry-message" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Requirements / Message *</label>
                   <Textarea
                     id="inquiry-message"
+                    name="message"
                     required
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}

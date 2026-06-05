@@ -85,6 +85,8 @@ export default function NotesPage() {
               <div className="space-y-2">
                 <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Note Content (Markdown supported)</label>
                 <Textarea
+                  id="note-content"
+                  name="content"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Type your secure note here..."
@@ -97,6 +99,8 @@ export default function NotesPage() {
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Password (Optional)</label>
                   <Input
+                    id="note-password"
+                    name="password"
                     type="text"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -108,6 +112,8 @@ export default function NotesPage() {
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Expiration</label>
                   <select
+                    id="note-expires"
+                    name="expiresIn"
                     value={expiresIn}
                     onChange={(e) => setExpiresIn(e.target.value)}
                     className="flex h-10 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 px-3 py-2 text-sm shadow-sm transition-all focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 text-zinc-900 dark:text-zinc-100 outline-none cursor-pointer"
@@ -123,6 +129,7 @@ export default function NotesPage() {
                 <input
                   type="checkbox"
                   id="burn"
+                  name="burn"
                   checked={isBurnAfterRead}
                   onChange={(e) => setIsBurnAfterRead(e.target.checked)}
                   className="mt-0.5 shrink-0 h-4 w-4 rounded border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-blue-600 dark:text-emerald-500 focus:ring-blue-500 dark:focus:ring-emerald-500 focus:ring-offset-white dark:focus:ring-offset-zinc-950 cursor-pointer"
