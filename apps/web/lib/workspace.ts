@@ -17,15 +17,17 @@ type GetWorkspaceResponse = {
   vault: EncryptedPayload;
 };
 
-function normalizeUsername(username: string): string {
-  return username.trim().toLowerCase();
-}
-
-export async function createWorkspace(username: string, password: string): Promise<void> {
-  const normalized = normalizeUsername(username);
+async function hashUsername(username: string): Promise<string> {
+  const normalized = username.trim().toLowerCase();
   if (!normalized) {
     throw new Error("Username is required.");
   }
+  // Zero-knowledge hash of username so it cannot be read on the DB
+  return derivePasswordProof(normalized);
+}
+
+export async function createWorkspace(username: string, password: string): Promise<void> {
+  const hashedUsername = await hashUsername(username);
 
   if (!password.trim()) {
     throw new Error("Password is required.");
@@ -36,7 +38,7 @@ export async function createWorkspace(username: string, password: string): Promi
   const passwordProof = await derivePasswordProof(password);
 
   const payload = {
-    username: normalized,
+    username: hashedUsername,
     passwordProof,
     verifier,
     vault
@@ -58,10 +60,7 @@ export async function createWorkspace(username: string, password: string): Promi
 }
 
 export async function openWorkspace(username: string, password: string): Promise<WorkspaceNote[]> {
-  const normalized = normalizeUsername(username);
-  if (!normalized) {
-    throw new Error("Username is required.");
-  }
+  const hashedUsername = await hashUsername(username);
 
   if (!password.trim()) {
     throw new Error("Password is required.");
@@ -69,7 +68,7 @@ export async function openWorkspace(username: string, password: string): Promise
 
   const passwordProof = await derivePasswordProof(password);
 
-  const response = await fetch(apiUrl(`/api/workspaces/${normalized}?proof=${encodeURIComponent(passwordProof)}`), {
+  const response = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}?proof=${encodeURIComponent(passwordProof)}`), {
     method: "GET",
     headers: { "Accept": "application/json" }
   });
@@ -111,7 +110,7 @@ export async function openWorkspace(username: string, password: string): Promise
 }
 
 export async function saveWorkspaceNotes(username: string, password: string, notes: WorkspaceNote[]): Promise<void> {
-  const normalized = normalizeUsername(username);
+  const hashedUsername = await hashUsername(username);
   const vault = await encrypt(JSON.stringify(notes), password);
   const passwordProof = await derivePasswordProof(password);
 
@@ -120,7 +119,7 @@ export async function saveWorkspaceNotes(username: string, password: string, not
     vault
   };
 
-  const response = await fetch(apiUrl(`/api/workspaces/${normalized}`), {
+  const response = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -133,14 +132,10 @@ export async function saveWorkspaceNotes(username: string, password: string, not
 }
 
 export async function deleteWorkspace(username: string, password: string): Promise<void> {
-  const normalized = normalizeUsername(username);
-  if (!normalized) {
-    throw new Error("Username is required.");
-  }
-
+  const hashedUsername = await hashUsername(username);
   const passwordProof = await derivePasswordProof(password);
 
-  const response = await fetch(apiUrl(`/api/workspaces/${normalized}?proof=${encodeURIComponent(passwordProof)}`), {
+  const response = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}?proof=${encodeURIComponent(passwordProof)}`), {
     method: "DELETE"
   });
 
