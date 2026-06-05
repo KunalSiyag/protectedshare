@@ -141,7 +141,7 @@ app.use(
   "/api/*",
   cors({
     origin: "*",
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"]
   })
 );
@@ -430,6 +430,236 @@ app.get("/api/secrets/:id", async (c) => {
     const resp = toSecretResponse(row);
     return c.json({ ...resp, remainingReads: remaining - 1 });
   }
+});
+
+type WorkspacePayload = {
+  encryptedBlob: string;
+  iv: string;
+  salt: string;
+};
+
+type CreateWorkspaceRequest = {
+  username: string;
+  passwordProof: string;
+  verifier: WorkspacePayload;
+  vault: WorkspacePayload;
+};
+
+type UpdateWorkspaceRequest = {
+  passwordProof: string;
+  vault: WorkspacePayload;
+};
+
+type WorkspaceRow = {
+  username: string;
+  password_proof: string;
+  verifier_blob: string;
+  verifier_iv: string;
+  verifier_salt: string;
+  vault_blob: string;
+  vault_iv: string;
+  vault_salt: string;
+  updated_at: number;
+  created_at: number;
+};
+
+// Workspace API routes
+app.post("/api/workspaces", async (c) => {
+  const body = await c.req.json().catch(() => null) as CreateWorkspaceRequest | null;
+  if (
+    !body ||
+    typeof body.username !== "string" ||
+    !body.username.trim() ||
+    typeof body.passwordProof !== "string" ||
+    !body.passwordProof.trim() ||
+    !body.verifier ||
+    !body.vault ||
+    typeof body.verifier.encryptedBlob !== "string" ||
+    typeof body.verifier.iv !== "string" ||
+    typeof body.verifier.salt !== "string" ||
+    typeof body.vault.encryptedBlob !== "string" ||
+    typeof body.vault.iv !== "string" ||
+    typeof body.vault.salt !== "string"
+  ) {
+    return jsonError("Invalid workspace registration payload.", "INVALID_PAYLOAD", 400);
+  }
+
+  const username = body.username.trim().toLowerCase();
+  const createdAt = nowEpochSeconds();
+
+  // Check if exists
+  const existing = await c.env.DB.prepare(
+    "SELECT username FROM workspaces WHERE username = ?"
+  )
+    .bind(username)
+    .first<{ username: string }>();
+
+  if (existing) {
+    return jsonError("A notepad with this username already exists.", "WORKSPACE_ALREADY_EXISTS", 409);
+  }
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO workspaces (
+        username,
+        password_proof,
+        verifier_blob,
+        verifier_iv,
+        verifier_salt,
+        vault_blob,
+        vault_iv,
+        vault_salt,
+        updated_at,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        username,
+        body.passwordProof,
+        body.verifier.encryptedBlob,
+        body.verifier.iv,
+        body.verifier.salt,
+        body.vault.encryptedBlob,
+        body.vault.iv,
+        body.vault.salt,
+        createdAt,
+        createdAt
+      )
+      .run();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Database error";
+    return jsonError(`Failed to create notepad: ${msg}`, "DATABASE_ERROR", 500);
+  }
+
+  return c.json({ success: true, username }, 201);
+});
+
+app.get("/api/workspaces/:username", async (c) => {
+  const username = c.req.param("username").trim().toLowerCase();
+  const proof = getPasswordProof(c.req.query("proof"));
+
+  if (!proof) {
+    return jsonError("A valid password proof is required.", "INVALID_PASSWORD_PROOF", 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT username, password_proof, verifier_blob, verifier_iv, verifier_salt, vault_blob, vault_iv, vault_salt
+     FROM workspaces
+     WHERE username = ?`
+  )
+    .bind(username)
+    .first<WorkspaceRow>();
+
+  if (!row) {
+    return jsonError("Notepad not found. Create one first.", "WORKSPACE_NOT_FOUND", 404);
+  }
+
+  if (row.password_proof !== proof) {
+    return jsonError("Invalid username or password.", "INVALID_CREDENTIALS", 401);
+  }
+
+  return c.json({
+    username: row.username,
+    verifier: {
+      encryptedBlob: row.verifier_blob,
+      iv: row.verifier_iv,
+      salt: row.verifier_salt
+    },
+    vault: {
+      encryptedBlob: row.vault_blob,
+      iv: row.vault_iv,
+      salt: row.vault_salt
+    }
+  });
+});
+
+app.put("/api/workspaces/:username", async (c) => {
+  const username = c.req.param("username").trim().toLowerCase();
+  const body = await c.req.json().catch(() => null) as UpdateWorkspaceRequest | null;
+
+  if (
+    !body ||
+    typeof body.passwordProof !== "string" ||
+    !body.passwordProof.trim() ||
+    !body.vault ||
+    typeof body.vault.encryptedBlob !== "string" ||
+    typeof body.vault.iv !== "string" ||
+    typeof body.vault.salt !== "string"
+  ) {
+    return jsonError("Invalid save payload.", "INVALID_PAYLOAD", 400);
+  }
+
+  // Verify proof
+  const row = await c.env.DB.prepare(
+    "SELECT password_proof FROM workspaces WHERE username = ?"
+  )
+    .bind(username)
+    .first<{ password_proof: string }>();
+
+  if (!row) {
+    return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
+  }
+
+  if (row.password_proof !== body.passwordProof) {
+    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
+  }
+
+  const updatedAt = nowEpochSeconds();
+
+  try {
+    await c.env.DB.prepare(
+      `UPDATE workspaces
+       SET vault_blob = ?, vault_iv = ?, vault_salt = ?, updated_at = ?
+       WHERE username = ?`
+    )
+      .bind(
+        body.vault.encryptedBlob,
+        body.vault.iv,
+        body.vault.salt,
+        updatedAt,
+        username
+      )
+      .run();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Database error";
+    return jsonError(`Failed to save notes: ${msg}`, "DATABASE_ERROR", 500);
+  }
+
+  return c.json({ success: true });
+});
+
+app.delete("/api/workspaces/:username", async (c) => {
+  const username = c.req.param("username").trim().toLowerCase();
+  const proof = getPasswordProof(c.req.query("proof"));
+
+  if (!proof) {
+    return jsonError("A valid password proof is required.", "INVALID_PASSWORD_PROOF", 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    "SELECT password_proof FROM workspaces WHERE username = ?"
+  )
+    .bind(username)
+    .first<{ password_proof: string }>();
+
+  if (!row) {
+    return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
+  }
+
+  if (row.password_proof !== proof) {
+    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
+  }
+
+  try {
+    await c.env.DB.prepare("DELETE FROM workspaces WHERE username = ?")
+      .bind(username)
+      .run();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Database error";
+    return jsonError(`Failed to delete notepad: ${msg}`, "DATABASE_ERROR", 500);
+  }
+
+  return c.json({ success: true });
 });
 
 app.post("/api/inquiries", async (c) => {

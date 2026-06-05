@@ -1,6 +1,6 @@
-import { decrypt, encrypt, type EncryptedPayload } from "@protectedshare/crypto";
+import { decrypt, encrypt, derivePasswordProof, type EncryptedPayload } from "@protectedshare/crypto";
+import { apiUrl } from "./api";
 
-const WORKSPACE_PREFIX = "protectedshare.workspace.v1";
 const WORKSPACE_VERIFIER = "workspace-auth-verifier";
 
 export type WorkspaceNote = {
@@ -11,7 +11,7 @@ export type WorkspaceNote = {
   updatedAt: number;
 };
 
-type WorkspaceRecord = {
+type GetWorkspaceResponse = {
   username: string;
   verifier: EncryptedPayload;
   vault: EncryptedPayload;
@@ -19,46 +19,6 @@ type WorkspaceRecord = {
 
 function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
-}
-
-function storageKey(username: string): string {
-  return `${WORKSPACE_PREFIX}:${normalizeUsername(username)}`;
-}
-
-function parseRecord(value: string | null): WorkspaceRecord | null {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = JSON.parse(value) as Partial<WorkspaceRecord>;
-  if (
-    !parsed ||
-    typeof parsed.username !== "string" ||
-    !parsed.verifier ||
-    !parsed.vault ||
-    typeof parsed.verifier.encryptedBlob !== "string" ||
-    typeof parsed.verifier.iv !== "string" ||
-    typeof parsed.verifier.salt !== "string" ||
-    typeof parsed.vault.encryptedBlob !== "string" ||
-    typeof parsed.vault.iv !== "string" ||
-    typeof parsed.vault.salt !== "string"
-  ) {
-    return null;
-  }
-
-  return {
-    username: parsed.username,
-    verifier: parsed.verifier,
-    vault: parsed.vault
-  };
-}
-
-function requireStorage(): Storage {
-  if (typeof window === "undefined" || !window.localStorage) {
-    throw new Error("Local storage is unavailable.");
-  }
-
-  return window.localStorage;
 }
 
 export async function createWorkspace(username: string, password: string): Promise<void> {
@@ -71,20 +31,30 @@ export async function createWorkspace(username: string, password: string): Promi
     throw new Error("Password is required.");
   }
 
-  const storage = requireStorage();
-  if (storage.getItem(storageKey(normalized))) {
-    throw new Error("A notepad with this username already exists. Please sign in instead.");
-  }
-
   const verifier = await encrypt(WORKSPACE_VERIFIER, password);
   const vault = await encrypt(JSON.stringify([]), password);
-  const record: WorkspaceRecord = {
+  const passwordProof = await derivePasswordProof(password);
+
+  const payload = {
     username: normalized,
+    passwordProof,
     verifier,
     vault
   };
 
-  storage.setItem(storageKey(normalized), JSON.stringify(record));
+  const response = await fetch(apiUrl("/api/workspaces"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
+    if (response.status === 409) {
+      throw new Error("A notepad with this username already exists. Please sign in instead.");
+    }
+    throw new Error(errorPayload?.error ?? "Failed to create notepad.");
+  }
 }
 
 export async function openWorkspace(username: string, password: string): Promise<WorkspaceNote[]> {
@@ -97,17 +67,28 @@ export async function openWorkspace(username: string, password: string): Promise
     throw new Error("Password is required.");
   }
 
-  const storage = requireStorage();
-  const record = parseRecord(storage.getItem(storageKey(normalized)));
-  if (!record) {
-    throw new Error("Notepad not found. Create one first.");
+  const passwordProof = await derivePasswordProof(password);
+
+  const response = await fetch(apiUrl(`/api/workspaces/${normalized}?proof=${encodeURIComponent(passwordProof)}`), {
+    method: "GET",
+    headers: { "Accept": "application/json" }
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
+    if (response.status === 401 || response.status === 404) {
+      throw new Error("Invalid username or password.");
+    }
+    throw new Error(errorPayload?.error ?? "Failed to open notepad.");
   }
 
+  const data = await response.json() as GetWorkspaceResponse;
+
   const verifier = await decrypt(
-    record.verifier.encryptedBlob,
+    data.verifier.encryptedBlob,
     password,
-    record.verifier.iv,
-    record.verifier.salt
+    data.verifier.iv,
+    data.verifier.salt
   );
 
   if (verifier !== WORKSPACE_VERIFIER) {
@@ -115,10 +96,10 @@ export async function openWorkspace(username: string, password: string): Promise
   }
 
   const decryptedVault = await decrypt(
-    record.vault.encryptedBlob,
+    data.vault.encryptedBlob,
     password,
-    record.vault.iv,
-    record.vault.salt
+    data.vault.iv,
+    data.vault.salt
   );
 
   const notes = JSON.parse(decryptedVault) as WorkspaceNote[];
@@ -131,19 +112,24 @@ export async function openWorkspace(username: string, password: string): Promise
 
 export async function saveWorkspaceNotes(username: string, password: string, notes: WorkspaceNote[]): Promise<void> {
   const normalized = normalizeUsername(username);
-  const storage = requireStorage();
-  const record = parseRecord(storage.getItem(storageKey(normalized)));
-  if (!record) {
-    throw new Error("Notepad not found.");
-  }
-
   const vault = await encrypt(JSON.stringify(notes), password);
-  const updatedRecord: WorkspaceRecord = {
-    ...record,
+  const passwordProof = await derivePasswordProof(password);
+
+  const payload = {
+    passwordProof,
     vault
   };
 
-  storage.setItem(storageKey(normalized), JSON.stringify(updatedRecord));
+  const response = await fetch(apiUrl(`/api/workspaces/${normalized}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(errorPayload?.error ?? "Failed to save notepad notes.");
+  }
 }
 
 export async function deleteWorkspace(username: string, password: string): Promise<void> {
@@ -152,23 +138,14 @@ export async function deleteWorkspace(username: string, password: string): Promi
     throw new Error("Username is required.");
   }
 
-  const storage = requireStorage();
-  const record = parseRecord(storage.getItem(storageKey(normalized)));
-  if (!record) {
-    throw new Error("Notepad not found.");
+  const passwordProof = await derivePasswordProof(password);
+
+  const response = await fetch(apiUrl(`/api/workspaces/${normalized}?proof=${encodeURIComponent(passwordProof)}`), {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(errorPayload?.error ?? "Failed to delete notepad.");
   }
-
-  // Verify password before deletion
-  const verifier = await decrypt(
-    record.verifier.encryptedBlob,
-    password,
-    record.verifier.iv,
-    record.verifier.salt
-  );
-
-  if (verifier !== WORKSPACE_VERIFIER) {
-    throw new Error("Invalid password. Cannot delete notebook.");
-  }
-
-  storage.removeItem(storageKey(normalized));
 }
