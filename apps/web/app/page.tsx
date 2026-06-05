@@ -140,7 +140,7 @@ export default function HomePage() {
         </h1>
 
         {/* Subtitle / Natural Paragraph */}
-        <p className="mt-6 text-sm md:text-base text-zinc-500 max-w-2xl text-center leading-relaxed">
+        <p className="mt-6 text-sm md:text-base text-zinc-400 max-w-2xl text-center leading-relaxed">
           Your documents and keys are encrypted in your browser before being stored for a limited period of time and read operations. Unencrypted data never leaves your browser. ProtectedShare is a free and completely anonymous zero-knowledge sharing utility.
         </p>
 
@@ -254,7 +254,7 @@ export default function HomePage() {
             </tbody>
           </table>
         </div>
-        <p className="mt-3.5 text-[10px] text-zinc-500 text-center leading-relaxed">
+        <p className="mt-3.5 text-[10px] text-zinc-450 text-center leading-relaxed">
           * Note: Cloudflare&apos;s global serverless network powers our backend databases, ensuring high availability, edge isolation, and encrypted-at-rest protection.
         </p>
       </div>
@@ -317,7 +317,7 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
       <div className="p-2.5 rounded bg-zinc-900 text-zinc-300 mb-4">
         {icon}
       </div>
-      <h3 className="text-sm font-bold text-white mb-2">{title}</h3>
+      <div className="text-sm font-bold text-white mb-2">{title}</div>
       <p className="text-xs text-zinc-400 leading-relaxed">{description}</p>
     </div>
   );
