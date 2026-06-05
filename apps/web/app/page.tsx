@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Free Secure Notes & EnvShare — Encrypted, No Signup, Self-Destructing",
+  title: "ProtectedText Alternative | Free Online Notepad & EnvShare — No Signup",
   description:
-    "Share passwords, API keys, .env files and sensitive data securely with AES-256 encryption. Self-destructing messages, burn-after-read, and an encrypted notepad. No signup required. Free forever. The best ProtectedText and Privnote alternative.",
+    "The modern ProtectedText alternative. Free encrypted online notepad, .env file sharing (EnvShare), and self-destructing secret links — all with AES-256 zero-knowledge encryption. No signup, no tracking.",
   alternates: {
     canonical: "https://protectedshare.me",
   },
   openGraph: {
-    title: "Free Secure Notes & EnvShare — No Signup Required",
+    title: "ProtectedText Alternative | Free Online Notepad & EnvShare",
     description:
-      "AES-256 encrypted notes, .env sharing, and self-destructing secret links. No signup. No tracking. Free forever.",
+      "Free encrypted notes, online notepad, and .env sharing with AES-256 encryption. No signup. No tracking. Self-destructing links.",
     url: "https://protectedshare.me",
   },
 };
@@ -116,19 +116,17 @@ export default function HomePage() {
 
       {/* Hero */}
       <div className="max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-emerald-500/5 border border-blue-200/60 dark:border-emerald-500/20 text-xs font-semibold text-blue-700 dark:text-emerald-400 mb-6">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-emerald-500 animate-pulse" />
-          Free · No Signup · AES-256 · Zero-Knowledge
-        </div>
-
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-[1.15]">
-          Free secure notes &amp;
-          <span className="text-blue-600 dark:text-emerald-400"> EnvShare</span>
+          Protected text,{" "}
+          <span className="text-blue-600 dark:text-emerald-400">online notepad</span>
+          {" "}&amp; EnvShare
         </h1>
 
         <p className="mt-5 text-base md:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-xl mx-auto">
-          Encrypted notes, .env file sharing, and self-destructing secret links.
-          No signup, no tracking, no compromise. Your plaintext never leaves your browser.
+          A <strong className="text-zinc-800 dark:text-zinc-200">free</strong> and <strong className="text-zinc-800 dark:text-zinc-200">encrypted</strong> alternative to ProtectedText — with
+          an <strong className="text-zinc-800 dark:text-zinc-200">online notepad</strong>, .env file sharing, and self-destructing secret links.
+          Secured with <strong className="text-zinc-800 dark:text-zinc-200">AES-256-GCM zero-knowledge encryption</strong> that
+          runs entirely in your browser. <strong className="text-zinc-800 dark:text-zinc-200">No signup</strong>, no tracking, no compromise.
         </p>
 
         {/* CTA Buttons */}
@@ -274,9 +272,16 @@ function Step({ number, title, description }: { number: string; title: string; d
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   return (
-    <div className="border border-zinc-200/60 dark:border-zinc-800/60 rounded-lg p-4 bg-white/40 dark:bg-zinc-900/10">
-      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">{question}</h3>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{answer}</p>
-    </div>
+    <details className="group border border-zinc-200/60 dark:border-zinc-800/60 rounded-lg bg-white/40 dark:bg-zinc-900/10 overflow-hidden">
+      <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-zinc-100 select-none hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+        {question}
+        <svg className="w-4 h-4 shrink-0 text-zinc-400 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <div className="px-4 pb-4 pt-1 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+        {answer}
+      </div>
+    </details>
   );
 }

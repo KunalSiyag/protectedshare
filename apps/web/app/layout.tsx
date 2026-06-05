@@ -4,15 +4,18 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Free Secure Notes & EnvShare — No Signup, Zero-Knowledge Encryption",
+    default: "ProtectedText Alternative | Free Online Notepad & EnvShare — No Signup",
     template: "%s | ProtectedShare",
   },
-  description: "Free encrypted notes, .env file sharing, and self-destructing secret links — no signup required. AES-256-GCM client-side encryption means your plaintext never touches our servers. The modern ProtectedText and EnvShare alternative.",
+  description: "The modern ProtectedText alternative. Free encrypted online notepad, .env file sharing (EnvShare), and self-destructing secret links — all with AES-256 zero-knowledge encryption. No signup, no tracking, no compromise.",
   keywords: [
     "free secure notes",
     "envshare",
     "no signup",
     "protectedtext alternative",
+    "protected text",
+    "online notepad",
+    "free notepad online",
     "share env file",
     "encrypted notes free",
     "zero-knowledge",
