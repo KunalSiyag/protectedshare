@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "ProtectedShare — Free Zero-Knowledge Encrypted Notes & One-Time Secret Sharing",
+  title: "Free Secure Notes & EnvShare — Encrypted, No Signup, Self-Destructing",
   description:
-    "Share passwords, API keys, and sensitive data securely with military-grade AES-256 encryption. Self-destructing messages, burn-after-read, and an offline-first encrypted notepad. No signup required. Free and open source.",
+    "Share passwords, API keys, .env files and sensitive data securely with AES-256 encryption. Self-destructing messages, burn-after-read, and an encrypted notepad. No signup required. Free forever. The best ProtectedText and Privnote alternative.",
   alternates: {
     canonical: "https://protectedshare.me",
   },
   openGraph: {
-    title: "ProtectedShare — Zero-Knowledge Encrypted Sharing",
+    title: "Free Secure Notes & EnvShare — No Signup Required",
     description:
-      "Military-grade AES-256 encryption for passwords, API keys, and secrets. Self-destructing links. No signup. Free.",
+      "AES-256 encrypted notes, .env sharing, and self-destructing secret links. No signup. No tracking. Free forever.",
     url: "https://protectedshare.me",
   },
 };
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="flex flex-col items-center px-6 py-12 md:py-20 text-center transition-colors duration-300">
-      {/* JSON-LD Structured Data for Google */}
+      {/* JSON-LD: WebApplication Schema */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -29,7 +29,7 @@ export default function HomePage() {
             name: "ProtectedShare",
             url: "https://protectedshare.me",
             description:
-              "Zero-knowledge encrypted note sharing and one-time secret links with AES-256-GCM encryption. Self-destructing messages with burn-after-read.",
+              "Free zero-knowledge encrypted note sharing, EnvShare (.env file sharing), and self-destructing secret links. No signup required.",
             applicationCategory: "SecurityApplication",
             operatingSystem: "Any",
             offers: {
@@ -39,11 +39,76 @@ export default function HomePage() {
             },
             featureList: [
               "AES-256-GCM client-side encryption",
+              "Share .env files securely (EnvShare)",
               "Self-destructing one-time secrets",
               "Burn-after-read notes",
+              "Configurable read limits (1-10 reads)",
               "Offline-first encrypted notepad",
               "Zero signup required",
               "No tracking or cookies",
+              "Free ProtectedText alternative",
+              "Free Privnote alternative",
+            ],
+          }),
+        }}
+      />
+
+      {/* JSON-LD: FAQPage Schema — triggers Google Rich Snippets */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: [
+              {
+                "@type": "Question",
+                name: "Is ProtectedShare really free?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Yes, ProtectedShare is 100% free with no signup, no accounts, and no usage limits. You can create unlimited encrypted notes, share .env files, and generate self-destructing secret links at no cost.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "How is ProtectedShare different from EnvShare?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "ProtectedShare includes all EnvShare features (AES-256 encrypted .env sharing with configurable TTL and read limits) plus additional tools: encrypted notes with separate password delivery, an offline-first encrypted notepad, dark/light mode, and a mobile-optimized interface. EnvShare is no longer actively maintained, while ProtectedShare is actively developed.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Can the server read my secrets?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "No. ProtectedShare uses zero-knowledge architecture. Your data is encrypted with AES-256-GCM entirely in your browser before being sent to the server. The encryption key never leaves your device, making it mathematically impossible for anyone — including our servers — to decrypt your data.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "How do I share API keys and .env files securely?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Go to the EnvShare page, paste your API keys or .env file content, choose an expiration time (1 hour, 24 hours, or 7 days) and read limit (1 to 10 reads), then click 'Encrypt & Generate Link'. The link contains the decryption key in the URL hash fragment, which is never sent to the server.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Is ProtectedShare a good alternative to ProtectedText?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Yes. ProtectedShare offers stronger encryption (AES-256-GCM vs. AES-256-CBC), a modern mobile-friendly interface, self-destructing notes, .env file sharing, and an offline-first encrypted notepad — all without requiring signup or accounts.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "What happens after someone opens my secret link?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "It depends on your read limit setting. If set to 1 read (burn-after-read), the encrypted data is permanently deleted from the database immediately after the first view. If set to multiple reads (3, 5, or 10), the counter decrements with each view and the data is deleted when it reaches zero.",
+                },
+              },
             ],
           }),
         }}
@@ -53,17 +118,17 @@ export default function HomePage() {
       <div className="max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-emerald-500/5 border border-blue-200/60 dark:border-emerald-500/20 text-xs font-semibold text-blue-700 dark:text-emerald-400 mb-6">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-emerald-500 animate-pulse" />
-          AES-256 · Zero-Knowledge · No Signup
+          Free · No Signup · AES-256 · Zero-Knowledge
         </div>
 
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-[1.15]">
-          Share secrets that
-          <span className="text-blue-600 dark:text-emerald-400"> disappear</span>
+          Free secure notes &amp;
+          <span className="text-blue-600 dark:text-emerald-400"> EnvShare</span>
         </h1>
 
         <p className="mt-5 text-base md:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-xl mx-auto">
-          End-to-end encrypted notes and self-destructing links.
-          Your plaintext never leaves your browser. No accounts, no tracking, no compromise.
+          Encrypted notes, .env file sharing, and self-destructing secret links.
+          No signup, no tracking, no compromise. Your plaintext never leaves your browser.
         </p>
 
         {/* CTA Buttons */}
@@ -75,7 +140,7 @@ export default function HomePage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            Create Encrypted Note
+            Create Free Encrypted Note
           </Link>
           <Link
             href="/secrets"
@@ -108,7 +173,7 @@ export default function HomePage() {
             </svg>
           }
           title="Burn After Read"
-          description="Secrets self-destruct on first view. Permanently deleted from the database — no traces."
+          description="Secrets self-destruct after 1, 3, 5, or 10 reads. Permanently deleted — zero traces left behind."
         />
         <FeatureCard
           icon={
@@ -116,8 +181,8 @@ export default function HomePage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
             </svg>
           }
-          title="Zero Tracking"
-          description="No cookies, no analytics beacons, no signup. Your session is completely anonymous."
+          title="Free · No Signup"
+          description="No cookies, no analytics, no accounts. Completely free with zero tracking. Use instantly."
         />
       </div>
 
@@ -125,10 +190,41 @@ export default function HomePage() {
       <div className="mt-16 w-full max-w-xl">
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6">How it works</h2>
         <div className="space-y-4 text-left">
-          <Step number="1" title="Write your secret" description="Type your password, API key, or private note into the editor." />
+          <Step number="1" title="Write your secret" description="Paste your password, API key, .env file, or private note into the editor." />
           <Step number="2" title="Encrypted in your browser" description="AES-256-GCM encryption with PBKDF2 key derivation (210K iterations). Plaintext never leaves your device." />
           <Step number="3" title="Share the link" description="Get a unique link. For notes, share the password separately via a different channel for maximum security." />
           <Step number="4" title="Auto-destruct" description="Secrets are permanently deleted after being viewed. Notes expire automatically based on your chosen duration." />
+        </div>
+      </div>
+
+      {/* FAQ Section — visible to users AND parsed by Google for rich snippets */}
+      <div className="mt-16 w-full max-w-xl text-left">
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6">Frequently Asked Questions</h2>
+        <div className="space-y-5">
+          <FaqItem
+            question="Is ProtectedShare really free?"
+            answer="Yes, 100% free with no signup, no accounts, and no usage limits. Create unlimited encrypted notes, share .env files, and generate self-destructing secret links at zero cost."
+          />
+          <FaqItem
+            question="How is this different from EnvShare?"
+            answer="ProtectedShare includes all EnvShare features (AES-256 encrypted .env sharing with configurable TTL and read limits) plus: encrypted notes with separate password delivery, an offline-first encrypted notepad, dark/light mode, and a mobile-optimized interface. EnvShare is no longer actively maintained."
+          />
+          <FaqItem
+            question="Can the server read my secrets?"
+            answer="No. Your data is encrypted with AES-256-GCM entirely in your browser before being sent to the server. The encryption key never leaves your device, making it cryptographically impossible for anyone to decrypt your data."
+          />
+          <FaqItem
+            question="Is this a good ProtectedText alternative?"
+            answer="Yes. ProtectedShare offers stronger encryption (AES-256-GCM), a modern mobile-friendly interface, self-destructing notes, .env file sharing, and an encrypted notepad — all without accounts."
+          />
+          <FaqItem
+            question="How do I share API keys securely?"
+            answer="Go to the EnvShare page, paste your API keys or .env file, choose an expiration time and read limit, then click 'Encrypt & Generate Link'. The decryption key stays in the URL hash fragment and is never sent to the server."
+          />
+          <FaqItem
+            question="What happens after someone opens my link?"
+            answer="It depends on your read limit. If set to 1 read (burn-after-read), the data is permanently deleted after the first view. With multiple reads (3, 5, or 10), the counter decrements and deletes at zero."
+          />
         </div>
       </div>
 
@@ -172,6 +268,15 @@ function Step({ number, title, description }: { number: string; title: string; d
         <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{title}</h3>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{description}</p>
       </div>
+    </div>
+  );
+}
+
+function FaqItem({ question, answer }: { question: string; answer: string }) {
+  return (
+    <div className="border border-zinc-200/60 dark:border-zinc-800/60 rounded-lg p-4 bg-white/40 dark:bg-zinc-900/10">
+      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">{question}</h3>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{answer}</p>
     </div>
   );
 }
