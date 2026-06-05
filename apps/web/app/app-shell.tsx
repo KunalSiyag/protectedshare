@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import ThemeToggle from "./theme-toggle";
 import MobileNav from "./mobile-nav";
 import WindowHeader from "./window-header";
@@ -9,6 +10,8 @@ import ContactModal from "./contact-modal";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [contactOpen, setContactOpen] = useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
 
   const triggerContact = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -18,12 +21,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* ═══ Sticky Header / Navbar ═══ */}
-      <header className="border-b border-zinc-200 dark:border-zinc-800/60 bg-white/80 dark:bg-black/50 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300">
+      <header className={`border-b border-zinc-200 dark:border-zinc-800/60 bg-white/80 dark:bg-black/50 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300 ${isHome ? "bg-zinc-950/80 dark:bg-black/50 border-zinc-900/60" : ""}`}>
         <div className="mx-auto max-w-5xl px-4 sm:px-6 h-14 flex items-center justify-between">
           {/* Logo */}
           <Link
             href="/"
-            className="font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2 shrink-0"
+            className={`font-semibold tracking-tight flex items-center gap-2 shrink-0 ${isHome ? "text-white" : "text-zinc-900 dark:text-zinc-100"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-blue-600 dark:text-emerald-500">
               <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
@@ -33,14 +36,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <nav className="flex items-center gap-5 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              <Link href="/notes" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+            <nav className={`flex items-center gap-5 text-sm font-medium ${isHome ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+              <Link href="/notes" className={`hover:text-blue-600 dark:hover:text-zinc-100 transition-colors ${isHome ? "hover:text-white" : ""}`}>
                 Secure Notes
               </Link>
-              <Link href="/secrets" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+              <Link href="/secrets" className={`hover:text-blue-600 dark:hover:text-zinc-100 transition-colors ${isHome ? "hover:text-white" : ""}`}>
                 EnvShare
               </Link>
-              <Link href="/notepad" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+              <Link href="/notepad" className={`hover:text-blue-600 dark:hover:text-zinc-100 transition-colors ${isHome ? "hover:text-white" : ""}`}>
                 Notepad
               </Link>
             </nav>
@@ -56,16 +59,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* ═══ Main Content Area ═══ */}
-      <div className="flex-1 w-full max-w-5xl mx-auto p-3 sm:p-4 md:p-8 flex flex-col animate-in fade-in duration-300">
-        <div className="flex-1 bg-white dark:bg-zinc-950/40 border border-zinc-300 dark:border-zinc-800/60 rounded-xl shadow-lg dark:shadow-2xl overflow-hidden flex flex-col backdrop-blur-sm relative transition-colors duration-300">
-          {/* Notepad Window Header */}
-          <WindowHeader />
-          {/* Dynamic Page Content */}
-          <div className="flex-1 overflow-x-hidden text-zinc-800 dark:text-zinc-300">
+      {isHome ? (
+        <div className="flex-1 w-full bg-zinc-950 text-zinc-100 flex flex-col animate-in fade-in duration-300">
+          <div className="flex-1 w-full max-w-5xl mx-auto p-0 flex flex-col">
             {children}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 w-full max-w-5xl mx-auto p-3 sm:p-4 md:p-8 flex flex-col animate-in fade-in duration-300">
+          <div className="flex-1 bg-white dark:bg-zinc-950/40 border border-zinc-300 dark:border-zinc-800/60 rounded-xl shadow-lg dark:shadow-2xl overflow-hidden flex flex-col backdrop-blur-sm relative transition-colors duration-300">
+            {/* Notepad Window Header */}
+            <WindowHeader />
+            {/* Dynamic Page Content */}
+            <div className="flex-1 overflow-x-hidden text-zinc-800 dark:text-zinc-300">
+              {children}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ Persistent Global Footer ═══ */}
       <footer className="border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-[#09090b] pt-12 md:pt-16 pb-16 md:pb-24 mt-auto transition-colors duration-300">
