@@ -4,14 +4,26 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
-import { Plus, LogOut, Save, Trash2, Copy, Download, Link2, Check, AlertTriangle, X, FileText } from "lucide-react";
-import { createWorkspace, openWorkspace, saveWorkspaceNotes, deleteWorkspace, type WorkspaceNote } from "../../lib/workspace";
+import { Plus, LogOut, Save, Trash2, Copy, Download, Link2, Check, AlertTriangle, X, FileText, Cloud } from "lucide-react";
+import {
+  createWorkspace,
+  openWorkspace,
+  saveWorkspaceNotes,
+  deleteWorkspace,
+  createWorkspaceLocal,
+  openWorkspaceLocal,
+  saveWorkspaceNotesLocal,
+  deleteWorkspaceLocal,
+  syncLocalWorkspaceToCloud,
+  type WorkspaceNote
+} from "../../lib/workspace";
 import { apiUrl } from "../../lib/api";
 
 type SessionState = {
   username: string;
   password: string;
   notes: WorkspaceNote[];
+  storageMode: "local" | "cloud";
 };
 
 type AuthMode = "signin" | "create";
@@ -26,6 +38,7 @@ function createNoteId(): string {
 
 export default function WorkspacePage() {
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
+  const [storageMode, setStorageMode] = useState<"local" | "cloud">("local");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<SessionState | null>(null);
@@ -61,15 +74,24 @@ export default function WorkspacePage() {
     setError(null);
 
     try {
-      if (authMode === "create") {
-        await createWorkspace(username, password);
+      let notes: WorkspaceNote[] = [];
+      if (storageMode === "local") {
+        if (authMode === "create") {
+          await createWorkspaceLocal(username, password);
+        }
+        notes = await openWorkspaceLocal(username, password);
+      } else {
+        if (authMode === "create") {
+          await createWorkspace(username, password);
+        }
+        notes = await openWorkspace(username, password);
       }
 
-      const notes = await openWorkspace(username, password);
       setSession({
         username: username.trim().toLowerCase(),
         password,
-        notes
+        notes,
+        storageMode
       });
       setSelectedNoteId(notes[0]?.id ?? null);
     } catch (caughtError: unknown) {
@@ -81,7 +103,11 @@ export default function WorkspacePage() {
   const persistNotes = useCallback(async (nextNotes: WorkspaceNote[]) => {
     if (!session) return;
 
-    await saveWorkspaceNotes(session.username, session.password, nextNotes);
+    if (session.storageMode === "local") {
+      await saveWorkspaceNotesLocal(session.username, session.password, nextNotes);
+    } else {
+      await saveWorkspaceNotes(session.username, session.password, nextNotes);
+    }
     setSession({ ...session, notes: nextNotes });
   }, [session]);
 
@@ -206,7 +232,11 @@ export default function WorkspacePage() {
   const handleDeleteNotebook = async () => {
     if (!session) return;
     try {
-      await deleteWorkspace(session.username, session.password);
+      if (session.storageMode === "local") {
+        await deleteWorkspaceLocal(session.username, session.password);
+      } else {
+        await deleteWorkspace(session.username, session.password);
+      }
       setSession(null);
       setSelectedNoteId(null);
       setPassword("");
@@ -215,6 +245,25 @@ export default function WorkspacePage() {
       const message = caughtError instanceof Error ? caughtError.message : "Failed to delete notebook.";
       setError(message);
       setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleSyncToCloud = async () => {
+    if (!session) return;
+    setStatus("Syncing...");
+    try {
+      await syncLocalWorkspaceToCloud(session.username, session.password, session.notes);
+      setSession({
+        ...session,
+        storageMode: "cloud"
+      });
+      setStatus("Synced to Cloud");
+      setTimeout(() => setStatus(null), 2000);
+    } catch (caughtError: unknown) {
+      const message = caughtError instanceof Error ? caughtError.message : "Failed to sync to cloud.";
+      setError(message);
+      setStatus(null);
+      setTimeout(() => setError(null), 4000);
     }
   };
 
@@ -258,6 +307,39 @@ export default function WorkspacePage() {
                 >
                   Create
                 </Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Storage Target</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                      storageMode === "local"
+                        ? "bg-zinc-150 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-150 border-zinc-350 dark:border-zinc-700 shadow-sm"
+                        : "border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-white/40 dark:bg-transparent"
+                    }`}
+                    onClick={() => setStorageMode("local")}
+                  >
+                    💻 Local Browser
+                  </button>
+                  <button
+                    type="button"
+                    className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                      storageMode === "cloud"
+                        ? "bg-blue-600 dark:bg-emerald-500 text-white dark:text-zinc-900 border-blue-600 dark:border-emerald-500 shadow-sm"
+                        : "border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-white/40 dark:bg-transparent"
+                    }`}
+                    onClick={() => setStorageMode("cloud")}
+                  >
+                    ☁️ Cloud Sync
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-550 leading-relaxed font-mono">
+                  {storageMode === "local"
+                    ? "* Offline local storage. Encrypted directly inside your browser."
+                    : "* Edge-synced. Access securely on mobile or laptop via username."}
+                </p>
               </div>
 
               <Input
@@ -347,7 +429,23 @@ export default function WorkspacePage() {
           ) : null}
 
           {/* Right side: user info + actions */}
-          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {session.storageMode === "local" ? (
+              <button
+                type="button"
+                onClick={handleSyncToCloud}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 hover:bg-blue-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white dark:text-zinc-950 transition-colors shadow-md"
+                title="Sync offline local notes to serverless Cloud"
+              >
+                <Cloud className="h-3 w-3 shrink-0" />
+                <span>Go Online</span>
+              </button>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 bg-zinc-200/50 dark:bg-zinc-800/40 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800/80">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-emerald-500 animate-pulse" />
+                <span>cloud</span>
+              </span>
+            )}
             <span className="text-xs text-zinc-500 dark:text-zinc-500 font-mono hidden sm:inline">
               @{session.username}
             </span>
