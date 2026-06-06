@@ -299,6 +299,59 @@ export async function deleteWorkspaceLocal(username: string, password: string): 
   storage.removeItem(storageKey(normalized));
 }
 
+export async function renameWorkspaceLocal(
+  oldUsername: string,
+  newUsername: string,
+  password: string
+): Promise<void> {
+  const oldNormalized = normalizeUsername(oldUsername);
+  const newNormalized = normalizeUsername(newUsername);
+
+  if (!newNormalized) {
+    throw new Error("New username is required.");
+  }
+  if (oldNormalized === newNormalized) return;
+
+  const storage = requireStorage();
+  const record = parseRecord(storage.getItem(storageKey(oldNormalized)));
+  if (!record) {
+    throw new Error("Local notepad not found.");
+  }
+
+  // Verify password before allowing rename
+  const verifier = await decrypt(
+    record.verifier.encryptedBlob,
+    password,
+    record.verifier.iv,
+    record.verifier.salt
+  );
+  if (verifier !== WORKSPACE_VERIFIER) {
+    throw new Error("Invalid password.");
+  }
+
+  // Block if new username already exists locally
+  if (storage.getItem(storageKey(newNormalized))) {
+    throw new Error("A local notepad with this username already exists.");
+  }
+
+  // Atomic rename: write new key, delete old key
+  const updatedRecord: WorkspaceRecord = { ...record, username: newNormalized };
+  storage.setItem(storageKey(newNormalized), JSON.stringify(updatedRecord));
+  storage.removeItem(storageKey(oldNormalized));
+}
+
+/**
+ * Custom error thrown when a cloud sync fails because the username
+ * is already taken by a different account (different password).
+ * The UI catches this to show the rename prompt.
+ */
+export class UsernameConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UsernameConflictError";
+  }
+}
+
 export async function syncLocalWorkspaceToCloud(username: string, password: string, notes: WorkspaceNote[]): Promise<void> {
   try {
     // 1. Try to create the workspace online (this checks if username is unique)
@@ -316,7 +369,7 @@ export async function syncLocalWorkspaceToCloud(username: string, password: stri
         await saveWorkspaceNotes(username, password, notes);
       } catch {
         // If opening fails, it means the username belongs to someone else (wrong password).
-        throw new Error("This username is already taken on the cloud by another account. Please choose a different username.");
+        throw new UsernameConflictError("This username is already taken on the cloud. Choose a different username to upload your notes.");
       }
     } else {
       // Rethrow other errors (network issues, database errors, etc.)

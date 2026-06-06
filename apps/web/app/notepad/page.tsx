@@ -15,6 +15,8 @@ import {
   saveWorkspaceNotesLocal,
   deleteWorkspaceLocal,
   syncLocalWorkspaceToCloud,
+  renameWorkspaceLocal,
+  UsernameConflictError,
   type WorkspaceNote
 } from "../../lib/workspace";
 import { apiUrl } from "../../lib/api";
@@ -45,6 +47,10 @@ export default function WorkspacePage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
 
   // Editor state lifted up so toolbar can access it
   const [editTitle, setEditTitle] = useState("");
@@ -260,10 +266,51 @@ export default function WorkspacePage() {
       setStatus("Synced to Cloud");
       setTimeout(() => setStatus(null), 2000);
     } catch (caughtError: unknown) {
-      const message = caughtError instanceof Error ? caughtError.message : "Failed to sync to cloud.";
-      setError(message);
       setStatus(null);
-      setTimeout(() => setError(null), 4000);
+      if (caughtError instanceof UsernameConflictError) {
+        setNewUsername(session.username);
+        setShowRenameModal(true);
+      } else {
+        const message = caughtError instanceof Error ? caughtError.message : "Failed to sync to cloud.";
+        setError(message);
+        setTimeout(() => setError(null), 4000);
+      }
+    }
+  };
+
+  const handleRenameAndSync = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) return;
+    setRenameError(null);
+    setIsRenaming(true);
+
+    try {
+      const cleanNewUsername = newUsername.trim().toLowerCase();
+      if (!cleanNewUsername) {
+        throw new Error("Username cannot be empty.");
+      }
+
+      // 1. Rename locally
+      await renameWorkspaceLocal(session.username, cleanNewUsername, session.password);
+
+      // 2. Try to sync to cloud under the new username
+      await syncLocalWorkspaceToCloud(cleanNewUsername, session.password, session.notes);
+
+      // 3. Update session
+      setSession({
+        ...session,
+        username: cleanNewUsername,
+        storageMode: "cloud"
+      });
+
+      setShowRenameModal(false);
+      setStatus("Synced to Cloud");
+      setTimeout(() => setStatus(null), 2000);
+    } catch (caughtError: unknown) {
+      const message = caughtError instanceof Error ? caughtError.message : "Failed to rename and sync.";
+      setRenameError(message);
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -497,6 +544,53 @@ export default function WorkspacePage() {
           </div>
         </div>
       ) : null}
+
+      {/* ═══ Username Conflict Rename Banner ═══ */}
+      {showRenameModal ? (
+        <div className="shrink-0 border-b border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5 px-4 py-3">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                The username <strong>@{session.username}</strong> is already taken on the cloud. Choose a different one to sync your local notes:
+              </p>
+            </div>
+            <form onSubmit={handleRenameAndSync} className="flex items-center gap-2 shrink-0">
+              <input
+                id="rename-username"
+                name="rename-username"
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="New username"
+                className="h-8 py-1 px-3 text-xs w-48 font-mono rounded-md border border-amber-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 outline-none"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isRenaming}
+                className="px-3 py-1.5 text-xs font-semibold rounded-md bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white dark:text-zinc-950 transition-colors disabled:opacity-50"
+              >
+                {isRenaming ? "Renaming..." : "Rename & Sync"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRenameModal(false);
+                  setRenameError(null);
+                }}
+                className="p-1.5 rounded hover:bg-amber-100 dark:hover:bg-zinc-800 text-amber-600 dark:text-amber-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+          {renameError ? (
+            <p className="text-xs text-red-500 mt-1.5 ml-6">{renameError}</p>
+          ) : null}
+        </div>
+      ) : null}
+
 
       {/* ═══ Share link banner ═══ */}
       {shareUrl && sharePassword ? (
