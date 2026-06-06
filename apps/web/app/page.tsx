@@ -165,6 +165,24 @@ export default function HomePage() {
             Encrypted Notepad
           </Link>
         </div>
+
+        {/* Product Hunt Badge */}
+        <div className="mt-12 animate-in fade-in slide-in-from-bottom-3 duration-700">
+          <a
+            href="https://www.producthunt.com/products/protectedshare?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-protectedshare"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block hover:scale-[1.02] transition-transform duration-200"
+          >
+            <img
+              src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1164901&theme=dark&t=1780739676702"
+              alt="ProtectedShare - Open-source zero-knowledge note sharing &amp; private notepad. | Product Hunt"
+              width="250"
+              height="54"
+              className="w-[250px] h-[54px]"
+            />
+          </a>
+        </div>
       </div>
 
       {/* Feature Grid */}
