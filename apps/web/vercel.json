@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://protectedshare-api.protectedshare.workers.dev/api/:path*"
+    }
+  ]
+}
