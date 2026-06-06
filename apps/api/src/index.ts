@@ -463,8 +463,27 @@ type WorkspaceRow = {
   created_at: number;
 };
 
+// Helper to ensure the workspaces D1 table exists dynamically (self-healing database schema)
+async function ensureWorkspacesTable(db: any): Promise<void> {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS workspaces (
+      username TEXT PRIMARY KEY,
+      password_proof TEXT NOT NULL,
+      verifier_blob TEXT NOT NULL,
+      verifier_iv TEXT NOT NULL,
+      verifier_salt TEXT NOT NULL,
+      vault_blob TEXT NOT NULL,
+      vault_iv TEXT NOT NULL,
+      vault_salt TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+  `).run();
+}
+
 // Workspace API handler functions for both /api/workspaces and /api/workspace
 const handleCreateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  await ensureWorkspacesTable(c.env.DB);
   const body = await c.req.json().catch(() => null) as CreateWorkspaceRequest | null;
   if (
     !body ||
@@ -535,6 +554,7 @@ const handleCreateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
 };
 
 const handleGetWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  await ensureWorkspacesTable(c.env.DB);
   const username = (c.req.param("username") || "").trim().toLowerCase();
   if (!username) {
     return jsonError("Username is required.", "MISSING_USERNAME", 400);
@@ -577,6 +597,7 @@ const handleGetWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
 };
 
 const handleUpdateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  await ensureWorkspacesTable(c.env.DB);
   const username = (c.req.param("username") || "").trim().toLowerCase();
   if (!username) {
     return jsonError("Username is required.", "MISSING_USERNAME", 400);
@@ -635,6 +656,7 @@ const handleUpdateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
 };
 
 const handleDeleteWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  await ensureWorkspacesTable(c.env.DB);
   const username = (c.req.param("username") || "").trim().toLowerCase();
   if (!username) {
     return jsonError("Username is required.", "MISSING_USERNAME", 400);
