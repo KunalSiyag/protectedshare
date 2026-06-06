@@ -21,12 +21,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* ═══ Sticky Header / Navbar ═══ */}
-      <header className={`border-b border-zinc-200 dark:border-zinc-800/60 bg-white/80 dark:bg-black/50 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300 ${isHome ? "bg-zinc-950/80 dark:bg-black/50 border-zinc-900/60" : ""}`}>
+      <header className="border-b border-zinc-200 dark:border-zinc-800/60 bg-white/85 dark:bg-black/50 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 h-14 flex items-center justify-between">
           {/* Logo */}
           <Link
             href="/"
-            className={`font-semibold tracking-tight flex items-center gap-2 shrink-0 ${isHome ? "text-white" : "text-zinc-900 dark:text-zinc-100"}`}
+            className="font-semibold tracking-tight flex items-center gap-2 shrink-0 text-zinc-900 dark:text-zinc-100"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-blue-600 dark:text-emerald-500">
               <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
@@ -36,14 +36,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <nav className={`flex items-center gap-5 text-sm font-medium ${isHome ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>
-              <Link href="/notes" className={`hover:text-blue-600 dark:hover:text-zinc-100 transition-colors ${isHome ? "hover:text-white" : ""}`}>
+            <nav className="flex items-center gap-5 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              <Link href="/notes" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
                 Secure Notes
               </Link>
-              <Link href="/secrets" className={`hover:text-blue-600 dark:hover:text-zinc-100 transition-colors ${isHome ? "hover:text-white" : ""}`}>
+              <Link href="/secrets" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
                 EnvShare
               </Link>
-              <Link href="/notepad" className={`hover:text-blue-600 dark:hover:text-zinc-100 transition-colors ${isHome ? "hover:text-white" : ""}`}>
+              <Link href="/notepad" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
                 Notepad
               </Link>
             </nav>
@@ -60,7 +60,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ═══ Main Content Area ═══ */}
       {isHome ? (
-        <div className="flex-1 w-full bg-zinc-950 text-zinc-100 flex flex-col animate-in fade-in duration-300">
+        <div className="flex-1 w-full bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-300 flex flex-col transition-colors duration-300">
           <div className="flex-1 w-full max-w-5xl mx-auto p-0 flex flex-col">
             {children}
           </div>
