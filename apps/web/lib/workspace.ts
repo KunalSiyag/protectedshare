@@ -300,9 +300,28 @@ export async function deleteWorkspaceLocal(username: string, password: string): 
 }
 
 export async function syncLocalWorkspaceToCloud(username: string, password: string, notes: WorkspaceNote[]): Promise<void> {
-  // This will throw 409 if the username is already registered online
-  await createWorkspace(username, password);
-
-  // If creation succeeds, upload all existing local notes to the online database
-  await saveWorkspaceNotes(username, password, notes);
+  try {
+    // 1. Try to create the workspace online (this checks if username is unique)
+    await createWorkspace(username, password);
+    // If creation succeeds, upload all existing local notes to the online database
+    await saveWorkspaceNotes(username, password, notes);
+  } catch (createError: unknown) {
+    const errorMsg = createError instanceof Error ? createError.message : "";
+    if (errorMsg.includes("already exists")) {
+      // The workspace already exists online under this username.
+      // Let's verify if the password matches the online workspace by opening it.
+      try {
+        await openWorkspace(username, password);
+        // If authentication succeeds, we can safely sync/overwrite the online notes.
+        await saveWorkspaceNotes(username, password, notes);
+      } catch {
+        // If opening fails, it means the username belongs to someone else (wrong password).
+        throw new Error("This username is already taken on the cloud by another account. Please choose a different username.");
+      }
+    } else {
+      // Rethrow other errors (network issues, database errors, etc.)
+      throw createError;
+    }
+  }
 }
+

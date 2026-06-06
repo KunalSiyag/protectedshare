@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import {
   type ApiError,
@@ -463,8 +463,8 @@ type WorkspaceRow = {
   created_at: number;
 };
 
-// Workspace API routes
-app.post("/api/workspaces", async (c) => {
+// Workspace API handler functions for both /api/workspaces and /api/workspace
+const handleCreateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
   const body = await c.req.json().catch(() => null) as CreateWorkspaceRequest | null;
   if (
     !body ||
@@ -532,10 +532,13 @@ app.post("/api/workspaces", async (c) => {
   }
 
   return c.json({ success: true, username }, 201);
-});
+};
 
-app.get("/api/workspaces/:username", async (c) => {
-  const username = c.req.param("username").trim().toLowerCase();
+const handleGetWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  const username = (c.req.param("username") || "").trim().toLowerCase();
+  if (!username) {
+    return jsonError("Username is required.", "MISSING_USERNAME", 400);
+  }
   const proof = getPasswordProof(c.req.query("proof"));
 
   if (!proof) {
@@ -571,10 +574,13 @@ app.get("/api/workspaces/:username", async (c) => {
       salt: row.vault_salt
     }
   });
-});
+};
 
-app.put("/api/workspaces/:username", async (c) => {
-  const username = c.req.param("username").trim().toLowerCase();
+const handleUpdateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  const username = (c.req.param("username") || "").trim().toLowerCase();
+  if (!username) {
+    return jsonError("Username is required.", "MISSING_USERNAME", 400);
+  }
   const body = await c.req.json().catch(() => null) as UpdateWorkspaceRequest | null;
 
   if (
@@ -626,10 +632,13 @@ app.put("/api/workspaces/:username", async (c) => {
   }
 
   return c.json({ success: true });
-});
+};
 
-app.delete("/api/workspaces/:username", async (c) => {
-  const username = c.req.param("username").trim().toLowerCase();
+const handleDeleteWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  const username = (c.req.param("username") || "").trim().toLowerCase();
+  if (!username) {
+    return jsonError("Username is required.", "MISSING_USERNAME", 400);
+  }
   const proof = getPasswordProof(c.req.query("proof"));
 
   if (!proof) {
@@ -660,7 +669,20 @@ app.delete("/api/workspaces/:username", async (c) => {
   }
 
   return c.json({ success: true });
-});
+};
+
+// Bind handlers to both plural and singular routes for backward/forward compatibility
+app.post("/api/workspaces", handleCreateWorkspace);
+app.post("/api/workspace", handleCreateWorkspace);
+
+app.get("/api/workspaces/:username", handleGetWorkspace);
+app.get("/api/workspace/:username", handleGetWorkspace);
+
+app.put("/api/workspaces/:username", handleUpdateWorkspace);
+app.put("/api/workspace/:username", handleUpdateWorkspace);
+
+app.delete("/api/workspaces/:username", handleDeleteWorkspace);
+app.delete("/api/workspace/:username", handleDeleteWorkspace);
 
 app.post("/api/inquiries", async (c) => {
   let body: { name?: string; email?: string; company?: string; message?: string };
