@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: "/secrets", label: "EnvShare", short: "EnvShare" },
   { href: "/notepad", label: "Notepad", short: "Notepad" },
   { href: "/blog", label: "Blog", short: "Blog" },
+  { href: "/self-host", label: "Self-Host", short: "Self-Host" },
 ] as const;
 
 export default function MobileNav() {

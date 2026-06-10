@@ -92,8 +92,21 @@ npx wrangler deploy
 
 ### 2. Deploy the Frontend (Vercel / Cloudflare Pages)
 Add the following Environment Variables to your deployment dashboard:
-- `NEXT_PUBLIC_API_BASE_URL`: The URL of your deployed Cloudflare Worker API.
+- `API_BACKEND_URL`: The URL of your deployed Cloudflare Worker API, used by the Next.js rewrite in `apps/web/next.config.ts`.
 - `NEXT_PUBLIC_GA_ID` *(Optional)*: Google Analytics Measurement ID.
+
+### 3. Self-host with Docker
+You can also run the web app in a container if you want a reproducible runtime or an internal deployment:
+
+```bash
+docker build \
+  --build-arg API_BACKEND_URL=https://your-api.example.com \
+  -f apps/web/Dockerfile \
+  -t protectedshare-web .
+docker run --rm -p 3000:3000 protectedshare-web
+```
+
+If you do not pass `API_BACKEND_URL`, the build will use the default Cloudflare Worker backend configured in `apps/web/next.config.ts`.
 
 ---
 

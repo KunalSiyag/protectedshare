@@ -14,7 +14,7 @@ export default function WindowHeader() {
     fileName = "decrypt_secret.env";
   } else if (pathname === "/secrets") {
     fileName = "one_time_secret.env";
-  } else if (pathname === "/notepad" || pathname === "/workspace") {
+  } else if (pathname === "/notepad") {
     fileName = "local_vault.db";
   } else if (pathname === "/x-formatter") {
     fileName = "ai_formatter.py";

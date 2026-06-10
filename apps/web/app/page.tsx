@@ -172,6 +172,9 @@ export default function HomePage() {
         >
           Read the security blog for guides and comparisons →
         </Link>
+        <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-500">
+          Prefer to run it yourself? See the self-host guide for Docker and deployment notes.
+        </p>
       </div>
 
 

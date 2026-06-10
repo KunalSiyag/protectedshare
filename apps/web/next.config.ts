@@ -20,35 +20,6 @@ const nextConfig: NextConfig = {
       }
     ];
   },
-  async redirects() {
-    return [
-      {
-        source: "/n",
-        destination: "/notes",
-        permanent: true
-      },
-      {
-        source: "/n/:id",
-        destination: "/notes/:id",
-        permanent: true
-      },
-      {
-        source: "/s",
-        destination: "/secrets",
-        permanent: true
-      },
-      {
-        source: "/s/:id",
-        destination: "/secrets/:id",
-        permanent: true
-      },
-      {
-        source: "/workspace",
-        destination: "/notepad",
-        permanent: true
-      }
-    ];
-  },
   async headers() {
     return [
       {
@@ -85,4 +56,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
