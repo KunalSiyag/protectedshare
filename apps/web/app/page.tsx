@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "ProtectedText Alternative | Free Online Notepad & EnvShare — No Signup",
+  title: "ProtectedText Alternative | Secret Sharing Website, Online Notepad & EnvShare — No Signup",
   description:
-    "The modern ProtectedText alternative. Free encrypted online notepad, .env file sharing (EnvShare), and self-destructing secret links — all with AES-256 zero-knowledge encryption. No signup, no tracking.",
+    "The modern ProtectedText alternative and secret sharing website. Free encrypted online notepad, .env file sharing (EnvShare), and self-destructing secret links — all with AES-256 zero-knowledge encryption. No signup, no tracking.",
   alternates: {
     canonical: "https://protectedshare.me",
   },
   openGraph: {
-    title: "ProtectedText Alternative | Free Online Notepad & EnvShare",
+    title: "ProtectedText Alternative | Secret Sharing Website, Online Notepad & EnvShare",
     description:
-      "Free encrypted notes, online notepad, and .env sharing with AES-256 encryption. No signup. No tracking. Self-destructing links.",
+      "Free encrypted notes, secret sharing, online notepad, and .env sharing with AES-256 encryption. No signup. No tracking. Self-destructing links.",
     url: "https://protectedshare.me",
   },
 };
@@ -136,12 +136,15 @@ export default function HomePage() {
 
         {/* Large Title */}
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-zinc-900 dark:text-white leading-[1.1] max-w-4xl text-center">
-          Protected text, <span className="text-zinc-500 dark:text-zinc-400">online notepad</span> &amp; EnvShare
+          ProtectedText alternative for <span className="text-zinc-500 dark:text-zinc-400">secret sharing</span>, online notepad &amp; EnvShare
         </h1>
 
         {/* Subtitle / Natural Paragraph */}
         <p className="mt-6 text-sm md:text-base text-zinc-600 dark:text-zinc-400 max-w-2xl text-center leading-relaxed">
           Your documents and keys are encrypted in your browser before being stored for a limited period of time and read operations. Unencrypted data never leaves your browser. ProtectedShare is a free and completely anonymous zero-knowledge sharing utility.
+        </p>
+        <p className="mt-3 text-xs md:text-sm text-zinc-500 dark:text-zinc-500 max-w-2xl text-center leading-relaxed">
+          A simple secret sharing website for secure notes, .env files, API keys, and one-time links.
         </p>
 
         {/* CTA Buttons */}
@@ -293,6 +296,10 @@ export default function HomePage() {
           <FaqItem
             question="Is this a good ProtectedText alternative?"
             answer="Yes. ProtectedShare offers stronger encryption (AES-256-GCM), a modern mobile-friendly interface, self-destructing notes, .env file sharing, and an encrypted notepad — all without accounts."
+          />
+          <FaqItem
+            question="Is ProtectedShare a secret sharing website?"
+            answer="Yes. ProtectedShare is built for sharing secrets, notes, API keys, and .env files through encrypted links that can expire or self-destruct after a set number of reads."
           />
           <FaqItem
             question="How do I share API keys securely?"
