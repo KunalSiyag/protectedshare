@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: "/notes", label: "Secure Notes", short: "Notes" },
   { href: "/secrets", label: "EnvShare", short: "EnvShare" },
   { href: "/notepad", label: "Notepad", short: "Notepad" },
+  { href: "/blog", label: "Blog", short: "Blog" },
 ] as const;
 
 export default function MobileNav() {

@@ -46,6 +46,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/notepad" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
                 Notepad
               </Link>
+              <Link href="/blog" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+                Blog
+              </Link>
             </nav>
             <ThemeToggle />
           </div>
@@ -153,6 +156,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-mono text-zinc-600 dark:text-zinc-400 order-1 sm:order-2">
             <Link href="/about" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">About Us</Link>
             <Link href="/contact" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Contact Us</Link>
+            <Link href="/blog" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Blog</Link>
             <Link href="/privacy" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Terms of Service</Link>
           </div>
@@ -162,6 +166,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/vs/privnote" className="hover:underline">ProtectedShare vs Privnote</Link>
           <Link href="/vs/protectedtext" className="hover:underline">ProtectedShare vs ProtectedText</Link>
           <Link href="/vs/envshare" className="hover:underline">ProtectedShare vs EnvShare</Link>
+          <Link href="/blog" className="hover:underline">Security Blog</Link>
         </div>
       </footer>
 

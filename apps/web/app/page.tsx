@@ -165,6 +165,13 @@ export default function HomePage() {
             Encrypted Notepad
           </Link>
         </div>
+
+        <Link
+          href="/blog"
+          className="mt-5 text-sm font-semibold text-blue-600 dark:text-emerald-400 hover:underline"
+        >
+          Read the security blog for guides and comparisons →
+        </Link>
       </div>
 
 
@@ -339,4 +346,3 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
     </details>
   );
 }
-
