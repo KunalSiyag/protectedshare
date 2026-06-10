@@ -101,7 +101,24 @@ The repo includes a GitHub Actions workflow that builds the web app image and pu
 - Trigger it by merging to `main` or pushing a version tag like `v1.0.0`.
 - Open the published package in GitHub Packages or pull it directly with Docker.
 
-### 4. Self-host with the published image
+Important: this package contains the frontend only. The backend is still a separate Cloudflare Worker plus D1 database deployment.
+
+### 4. Deploy the API backend
+The backend has its own GitHub Actions workflow in `.github/workflows/deploy-api.yml`. It deploys the Cloudflare Worker in `apps/api` and should be paired with a D1 database you create and bind in `apps/api/wrangler.toml`.
+
+The workflow expects these GitHub secrets:
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+```bash
+cd apps/api
+npx wrangler d1 create protectedshare
+npx wrangler d1 execute protectedshare --remote --file=schema.sql
+```
+
+Then set the new D1 `database_id` in `apps/api/wrangler.toml` before deploying.
+
+### 5. Self-host with the published image
 Pull the package and pass your backend URL at runtime:
 
 ```bash
@@ -112,6 +129,9 @@ docker run --rm -p 3000:3000 \
 ```
 
 If you prefer to build locally, `apps/web/Dockerfile` is still available as a fallback.
+
+### 6. Self-host the backend separately
+If you want a fully self-hosted setup, deploy the Worker in `apps/api` and provision its D1 database separately. The web package will then point to that backend through `API_BACKEND_URL`.
 
 ---
 

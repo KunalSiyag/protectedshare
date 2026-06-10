@@ -4,187 +4,245 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Deploy ProtectedShare",
   description:
-    "Deploy your own hosted ProtectedShare using the GitHub Container Registry package published by CI/CD.",
+    "Deploy the ProtectedShare web package from GitHub Container Registry and the backend Cloudflare Worker separately for a fully self-hosted setup.",
   alternates: {
     canonical: "https://protectedshare.me/self-host",
   },
   openGraph: {
     title: "Deploy ProtectedShare",
     description:
-      "Deploy your own hosted ProtectedShare using the GitHub Container Registry package published by CI/CD.",
+      "Deploy the ProtectedShare web package from GitHub Container Registry and the backend Cloudflare Worker separately for a fully self-hosted setup.",
     url: "https://protectedshare.me/self-host",
     type: "website",
   },
 };
 
-const packageUrl =
+const webPackageUrl =
   "https://github.com/kunalsiyag/protectedshare/pkgs/container/protectedshare-web";
-const actionsUrl = "https://github.com/kunalsiyag/protectedshare/actions";
+const webActionsUrl =
+  "https://github.com/kunalsiyag/protectedshare/actions/workflows/publish-web-image.yml";
+const apiActionsUrl =
+  "https://github.com/kunalsiyag/protectedshare/actions/workflows/deploy-api.yml";
 
-const steps = [
+const webSteps = [
   {
-    title: "1. Publish the GitHub package",
+    title: "1. Publish the web package",
     description:
-      "Merge to main or push a version tag. GitHub Actions builds and publishes the web image to GitHub Container Registry automatically.",
-    cta: "Open the workflow",
-    href: actionsUrl,
+      "Push to main or tag a release. GitHub Actions builds the Next.js web app and publishes it to GitHub Container Registry.",
   },
   {
-    title: "2. Set your backend URL",
+    title: "2. Pull the image",
     description:
-      "Point the container at your API backend with API_BACKEND_URL. If you use the hosted backend, you can skip this step.",
-    cta: "View the package",
-    href: packageUrl,
+      "Use ghcr.io/kunalsiyag/protectedshare-web:latest to run the same frontend you see on the hosted site.",
   },
   {
-    title: "3. Run or deploy the image",
+    title: "3. Point it at a backend",
     description:
-      "Pull ghcr.io/kunalsiyag/protectedshare-web:latest and deploy it to your host, VPS, or container platform.",
-    cta: "Copy the pull command",
-    href: "#pull-command",
+      "Set API_BACKEND_URL at runtime so the web app talks to your own Worker deployment or the hosted backend.",
+  },
+] as const;
+
+const apiSteps = [
+  {
+    title: "1. Create your Cloudflare Worker",
+    description:
+      "Use apps/api as the backend project. It needs a Cloudflare account, a Worker, and a D1 database binding.",
+  },
+  {
+    title: "2. Apply schema and configure D1",
+    description:
+      "Create a D1 database, bind it in wrangler.toml, and apply schema.sql before your first deploy.",
+  },
+  {
+    title: "3. Deploy with Wrangler or CI",
+    description:
+      "Deploy the Worker manually or with the API workflow so the frontend package has a backend to talk to.",
   },
 ] as const;
 
 export default function SelfHostPage() {
   return (
-    <main className="max-w-5xl mx-auto px-6 py-12 md:py-20">
+    <main className="max-w-6xl mx-auto px-6 py-12 md:py-20">
       <div className="max-w-3xl mx-auto text-center">
         <p className="text-xs font-mono uppercase tracking-[0.24em] text-blue-600 dark:text-emerald-400 mb-4">
           Self-Hosting
         </p>
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
-          Deploy ProtectedShare with a CI-built GitHub package.
+          Deploy the web app and backend separately.
         </h1>
         <p className="mt-5 text-base md:text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-          This is the path for the new site: no legacy shortcuts, no manual
-          source rebuild required for every deployment, and a package you can
-          pull from GitHub Container Registry.
+          For full transparency, the GitHub package ships the frontend only.
+          The backend is a separate Cloudflare Worker with its own D1 database.
+          If you want a fully self-hosted deployment, you need both pieces.
         </p>
       </div>
 
-      <section className="mt-14 relative">
-        <div className="absolute left-1/2 top-0 bottom-0 hidden md:block w-px bg-blue-500/20 dark:bg-emerald-400/20 -translate-x-1/2" />
-        <div className="space-y-12 md:space-y-16">
-          {steps.map((step, index) => (
-            <article
-              key={step.title}
-              className="relative md:grid md:grid-cols-[1fr_auto_1fr] md:items-center"
-            >
-              <div className="hidden md:flex justify-end pr-10">
-                {index % 2 === 0 ? (
-                  <div className="max-w-lg text-right">
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
-                      {step.title}
-                    </h2>
-                    <p className="mt-3 text-sm md:text-base leading-7 text-zinc-600 dark:text-zinc-400">
-                      {step.description}
-                    </p>
-                    <div className="mt-4">
-                      <Link
-                        href={step.href}
-                        className="inline-flex items-center justify-center rounded-md bg-zinc-900 dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
-                      >
-                        {step.cta}
-                      </Link>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="hidden md:flex items-center justify-center">
-                <div className="relative z-10 w-7 h-7 rounded-full border border-blue-500 dark:border-emerald-400 bg-zinc-50 dark:bg-[#09090b] flex items-center justify-center text-xs font-semibold text-blue-600 dark:text-emerald-400">
-                  {index + 1}
-                </div>
-              </div>
-
-              <div className="md:pl-10">
-                {index % 2 === 1 ? (
-                  <div className="max-w-lg">
-                    <div className="md:hidden mb-3 inline-flex items-center justify-center w-7 h-7 rounded-full border border-blue-500 dark:border-emerald-400 text-xs font-semibold text-blue-600 dark:text-emerald-400">
-                      {index + 1}
-                    </div>
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
-                      {step.title}
-                    </h2>
-                    <p className="mt-3 text-sm md:text-base leading-7 text-zinc-600 dark:text-zinc-400">
-                      {step.description}
-                    </p>
-                    <div className="mt-4">
-                      <Link
-                        href={step.href}
-                        className="inline-flex items-center justify-center rounded-md bg-zinc-900 dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
-                      >
-                        {step.cta}
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="max-w-lg md:hidden">
-                    <div className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-blue-500 dark:border-emerald-400 text-xs font-semibold text-blue-600 dark:text-emerald-400 mb-3">
-                      {index + 1}
-                    </div>
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
-                      {step.title}
-                    </h2>
-                    <p className="mt-3 text-sm md:text-base leading-7 text-zinc-600 dark:text-zinc-400">
-                      {step.description}
-                    </p>
-                    <div className="mt-4">
-                      <Link
-                        href={step.href}
-                        className="inline-flex items-center justify-center rounded-md bg-zinc-900 dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
-                      >
-                        {step.cta}
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </article>
-          ))}
+      <section className="mt-10 rounded-2xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/80 dark:bg-amber-500/5 p-6">
+        <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+          What the package does and does not include
+        </h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/50 p-4">
+            <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+              Included
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+              <li>The Next.js frontend and all public pages.</li>
+              <li>Browser-side encryption, notes, blog, and marketing UI.</li>
+              <li>The runtime proxy that points `/api/*` at a backend URL.</li>
+            </ul>
+          </div>
+          <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/50 p-4">
+            <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+              Not included
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+              <li>The Cloudflare Worker backend.</li>
+              <li>The D1 database and its data.</li>
+              <li>Any production secrets or account credentials.</li>
+            </ul>
+          </div>
         </div>
       </section>
 
-      <section className="mt-16 grid gap-5 md:grid-cols-2">
+      <section className="mt-14 grid gap-8 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
-          <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
-            Why the package is better than cloning the repo
+          <h2 className="text-xl font-bold text-zinc-950 dark:text-white">
+            Frontend package
           </h2>
-          <ul className="mt-4 list-disc space-y-2 pl-6 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
-            <li>It gives you one reproducible artifact from CI/CD.</li>
-            <li>You skip local installs, workspace setup, and dependency drift.</li>
-            <li>Updates are versioned and easier to roll back.</li>
-          </ul>
+          <p className="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+            This package is what most people will pull from GitHub Container
+            Registry. It gives them the same website you see here, but it still
+            needs a backend to be fully functional.
+          </p>
+
+          <div className="mt-6 space-y-5">
+            {webSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className="flex gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-500 dark:border-emerald-400 text-xs font-semibold text-blue-600 dark:text-emerald-400">
+                  {index + 1}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href={webPackageUrl}
+              className="inline-flex items-center justify-center rounded-md bg-zinc-900 dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+            >
+              Open package
+            </Link>
+            <Link
+              href={webActionsUrl}
+              className="inline-flex items-center justify-center rounded-md border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
+            >
+              View web workflow
+            </Link>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
-          <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
-            Pull command
+          <h2 className="text-xl font-bold text-zinc-950 dark:text-white">
+            Backend deployment
           </h2>
-          <pre
-            id="pull-command"
-            className="mt-4 overflow-x-auto rounded-xl bg-zinc-950 text-zinc-100 p-4 text-xs leading-6"
-          >
-            <code>{`docker pull ghcr.io/kunalsiyag/protectedshare-web:latest
+          <p className="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+            The backend is a Cloudflare Worker. That means it should be deployed
+            separately, then the frontend package should be pointed at it with
+            <code className="mx-1 rounded bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 text-xs">
+              API_BACKEND_URL
+            </code>
+            .
+          </p>
+
+          <div className="mt-6 space-y-5">
+            {apiSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className="flex gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-500 dark:border-emerald-400 text-xs font-semibold text-blue-600 dark:text-emerald-400">
+                  {index + 1}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href={apiActionsUrl}
+              className="inline-flex items-center justify-center rounded-md bg-blue-600 dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-zinc-950 hover:bg-blue-700 dark:hover:bg-zinc-100 transition-colors"
+            >
+              View API workflow
+            </Link>
+            <Link
+              href="/blog"
+              className="inline-flex items-center justify-center rounded-md border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
+            >
+              Read the docs blog
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+        <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+          Full stack self-host flow
+        </h2>
+        <ol className="mt-4 list-decimal space-y-3 pl-6 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+          <li>Deploy the backend Worker and create or bind its D1 database.</li>
+          <li>Publish or pull the web package from GitHub Container Registry.</li>
+          <li>Set <code className="rounded bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 text-xs">API_BACKEND_URL</code> to the backend URL.</li>
+          <li>Run the web container and confirm the frontend can reach the backend.</li>
+        </ol>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+        <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+          Pull command
+        </h2>
+        <pre
+          id="pull-command"
+          className="mt-4 overflow-x-auto rounded-xl bg-zinc-950 text-zinc-100 p-4 text-xs leading-6"
+        >
+          <code>{`docker pull ghcr.io/kunalsiyag/protectedshare-web:latest
 docker run --rm -p 3000:3000 \
   -e API_BACKEND_URL=https://your-api.example.com \
   ghcr.io/kunalsiyag/protectedshare-web:latest`}</code>
-          </pre>
-        </div>
+        </pre>
       </section>
 
       <div className="mt-8 flex flex-wrap gap-3 justify-center">
         <Link
-          href={packageUrl}
+          href={webPackageUrl}
           className="inline-flex items-center justify-center rounded-md border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
         >
           Open GitHub package
         </Link>
         <Link
-          href={actionsUrl}
+          href={apiActionsUrl}
           className="inline-flex items-center justify-center rounded-md bg-blue-600 dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-zinc-950 hover:bg-blue-700 dark:hover:bg-zinc-100 transition-colors"
         >
-          View CI/CD workflow
+          Open API workflow
         </Link>
       </div>
     </main>
