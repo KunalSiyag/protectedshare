@@ -363,8 +363,8 @@ export default function WorkspacePage() {
                     type="button"
                     className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
                       storageMode === "local"
-                        ? "bg-zinc-150 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-150 border-zinc-350 dark:border-zinc-700 shadow-sm"
-                        : "border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-white/40 dark:bg-transparent"
+                        ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-sm"
+                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-white/70 dark:bg-zinc-900/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
                     }`}
                     onClick={() => setStorageMode("local")}
                   >
@@ -375,7 +375,7 @@ export default function WorkspacePage() {
                     className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
                       storageMode === "cloud"
                         ? "bg-blue-600 dark:bg-emerald-500 text-white dark:text-zinc-900 border-blue-600 dark:border-emerald-500 shadow-sm"
-                        : "border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-white/40 dark:bg-transparent"
+                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-white/70 dark:bg-zinc-900/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
                     }`}
                     onClick={() => setStorageMode("cloud")}
                   >

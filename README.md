@@ -92,21 +92,26 @@ npx wrangler deploy
 
 ### 2. Deploy the Frontend (Vercel / Cloudflare Pages)
 Add the following Environment Variables to your deployment dashboard:
-- `API_BACKEND_URL`: The URL of your deployed Cloudflare Worker API, used by the Next.js rewrite in `apps/web/next.config.ts`.
+- `API_BACKEND_URL`: The URL of your deployed Cloudflare Worker API. The Next.js app proxies `/api/*` through a runtime route handler, so this value can be changed per deployment.
 - `NEXT_PUBLIC_GA_ID` *(Optional)*: Google Analytics Measurement ID.
 
-### 3. Self-host with Docker
-You can also run the web app in a container if you want a reproducible runtime or an internal deployment:
+### 3. Publish the web package to GitHub Container Registry
+The repo includes a GitHub Actions workflow that builds the web app image and pushes it to GHCR as `ghcr.io/kunalsiyag/protectedshare-web`.
+
+- Trigger it by merging to `main` or pushing a version tag like `v1.0.0`.
+- Open the published package in GitHub Packages or pull it directly with Docker.
+
+### 4. Self-host with the published image
+Pull the package and pass your backend URL at runtime:
 
 ```bash
-docker build \
-  --build-arg API_BACKEND_URL=https://your-api.example.com \
-  -f apps/web/Dockerfile \
-  -t protectedshare-web .
-docker run --rm -p 3000:3000 protectedshare-web
+docker pull ghcr.io/kunalsiyag/protectedshare-web:latest
+docker run --rm -p 3000:3000 \
+  -e API_BACKEND_URL=https://your-api.example.com \
+  ghcr.io/kunalsiyag/protectedshare-web:latest
 ```
 
-If you do not pass `API_BACKEND_URL`, the build will use the default Cloudflare Worker backend configured in `apps/web/next.config.ts`.
+If you prefer to build locally, `apps/web/Dockerfile` is still available as a fallback.
 
 ---
 

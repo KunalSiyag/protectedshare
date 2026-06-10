@@ -1,8 +1,8 @@
 /**
  * Returns a relative API path (e.g. "/api/notes").
  * The browser makes a same-origin request to the Next.js app,
- * which proxies it to the Cloudflare Worker via the rewrite in next.config.ts.
- * This avoids CORS issues and env-var mismatches entirely.
+ * which proxies it to the configured backend via the runtime route handler.
+ * This avoids CORS issues and keeps deployment env vars in one place.
  */
 export function apiUrl(path: string): string {
   if (!path.startsWith("/")) {
@@ -11,4 +11,3 @@ export function apiUrl(path: string): string {
 
   return path;
 }
-

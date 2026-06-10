@@ -1,10 +1,5 @@
 import type { NextConfig } from "next";
 
-// Server-side only: determines where the /api/* rewrite proxy forwards requests.
-// In local dev, .env.local sets API_BACKEND_URL=http://localhost:8787.
-// In production (Vercel), the hardcoded fallback points to the deployed Worker.
-const API_BACKEND_URL = process.env.API_BACKEND_URL || "https://protectedshare-api.protectedshare.workers.dev";
-
 const nextConfig: NextConfig = {
   transpilePackages: [
     "@protectedshare/contracts",
@@ -12,14 +7,6 @@ const nextConfig: NextConfig = {
     "@protectedshare/ui",
     "@protectedshare/formatting"
   ],
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${API_BACKEND_URL}/api/:path*`
-      }
-    ];
-  },
   async headers() {
     return [
       {
