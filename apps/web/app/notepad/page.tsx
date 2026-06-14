@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
-import { Plus, LogOut, Save, Trash2, Copy, Download, Link2, Check, AlertTriangle, X, FileText, Cloud } from "lucide-react";
+import { Plus, LogOut, Save, Trash2, Copy, Download, Link2, Check, AlertTriangle, X, FileText, Cloud, Loader2 } from "lucide-react";
 import {
   createWorkspace,
   openWorkspace,
@@ -51,6 +51,67 @@ export default function WorkspacePage() {
   const [newUsername, setNewUsername] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
+
+  // Anytime sync / Guest mode state
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncUsername, setSyncUsername] = useState("");
+  const [syncPassword, setSyncPassword] = useState("");
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const loadGuestNotepad = useCallback(async (existingKey?: string) => {
+    try {
+      let key = existingKey;
+      if (!key) {
+        key = localStorage.getItem("protectedshare.guest.key") || undefined;
+      }
+      if (!key) {
+        key = crypto.randomUUID();
+        localStorage.setItem("protectedshare.guest.key", key);
+      }
+
+      // Check if guest workspace exists locally
+      const hasGuestWorkspace = localStorage.getItem("protectedshare.workspace.v1:guest");
+      if (!hasGuestWorkspace) {
+        await createWorkspaceLocal("guest", key);
+        // Create an initial welcome note
+        const now = Date.now();
+        const welcomeNote: WorkspaceNote = {
+          id: createNoteId(),
+          title: "Welcome to your scratchpad",
+          body: "This is your private scratchpad. Everything you type here is encrypted directly in your browser using AES-256-GCM. No signup is required to start writing!\n\nWhen you are ready to sync your notes to the cloud or access them from other devices, click the 'Go Online' button in the top right to create a username and password.",
+          createdAt: now,
+          updatedAt: now
+        };
+        await saveWorkspaceNotesLocal("guest", key, [welcomeNote]);
+      }
+
+      const notes = await openWorkspaceLocal("guest", key);
+      setSession({
+        username: "guest",
+        password: key,
+        notes,
+        storageMode: "local"
+      });
+      setSelectedNoteId(notes[0]?.id ?? null);
+    } catch (caughtError: unknown) {
+      const message = caughtError instanceof Error ? caughtError.message : "Unable to load scratchpad.";
+      setError(message);
+    }
+  }, []);
+
+  const handleStartScratchpad = () => {
+    setError(null);
+    void loadGuestNotepad();
+  };
+
+  // Auto-load guest scratchpad on mount if it exists
+  useEffect(() => {
+    const guestKey = localStorage.getItem("protectedshare.guest.key");
+    if (guestKey) {
+      void loadGuestNotepad(guestKey);
+    }
+  }, [loadGuestNotepad]);
 
   // Editor state lifted up so toolbar can access it
   const [editTitle, setEditTitle] = useState("");
@@ -243,6 +304,9 @@ export default function WorkspacePage() {
       } else {
         await deleteWorkspace(session.username, session.password);
       }
+      if (session.username === "guest") {
+        localStorage.removeItem("protectedshare.guest.key");
+      }
       setSession(null);
       setSelectedNoteId(null);
       setPassword("");
@@ -275,6 +339,62 @@ export default function WorkspacePage() {
         setError(message);
         setTimeout(() => setError(null), 4000);
       }
+    }
+  };
+
+  const handleCreateAndSync = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) return;
+    setSyncError(null);
+    setIsSyncing(true);
+
+    try {
+      const cleanSyncUsername = syncUsername.trim().toLowerCase();
+      if (!cleanSyncUsername) {
+        throw new Error("Username cannot be empty.");
+      }
+      if (cleanSyncUsername === "guest") {
+        throw new Error("Cannot use 'guest' as your username.");
+      }
+      if (!syncPassword.trim()) {
+        throw new Error("Password cannot be empty.");
+      }
+
+      // 1. Create the new workspace locally
+      await createWorkspaceLocal(cleanSyncUsername, syncPassword);
+
+      // 2. Save the guest notes to this new workspace
+      await saveWorkspaceNotesLocal(cleanSyncUsername, syncPassword, session.notes);
+
+      // 3. Sync the new local workspace to the cloud
+      await syncLocalWorkspaceToCloud(cleanSyncUsername, syncPassword, session.notes);
+
+      // 4. Delete the guest local workspace
+      try {
+        await deleteWorkspaceLocal("guest", session.password);
+      } catch (err) {
+        console.error("Failed to delete guest workspace:", err);
+      }
+      localStorage.removeItem("protectedshare.guest.key");
+
+      // 5. Update session
+      setSession({
+        username: cleanSyncUsername,
+        password: syncPassword,
+        notes: session.notes,
+        storageMode: "cloud"
+      });
+
+      setShowSyncModal(false);
+      setSyncUsername("");
+      setSyncPassword("");
+      setStatus("Synced to Cloud");
+      setTimeout(() => setStatus(null), 2000);
+    } catch (caughtError: unknown) {
+      const message = caughtError instanceof Error ? caughtError.message : "Failed to sync to cloud.";
+      setSyncError(message);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -414,6 +534,19 @@ export default function WorkspacePage() {
                 {authMode === "create" ? "Create Notepad" : "Open Notepad"}
               </Button>
             </form>
+            <div className="relative flex py-4 items-center">
+              <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800"></div>
+              <span className="flex-shrink mx-4 text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider">or</span>
+              <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800"></div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-blue-500/30 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/10 h-11"
+              onClick={handleStartScratchpad}
+            >
+              Start Writing (No Signup)
+            </Button>
           </CardContent>
         </Card>
       </main>
@@ -480,9 +613,9 @@ export default function WorkspacePage() {
             {session.storageMode === "local" ? (
               <button
                 type="button"
-                onClick={handleSyncToCloud}
+                onClick={session.username === "guest" ? () => setShowSyncModal(true) : handleSyncToCloud}
                 className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 hover:bg-blue-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white dark:text-zinc-950 transition-colors shadow-md"
-                title="Sync offline local notes to serverless Cloud"
+                title={session.username === "guest" ? "Sync scratchpad to serverless Cloud" : "Sync offline local notes to serverless Cloud"}
               >
                 <Cloud className="h-3 w-3 shrink-0" />
                 <span>Go Online</span>
@@ -494,18 +627,18 @@ export default function WorkspacePage() {
               </span>
             )}
             <span className="text-xs text-zinc-500 dark:text-zinc-500 font-mono hidden sm:inline">
-              @{session.username}
+              {session.username === "guest" ? "Scratchpad" : `@${session.username}`}
             </span>
             <ToolbarButton
               icon={<Trash2 className="h-3.5 w-3.5" />}
-              label="Delete Notebook"
+              label={session.username === "guest" ? "Delete Scratchpad" : "Delete Notebook"}
               onClick={() => setShowDeleteConfirm(true)}
               danger
               compact
             />
             <ToolbarButton
               icon={<LogOut className="h-3.5 w-3.5" />}
-              label="Sign Out"
+              label={session.username === "guest" ? "Sign In / Load Account" : "Sign Out"}
               onClick={() => {
                 setSession(null);
                 setSelectedNoteId(null);
@@ -722,6 +855,99 @@ export default function WorkspacePage() {
           </div>
         )}
       </div>
+
+      {showSyncModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+            onClick={() => {
+              setShowSyncModal(false);
+              setSyncError(null);
+            }}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101] overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setShowSyncModal(false);
+                setSyncError(null);
+              }}
+              className="absolute right-4 top-4 p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <CardHeader className="pb-4 border-b border-zinc-100 dark:border-zinc-900">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-emerald-500 mb-1">
+                <Cloud className="h-5 w-5 animate-pulse" />
+                <span className="text-xs uppercase font-mono tracking-wider font-bold">Go Online</span>
+              </div>
+              <CardTitle className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
+                Sync Scratchpad to Cloud
+              </CardTitle>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                Enter a username and password to secure your notes and sync them to the serverless cloud. This allows you to access them from any device securely.
+              </p>
+            </CardHeader>
+
+            <CardContent className="pt-6">
+              <form onSubmit={handleCreateAndSync} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="sync-username" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Username *</label>
+                  <Input
+                    id="sync-username"
+                    name="username"
+                    type="text"
+                    required
+                    value={syncUsername}
+                    onChange={(e) => setSyncUsername(e.target.value)}
+                    placeholder="Choose username"
+                    className="h-10 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="sync-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Password *</label>
+                  <Input
+                    id="sync-password"
+                    name="password"
+                    type="password"
+                    required
+                    value={syncPassword}
+                    onChange={(e) => setSyncPassword(e.target.value)}
+                    placeholder="Choose password"
+                    className="h-10 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
+                  />
+                </div>
+
+                {syncError ? (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-red-500 bg-red-500/5 border border-red-500/10 p-3 rounded-lg">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{syncError}</span>
+                  </div>
+                ) : null}
+
+                <div className="pt-2">
+                  <Button
+                    type="submit"
+                    disabled={isSyncing || !syncUsername.trim() || !syncPassword.trim()}
+                    className="w-full h-11 text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Syncing Notes...
+                      </>
+                    ) : (
+                      "Create Account & Sync"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
