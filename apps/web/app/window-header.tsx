@@ -21,13 +21,13 @@ export default function WindowHeader() {
   }
 
   return (
-    <div className="h-10 bg-blue-600 dark:bg-zinc-900/80 border-b border-blue-700 dark:border-zinc-800/60 flex items-center px-4 gap-2 shrink-0 transition-colors duration-300">
-      <div className="flex items-center gap-1.5 shrink-0">
-        <div className="w-3 h-3 rounded-full bg-white/30 dark:bg-zinc-700/50 border border-white/20 dark:border-zinc-600/50"></div>
-        <div className="w-3 h-3 rounded-full bg-white/30 dark:bg-zinc-700/50 border border-white/20 dark:border-zinc-600/50"></div>
-        <div className="w-3 h-3 rounded-full bg-white/30 dark:bg-zinc-700/50 border border-white/20 dark:border-zinc-600/50"></div>
+    <div className="h-10 bg-zinc-50/90 dark:bg-[#0b0b0c]/80 border-b border-zinc-200 dark:border-zinc-800/60 flex items-center px-4 gap-2 shrink-0 transition-colors duration-300">
+      <div className="flex items-center gap-1.5 shrink-0 select-none">
+        <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
+        <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
+        <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
       </div>
-      <div className="flex-1 text-center text-[11px] font-mono text-blue-100 dark:text-zinc-500 uppercase tracking-widest pointer-events-none select-none">
+      <div className="flex-1 text-center text-[10px] font-mono text-zinc-500 dark:text-zinc-550 uppercase tracking-widest pointer-events-none select-none">
         {fileName} — ProtectedShare
       </div>
     </div>

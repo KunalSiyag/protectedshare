@@ -26,12 +26,33 @@ async function proxy(request: Request): Promise<Response> {
   }
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
-  const upstreamResponse = await fetch(upstreamUrl, {
-    method: request.method,
-    headers,
-    body: hasBody ? await request.arrayBuffer() : undefined,
-    redirect: "manual",
-  });
+  const bodyBuffer = hasBody ? await request.arrayBuffer() : undefined;
+
+  let upstreamResponse: Response;
+  try {
+    upstreamResponse = await fetch(upstreamUrl, {
+      method: request.method,
+      headers,
+      body: bodyBuffer,
+      redirect: "manual",
+    });
+  } catch (error: any) {
+    const isLocalhost = upstreamUrl.hostname === "localhost" || upstreamUrl.hostname === "127.0.0.1";
+    if (isLocalhost) {
+      const fallbackUrl = new URL(
+        `https://protectedshare-api.protectedshare.workers.dev${incomingUrl.pathname}${incomingUrl.search}`
+      );
+      console.warn(`[Proxy] Local API connection failed (${error?.message || error}). Falling back to: ${fallbackUrl}`);
+      upstreamResponse = await fetch(fallbackUrl, {
+        method: request.method,
+        headers,
+        body: bodyBuffer,
+        redirect: "manual",
+      });
+    } else {
+      throw error;
+    }
+  }
 
   const responseHeaders = new Headers(upstreamResponse.headers);
   for (const header of HOP_BY_HOP_HEADERS) {

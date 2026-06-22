@@ -20,6 +20,21 @@ export const metadata: Metadata = {
     description:
       "Free encrypted notepad with zero-knowledge cloud sync. Notes are AES-256 encrypted client-side and synced across devices.",
     url: "https://protectedshare.me/notepad",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free Encrypted Notepad — Secure Cloud Sync",
+    description:
+      "Free encrypted notepad with zero-knowledge cloud sync. Notes are AES-256 encrypted client-side and synced across devices.",
+    images: ["/og-image.png"],
   },
 };
 

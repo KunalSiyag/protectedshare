@@ -110,8 +110,8 @@ export default function SecretsPage() {
             <span className="text-xs font-mono font-bold uppercase tracking-widest text-blue-600 dark:text-emerald-400">EnvShare</span>
           </div>
         </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Share .env files securely
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
+          Share <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-emerald-400 dark:to-teal-500">.env Files</span> Securely
         </h1>
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-lg">
           Paste API keys, database strings, or entire <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">.env</code> files.
@@ -169,10 +169,10 @@ export default function SecretsPage() {
                   key={opt.label}
                   type="button"
                   onClick={() => setTtlIndex(i)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-155 ${
                     ttlIndex === i
-                      ? "bg-blue-600 dark:bg-emerald-500 text-white dark:text-zinc-900 border-blue-600 dark:border-emerald-500 shadow-sm"
-                      : "border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-transparent"
+                      ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
+                      : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
                   }`}
                 >
                   {opt.label}
@@ -193,10 +193,10 @@ export default function SecretsPage() {
                   key={opt.value}
                   type="button"
                   onClick={() => setReadIndex(i)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-155 ${
                     readIndex === i
-                      ? "bg-blue-600 dark:bg-emerald-500 text-white dark:text-zinc-900 border-blue-600 dark:border-emerald-500 shadow-sm"
-                      : "border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-transparent"
+                      ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
+                      : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
                   }`}
                 >
                   {opt.label}

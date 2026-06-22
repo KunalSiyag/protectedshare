@@ -70,12 +70,11 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12 flex flex-col transition-colors duration-300">
-      <div className="mb-8 relative pl-3.5">
-        <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-blue-600 dark:bg-emerald-500 rounded-full transition-colors duration-300"></div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-          Secure Note Decryption
+      <div className="mb-8">
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
+          Secure Note <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-emerald-400 dark:to-teal-500">Decryption</span>
         </h1>
-        <p className="mt-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-sm text-zinc-550 dark:text-zinc-400">
           Decrypted locally in your browser. Decryption key never hits the network.
         </p>
       </div>

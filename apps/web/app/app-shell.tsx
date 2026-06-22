@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "./theme-toggle";
@@ -10,8 +10,17 @@ import ContactModal from "./contact-modal";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [contactOpen, setContactOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const isHome = pathname === "/";
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 15);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const triggerContact = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -19,10 +28,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <>
+    <div className="relative min-h-screen flex flex-col w-full overflow-x-hidden bg-zinc-50 dark:bg-[#09090b] transition-colors duration-300">
+      {/* ═══ Background photogenic glow grid orbs ═══ */}
+      <div className="absolute inset-0 pointer-events-none opacity-45 dark:opacity-25 bg-[linear-gradient(to_right,#8080800d_1px,transparent_1px),linear-gradient(to_bottom,#8080800d_1px,transparent_1px)] bg-[size:32px_32px] -z-10" />
+      <div className="absolute top-[5%] left-[-10%] w-[60%] h-[40%] rounded-full bg-blue-500/10 dark:bg-emerald-500/5 blur-[130px] pointer-events-none -z-10" />
+      <div className="absolute bottom-[15%] right-[-15%] w-[60%] h-[40%] rounded-full bg-indigo-500/10 dark:bg-teal-500/5 blur-[130px] pointer-events-none -z-10" />
+
       {/* ═══ Sticky Header / Navbar ═══ */}
-      <header className="border-b border-zinc-200 dark:border-zinc-800/60 bg-white/85 dark:bg-black/50 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 h-14 flex items-center justify-between">
+      <header className={`sticky top-0 z-50 transition-all duration-300 ease-in-out ${
+        isScrolled
+          ? "border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/85 dark:bg-zinc-950/65 backdrop-blur-md shadow-[0_2px_20px_-8px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_30px_-15px_rgba(0,0,0,0.3)] h-14"
+          : "border-b border-transparent bg-transparent h-16"
+      }`}>
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 h-full flex items-center justify-between">
           {/* Logo */}
           <Link
             href="/"
@@ -36,20 +54,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <nav className="flex items-center gap-5 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-              <Link href="/notes" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+            <nav className="flex items-center gap-5 text-sm font-medium text-zinc-550 dark:text-zinc-400">
+              <Link href="/notes" className="hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
                 Secure Notes
               </Link>
-              <Link href="/secrets" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+              <Link href="/secrets" className="hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
                 EnvShare
               </Link>
-              <Link href="/notepad" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+              <Link href="/notepad" className="hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
                 Notepad
               </Link>
-              <Link href="/blog" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+              <Link href="/blog" className="hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
                 Blog
               </Link>
-              <Link href="/self-host" className="hover:text-blue-600 dark:hover:text-zinc-100 transition-colors">
+              <Link href="/self-host" className="hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
                 Self-Host
               </Link>
             </nav>
@@ -72,8 +90,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       ) : (
-        <div className="flex-1 w-full max-w-5xl mx-auto p-3 sm:p-4 md:p-8 flex flex-col animate-in fade-in duration-300">
-          <div className="flex-1 bg-white dark:bg-zinc-950/40 border border-zinc-300 dark:border-zinc-800/60 rounded-xl shadow-lg dark:shadow-2xl overflow-hidden flex flex-col backdrop-blur-sm relative transition-colors duration-300">
+        <div className="flex-1 w-full max-w-5xl [.notepad-full-width_&]:max-w-none [.notepad-full-width_&]:px-2 [.notepad-full-width_&]:sm:px-4 [.notepad-full-width_&]:md:px-6 [.notepad-full-width_&]:py-4 p-3 sm:p-4 md:p-8 mx-auto flex flex-col animate-in fade-in duration-300 transition-all duration-300">
+          <div className="flex-1 bg-white/80 dark:bg-[#09090b]/40 border border-zinc-200 dark:border-zinc-800/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] hover:border-zinc-350 dark:hover:border-zinc-700/80 transition-all duration-500 overflow-hidden flex flex-col backdrop-blur-md relative">
             {/* Notepad Window Header */}
             <WindowHeader />
             {/* Dynamic Page Content */}
@@ -177,6 +195,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Global Contact Form Drawer */}
       <ContactModal isOpen={contactOpen} onClose={() => setContactOpen(false)} />
-    </>
+    </div>
   );
 }

@@ -6,9 +6,9 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       disallow: [
-        "/notes/*",
-        "/secrets/*",
-        "/api/*",
+        "/notes/",
+        "/secrets/",
+        "/api/",
       ],
     },
     sitemap: "https://protectedshare.me/sitemap.xml",

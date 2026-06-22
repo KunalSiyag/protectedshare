@@ -49,12 +49,21 @@ export const metadata: Metadata = {
     title: "Free Secure Notes & EnvShare — No Signup Required",
     description: "AES-256 encrypted notes, .env sharing, and burn-after-read secrets. Free forever, no accounts, no tracking.",
     siteName: "ProtectedShare",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Free Secure Notes & EnvShare — No Signup Required",
     description: "AES-256 encrypted notes, .env sharing, and burn-after-read secrets. Free forever, no accounts.",
     creator: "@ProtectedShare",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,

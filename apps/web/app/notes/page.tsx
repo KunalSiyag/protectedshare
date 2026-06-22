@@ -4,8 +4,10 @@ import { useState } from "react";
 import { derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
-import { Loader2, Copy, Check, ShieldCheck, Lock, Sparkles } from "lucide-react";
+import { Loader2, Copy, Check, ShieldCheck, Lock, Sparkles, Key } from "lucide-react";
 import { apiUrl } from "../../lib/api";
+import { PasswordStrengthIndicator } from "../../components/password-helper";
+
 
 export default function NotesPage() {
   const [content, setContent] = useState("");
@@ -68,12 +70,11 @@ export default function NotesPage() {
 
   return (
     <main className="h-full px-6 py-8 md:py-12 max-w-3xl mx-auto flex flex-col transition-colors duration-300">
-      <div className="mb-8 relative pl-3.5">
-        <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-blue-600 dark:bg-emerald-500 rounded-full transition-colors duration-300"></div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-          Create Encrypted Note
+      <div className="mb-8">
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
+          Create <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-emerald-400 dark:to-teal-500">Secure Note</span>
         </h1>
-        <p className="mt-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-sm text-zinc-550 dark:text-zinc-400">
           Browser-side AES-256 zero-knowledge encryption. Plaintext never leaves your machine.
         </p>
       </div>
@@ -98,16 +99,28 @@ export default function NotesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Password (Optional)</label>
-                  <Input
-                    id="note-password"
-                    name="password"
-                    type="text"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Auto-generate strong password"
-                    className="font-mono h-10 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="note-password"
+                      name="password"
+                      type="text"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Auto-generate strong password"
+                      className="font-mono h-10 pr-10 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg w-full"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPassword(generateRandomPassword(16))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
+                      title="Generate secure password"
+                    >
+                      <Key className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <PasswordStrengthIndicator password={password} />
                 </div>
+
 
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Expiration</label>

@@ -25,6 +25,21 @@ export const metadata: Metadata = {
     description:
       "AES-256 encrypted .env file sharing with configurable read limits. Zero-knowledge — the key never touches the server. Free forever.",
     url: "https://protectedshare.me/secrets",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EnvShare — Share .env Files & API Keys Free, No Signup",
+    description:
+      "AES-256 encrypted .env file sharing with configurable read limits. Zero-knowledge — the key never touches the server. Free forever.",
+    images: ["/og-image.png"],
   },
 };
 

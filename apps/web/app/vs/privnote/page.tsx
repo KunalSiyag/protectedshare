@@ -8,6 +8,25 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://protectedshare.me/vs/privnote",
   },
+  openGraph: {
+    title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
+    description: "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
+    url: "https://protectedshare.me/vs/privnote",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
+    description: "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function PrivnoteComparisonPage() {
@@ -101,6 +120,13 @@ export default function PrivnoteComparisonPage() {
               EnvShare
             </Link>
           </div>
+        </div>
+
+        <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
+          <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>
+          <Link href="/vs/protectedtext" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs ProtectedText</Link>
+          <Link href="/vs/envshare" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs EnvShare</Link>
+          <Link href="/" className="hover:underline">Home</Link>
         </div>
       </div>
     </main>

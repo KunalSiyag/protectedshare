@@ -21,6 +21,21 @@ export const metadata: Metadata = {
     description:
       "Zero-knowledge encrypted note sharing. AES-256-GCM client-side encryption. Free ProtectedText alternative.",
     url: "https://protectedshare.me/notes",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free Encrypted Notes — No Signup Required",
+    description:
+      "Zero-knowledge encrypted note sharing. AES-256-GCM client-side encryption. Free ProtectedText alternative.",
+    images: ["/og-image.png"],
   },
 };
 
