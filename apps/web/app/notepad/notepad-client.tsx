@@ -22,6 +22,7 @@ import {
   renameWorkspaceLocal,
   UsernameConflictError,
   WorkspaceConflictError,
+  sendWorkspaceHeartbeat,
   type WorkspaceNote
 } from "../../lib/workspace";
 import { apiUrl } from "../../lib/api";
@@ -174,6 +175,8 @@ export default function NotepadClient() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExportingHtml, setIsExportingHtml] = useState(false);
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
+  const [clientId] = useState(() => createNoteId());
+  const [activeOtherUsersCount, setActiveOtherUsersCount] = useState(0);
 
   // Initialize theme from localstorage
   useEffect(() => {
@@ -194,6 +197,30 @@ export default function NotepadClient() {
       document.documentElement.classList.remove("notepad-full-width");
     };
   }, [session]);
+
+  // Periodic Heartbeat for cloud workspaces to see active users count
+  useEffect(() => {
+    if (!session || session.storageMode !== "cloud") {
+      setActiveOtherUsersCount(0);
+      return;
+    }
+
+    const runHeartbeat = async () => {
+      try {
+        const count = await sendWorkspaceHeartbeat(session.username, session.password, clientId);
+        setActiveOtherUsersCount(count);
+      } catch (err) {
+        console.error("Heartbeat error:", err);
+      }
+    };
+
+    // Run immediately
+    void runHeartbeat();
+
+    // Poll every 15 seconds
+    const interval = setInterval(runHeartbeat, 15000);
+    return () => clearInterval(interval);
+  }, [session, clientId]);
 
   const handleThemeChange = (color: string) => {
     setThemeColor(color);
@@ -973,10 +1000,18 @@ export default function NotepadClient() {
                 <span className="hidden md:inline">Go Online</span>
               </button>
             ) : (
-              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 bg-zinc-200/50 dark:bg-zinc-800/40 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800/80">
-                <span className={`w-1.5 h-1.5 rounded-full ${themes[themeColor].bgGlow} animate-pulse`} />
-                <span>cloud</span>
-              </span>
+              <>
+                {activeOtherUsersCount > 0 && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 animate-in fade-in" title={`${activeOtherUsersCount} other device(s) active on this notepad`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    <span>{activeOtherUsersCount} active</span>
+                  </span>
+                )}
+                <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 bg-zinc-200/50 dark:bg-zinc-800/40 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800/80">
+                  <span className={`w-1.5 h-1.5 rounded-full ${themes[themeColor].bgGlow} animate-pulse`} />
+                  <span>cloud</span>
+                </span>
+              </>
             )}
             <span className="text-xs text-zinc-500 dark:text-zinc-500 font-mono hidden md:inline">
               {session.username === "guest" ? "Scratchpad" : `@${session.username}`}

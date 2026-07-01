@@ -1,4 +1,4 @@
-import { decrypt, encrypt, derivePasswordProof, type EncryptedPayload } from "@protectedshare/crypto";
+import { decrypt, encrypt, derivePasswordProof, sha256, type EncryptedPayload } from "@protectedshare/crypto";
 import { apiUrl } from "./api";
 
 const WORKSPACE_PREFIX = "protectedshare.workspace.v1";
@@ -74,7 +74,7 @@ async function hashUsername(username: string): Promise<string> {
     throw new Error("Username is required.");
   }
   // Zero-knowledge hash of username so it cannot be read on the DB
-  return derivePasswordProof(normalized);
+  return sha256(normalized);
 }
 
 export async function createWorkspace(username: string, password: string): Promise<void> {
@@ -210,6 +210,29 @@ export async function saveWorkspaceNotes(
 
   const resJson = await response.json() as { success: boolean; updatedAt: number };
   return resJson.updatedAt;
+}
+
+export async function sendWorkspaceHeartbeat(
+  username: string,
+  password: string,
+  clientId: string
+): Promise<number> {
+  const hashedUsername = await hashUsername(username);
+  const passwordProof = await derivePasswordProof(password);
+
+  const response = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}/heartbeat`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ passwordProof, clientId })
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(errorPayload?.error ?? "Heartbeat failed");
+  }
+
+  const resJson = await response.json() as { success: boolean; activeOtherUsers: number };
+  return resJson.activeOtherUsers;
 }
 
 export async function deleteWorkspace(username: string, password: string): Promise<void> {

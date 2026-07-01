@@ -482,6 +482,20 @@ async function ensureWorkspacesTable(db: any): Promise<void> {
   `).run();
 }
 
+async function ensureWorkspaceSessionsTable(db: any): Promise<void> {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS workspace_sessions (
+      username TEXT NOT NULL,
+      client_id TEXT NOT NULL,
+      last_seen INTEGER NOT NULL,
+      PRIMARY KEY (username, client_id)
+    )
+  `).run();
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_workspace_sessions_last_seen ON workspace_sessions (last_seen)
+  `).run();
+}
+
 // Workspace API handler functions for both /api/workspaces and /api/workspace
 const handleCreateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
   await ensureWorkspacesTable(c.env.DB);
@@ -709,6 +723,64 @@ const handleDeleteWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
   return c.json({ success: true });
 };
 
+const handleWorkspaceHeartbeat = async (c: Context<{ Bindings: Bindings }>) => {
+  await ensureWorkspaceSessionsTable(c.env.DB);
+  await ensureWorkspacesTable(c.env.DB);
+
+  const username = (c.req.param("username") || "").trim().toLowerCase();
+  if (!username) {
+    return jsonError("Username is required.", "MISSING_USERNAME", 400);
+  }
+
+  const body = await c.req.json().catch(() => null) as { passwordProof?: string; clientId?: string } | null;
+  if (!body || typeof body.passwordProof !== "string" || !body.passwordProof.trim() || typeof body.clientId !== "string" || !body.clientId.trim()) {
+    return jsonError("Invalid heartbeat payload.", "INVALID_PAYLOAD", 400);
+  }
+
+  // Verify ownership
+  const row = await c.env.DB.prepare(
+    "SELECT password_proof FROM workspaces WHERE username = ?"
+  )
+    .bind(username)
+    .first<{ password_proof: string }>();
+
+  if (!row) {
+    return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
+  }
+
+  if (row.password_proof !== body.passwordProof) {
+    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
+  }
+
+  const now = nowEpochSeconds();
+
+  try {
+    // Cleanup sessions older than 30 seconds
+    await c.env.DB.prepare("DELETE FROM workspace_sessions WHERE last_seen < ?")
+      .bind(now - 30)
+      .run();
+
+    // Register/update current session
+    await c.env.DB.prepare(
+      "INSERT OR REPLACE INTO workspace_sessions (username, client_id, last_seen) VALUES (?, ?, ?)"
+    )
+      .bind(username, body.clientId, now)
+      .run();
+
+    // Get other active users count
+    const { count } = await c.env.DB.prepare(
+      "SELECT COUNT(*) as count FROM workspace_sessions WHERE username = ? AND client_id != ?"
+    )
+      .bind(username, body.clientId)
+      .first<{ count: number }>() || { count: 0 };
+
+    return c.json({ success: true, activeOtherUsers: count });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Database error";
+    return jsonError(`Heartbeat failed: ${msg}`, "DATABASE_ERROR", 500);
+  }
+};
+
 // Bind handlers to both plural and singular routes for backward/forward compatibility
 app.post("/api/workspaces", handleCreateWorkspace);
 app.post("/api/workspace", handleCreateWorkspace);
@@ -721,6 +793,9 @@ app.put("/api/workspace/:username", handleUpdateWorkspace);
 
 app.delete("/api/workspaces/:username", handleDeleteWorkspace);
 app.delete("/api/workspace/:username", handleDeleteWorkspace);
+
+app.post("/api/workspaces/:username/heartbeat", handleWorkspaceHeartbeat);
+app.post("/api/workspace/:username/heartbeat", handleWorkspaceHeartbeat);
 
 app.post("/api/inquiries", async (c) => {
   let body: { name?: string; email?: string; company?: string; message?: string };

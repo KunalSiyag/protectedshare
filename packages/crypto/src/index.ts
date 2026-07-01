@@ -112,9 +112,38 @@ export async function decrypt(
   return textDecoder.decode(decrypted);
 }
 
+export async function sha256(value: string): Promise<string> {
+  const cryptoRuntime = requireCrypto();
+  const digest = await cryptoRuntime.subtle.digest("SHA-256", textEncoder.encode(value));
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
 export async function derivePasswordProof(password: string): Promise<string> {
   const cryptoRuntime = requireCrypto();
-  const digest = await cryptoRuntime.subtle.digest("SHA-256", textEncoder.encode(password));
+  const salt = textEncoder.encode("protectedshare-proof-salt-v1");
+  const passwordKey = await cryptoRuntime.subtle.importKey(
+    "raw",
+    textEncoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  const derivedKey = await cryptoRuntime.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: toArrayBuffer(salt),
+      iterations: 100_000,
+      hash: "SHA-256"
+    },
+    passwordKey,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+
+  const exported = await cryptoRuntime.subtle.exportKey("raw", derivedKey);
+  const digest = await cryptoRuntime.subtle.digest("SHA-256", exported);
   return bytesToBase64Url(new Uint8Array(digest));
 }
 
