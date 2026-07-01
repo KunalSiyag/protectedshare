@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — ProtectedShare",
+  title: "Terms of Service",
   description: "Review the terms and conditions for using the ProtectedShare zero-knowledge sharing utility.",
   alternates: {
     canonical: "https://protectedshare.me/terms",

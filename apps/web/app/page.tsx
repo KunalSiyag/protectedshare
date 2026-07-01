@@ -286,12 +286,12 @@ export default function HomePage() {
       <section id="services" className="w-full py-24 px-6 border-y border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/40 relative">
         <div className="max-w-5xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-xs uppercase font-mono font-bold tracking-widest text-blue-600 dark:text-emerald-400 mb-3">
+            <div className="text-xs uppercase font-mono font-bold tracking-widest text-blue-600 dark:text-emerald-400 mb-3">
               ZERO-KNOWLEDGE UTILITIES
-            </h2>
-            <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
               Explore Our Core Features
-            </h3>
+            </h2>
             <p className="text-sm text-zinc-650 dark:text-zinc-400">
               Each utility operates entirely within your browser runtime. Choose the application that fits your security workflow.
             </p>
@@ -303,7 +303,7 @@ export default function HomePage() {
               <div className="p-3 rounded-lg bg-amber-500/10 text-amber-500 w-fit mb-5">
                 <Lock className="h-5 w-5" />
               </div>
-              <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Secure Notes &amp; Letters</h4>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Secure Notes &amp; Letters</h3>
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
                 Create password-protected letters and configurations. Send the decryption key separate from the secure link to achieve high-grade two-channel security.
               </p>
@@ -321,7 +321,7 @@ export default function HomePage() {
               <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500 dark:bg-emerald-500/10 dark:text-emerald-400 w-fit mb-5">
                 <FileCode className="h-5 w-5" />
               </div>
-              <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">EnvShare (Developer Keys)</h4>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">EnvShare (Developer Keys)</h3>
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
                 Share database strings, configurations, and API keys. The decryption key remains stored inside the URL hash fragment, never reaching database log servers.
               </p>
@@ -339,7 +339,7 @@ export default function HomePage() {
               <div className="p-3 rounded-lg bg-purple-500/10 text-purple-500 w-fit mb-5">
                 <Shield className="h-5 w-5" />
               </div>
-              <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Encrypted Notepad</h4>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Encrypted Notepad</h3>
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
                 An offline-first personal scratchpad. Encrypts documents with client-side SHA-256 account credentials and supports markdown rendering and custom styling themes.
               </p>
@@ -359,12 +359,12 @@ export default function HomePage() {
       <section id="vs" className="w-full py-24 px-6 bg-zinc-50 dark:bg-[#09090b] relative">
         <div className="max-w-5xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-xs uppercase font-mono font-bold tracking-widest text-blue-600 dark:text-emerald-400 mb-3">
+            <div className="text-xs uppercase font-mono font-bold tracking-widest text-blue-600 dark:text-emerald-400 mb-3">
               PRODUCT COMPARISONS
-            </h2>
-            <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
               ProtectedShare vs. Alternatives
-            </h3>
+            </h2>
             <p className="text-sm text-zinc-650 dark:text-zinc-400">
               Read how our zero-knowledge implementation compares to other privacy solutions and note-sharing utilities.
             </p>
@@ -377,7 +377,7 @@ export default function HomePage() {
               className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
             >
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-0.5">ProtectedText Alternative</h4>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-0.5">ProtectedText Alternative</h3>
                 <p className="text-[10px] text-zinc-500">AES-256-GCM vs AES-256-CBC comparison</p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
@@ -388,7 +388,7 @@ export default function HomePage() {
               className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
             >
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-0.5">Privnote Alternative</h4>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-0.5">Privnote Alternative</h3>
                 <p className="text-[10px] text-zinc-500">True zero-tracking, ad-free notepad sharing</p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
@@ -399,7 +399,7 @@ export default function HomePage() {
               className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
             >
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-0.5">EnvShare Alternative</h4>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-0.5">EnvShare Alternative</h3>
                 <p className="text-[10px] text-zinc-500">Self-hosted worker configurations &amp; UI upgrades</p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
@@ -480,12 +480,12 @@ export default function HomePage() {
       <section id="security" className="w-full py-24 px-6 border-t border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/20 relative">
         <div className="max-w-5xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-xs uppercase font-mono font-bold tracking-widest text-blue-600 dark:text-emerald-400 mb-3">
+            <div className="text-xs uppercase font-mono font-bold tracking-widest text-blue-600 dark:text-emerald-400 mb-3">
               ZERO-KNOWLEDGE TRUST MODEL
-            </h2>
-            <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
               True Client-Side Encryption
-            </h3>
+            </h2>
             <p className="text-sm text-zinc-650 dark:text-zinc-400">
               Encryption keys never leave your machine, providing a mathematical guarantee of security.
             </p>
@@ -496,7 +496,7 @@ export default function HomePage() {
               <div className="p-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 mb-4">
                 <Shield className="h-5 w-5" />
               </div>
-              <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Browser Encryption</h4>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Browser Encryption</h3>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                 Plaintext is encrypted in the browser using <strong>AES-256-GCM</strong>. Raw keys and unencrypted text are never sent to the network.
               </p>
@@ -506,7 +506,7 @@ export default function HomePage() {
               <div className="p-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 mb-4">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Burn After Reading</h4>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Burn After Reading</h3>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                 Secrets are permanently expunged from memory and database tables immediately upon decryption. Zero remnants remain on server logs.
               </p>
@@ -516,7 +516,7 @@ export default function HomePage() {
               <div className="p-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 mb-4">
                 <CheckCircle className="h-5 w-5" />
               </div>
-              <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Zero Tracking</h4>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Zero Tracking</h3>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                 We use no tracking scripts, no third-party cookies, and collect zero telemetry logs. Your IP address is never stored with database items.
               </p>
@@ -532,9 +532,9 @@ export default function HomePage() {
             <Server className="h-10 w-10" />
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">
               Deploy Your Own Instance
-            </h3>
+            </h2>
             <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-4">
               Need dedicated infrastructure for your enterprise? ProtectedShare supports quick deployment via Docker. You can provision completely isolated, self-hosted frontend and API nodes.
             </p>
@@ -554,9 +554,9 @@ export default function HomePage() {
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-16">
             <HelpCircle className="h-8 w-8 text-zinc-450 dark:text-zinc-500 mx-auto mb-4" />
-            <h3 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
+            <h2 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-4">
               Frequently Asked Questions
-            </h3>
+            </h2>
             <p className="text-sm text-zinc-650 dark:text-zinc-400">
               Clear answers regarding our encryption flow and technical operations.
             </p>

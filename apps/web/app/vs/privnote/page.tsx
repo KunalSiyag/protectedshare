@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
+  title: "Best Free Privnote Alternative (Zero-Knowledge)",
   description:
     "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
   alternates: {
@@ -121,6 +121,85 @@ export default function PrivnoteComparisonPage() {
             </Link>
           </div>
         </div>
+
+        {/* FAQ Section */}
+        <div className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">Frequently Asked Questions</h2>
+          <div className="space-y-4 text-sm leading-relaxed">
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                What makes ProtectedShare a good Privnote alternative?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                ProtectedShare provides client-side zero-knowledge encryption using the browser Web Crypto API. Unlike older tools like Privnote, which can run intrusive display ads and third-party trackers, ProtectedShare is 100% open-source, runs zero tracking scripts or cookies, and supports advanced developer features like EnvShare (.env configuration sharing).
+              </div>
+            </details>
+
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                Is Privnote really end-to-end encrypted?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                While legacy services claim encryption, many perform decryption on their servers or require the key to be sent to their backends. ProtectedShare performs AES-256-GCM encryption client-side, storing the decryption key in the browser's URL hash (after the `#` symbol), ensuring that not even the hosting server can read your secret.
+              </div>
+            </details>
+
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                Does ProtectedShare store logs of my IP or secrets?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                No, ProtectedShare operates a zero-tracking model. We do not store IP addresses or connection details, and our database records are set to immediately auto-destruct upon reading or expiration.
+              </div>
+            </details>
+          </div>
+        </div>
+
+        {/* JSON-LD: FAQPage Schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: [
+                {
+                  "@type": "Question",
+                  name: "What makes ProtectedShare a good Privnote alternative?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "ProtectedShare provides client-side zero-knowledge encryption using the browser Web Crypto API. Unlike older tools like Privnote, which can run intrusive display ads and third-party trackers, ProtectedShare is 100% open-source, runs zero tracking scripts or cookies, and supports advanced developer features like EnvShare (.env configuration sharing).",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Is Privnote really end-to-end encrypted?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "While legacy services claim encryption, many perform decryption on their servers or require the key to be sent to their backends. ProtectedShare performs AES-256-GCM encryption client-side, storing the decryption key in the browser's URL hash (after the `#` symbol), ensuring that not even the hosting server can read your secret.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Does ProtectedShare store logs of my IP or secrets?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "No, ProtectedShare operates a zero-tracking model. We do not store IP addresses or connection details, and our database records are set to immediately auto-destruct upon reading or expiration.",
+                  },
+                },
+              ],
+            }),
+          }}
+        />
 
         <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
           <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>

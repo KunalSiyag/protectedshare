@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Best Free ProtectedText Alternative (AES-256-GCM) — ProtectedShare",
+  title: "Best Free ProtectedText Alternative (AES-256-GCM)",
   description:
     "Why ProtectedShare is the best free alternative to ProtectedText. E2E zero-knowledge AES-256-GCM encryption, self-destructing links, .env file sharing, and a modern mobile-first interface.",
   alternates: {
@@ -126,6 +126,85 @@ export default function ProtectedTextComparisonPage() {
             </Link>
           </div>
         </div>
+
+        {/* FAQ Section */}
+        <div className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">Frequently Asked Questions</h2>
+          <div className="space-y-4 text-sm leading-relaxed">
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                What makes ProtectedShare a good ProtectedText alternative?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                ProtectedShare is a modern alternative to ProtectedText that offers stronger AES-256-GCM authenticated encryption (compared to ProtectedText's legacy AES-256-CBC), a fully responsive mobile-first interface, and built-in developer tools like EnvShare (.env file sharing) and self-destructing links, all without requiring any sign-up or registration.
+              </div>
+            </details>
+
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                Does ProtectedShare require a sign-up or account?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                No, ProtectedShare is fully anonymous. You do not need to register an account, sign up, or provide email addresses to create secure notes or share environment variables.
+              </div>
+            </details>
+
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                How does ProtectedShare's encryption compare to ProtectedText?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                ProtectedText uses AES-256-CBC encryption, which is vulnerable to padding attacks if message authentication is not present. ProtectedShare utilizes AES-256-GCM (Galois/Counter Mode) authenticated encryption, ensuring both confidentiality and data integrity verification to prevent tampering.
+              </div>
+            </details>
+          </div>
+        </div>
+
+        {/* JSON-LD: FAQPage Schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: [
+                {
+                  "@type": "Question",
+                  name: "What makes ProtectedShare a good ProtectedText alternative?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "ProtectedShare is a modern alternative to ProtectedText that offers stronger AES-256-GCM authenticated encryption (compared to ProtectedText's legacy AES-256-CBC), a fully responsive mobile-first interface, and built-in developer tools like EnvShare (.env file sharing) and self-destructing links, all without requiring any sign-up or registration.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Does ProtectedShare require a sign-up or account?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "No, ProtectedShare is fully anonymous. You do not need to register an account, sign up, or provide email addresses to create secure notes or share environment variables.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "How does ProtectedShare's encryption compare to ProtectedText?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "ProtectedText uses AES-256-CBC encryption, which is vulnerable to padding attacks if message authentication is not present. ProtectedShare utilizes AES-256-GCM (Galois/Counter Mode) authenticated encryption, ensuring both confidentiality and data integrity verification to prevent tampering.",
+                  },
+                },
+              ],
+            }),
+          }}
+        />
 
         <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
           <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>

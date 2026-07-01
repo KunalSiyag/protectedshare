@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact Us — ProtectedShare",
+  title: "Contact Us",
   description: "Get in touch with the ProtectedShare support team for inquiries, bug reports, or enterprise hosting.",
   alternates: {
     canonical: "https://protectedshare.me/contact",

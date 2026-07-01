@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "About Us — ProtectedShare",
+  title: "About Us",
   description: "Learn about the mission, philosophy, and technology behind ProtectedShare's zero-knowledge security suite.",
   alternates: {
     canonical: "https://protectedshare.me/about",

@@ -3,14 +3,14 @@ import Link from "next/link";
 import { BLOG_POSTS } from "../../lib/blog";
 
 export const metadata: Metadata = {
-  title: "ProtectedShare Blog",
+  title: "Security & Cryptographic Guides Blog",
   description:
     "Secure note-sharing guides, zero-knowledge encryption explainers, .env file tips, and privacy-focused comparisons.",
   alternates: {
     canonical: "https://protectedshare.me/blog",
   },
   openGraph: {
-    title: "ProtectedShare Blog",
+    title: "Security & Cryptographic Guides Blog",
     description:
       "Secure note-sharing guides, zero-knowledge encryption explainers, .env file tips, and privacy-focused comparisons.",
     url: "https://protectedshare.me/blog",

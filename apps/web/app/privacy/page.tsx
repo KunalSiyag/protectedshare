@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — ProtectedShare",
+  title: "Privacy Policy",
   description: "Read the ProtectedShare privacy policy. Learn about our zero-knowledge architecture and why we collect zero tracking data.",
   alternates: {
     canonical: "https://protectedshare.me/privacy",

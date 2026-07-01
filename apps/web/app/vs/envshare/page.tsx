@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Best Free EnvShare Alternative (Active & Polished) — ProtectedShare",
+  title: "Best Free EnvShare Alternative (Active & Polished)",
   description:
     "Why ProtectedShare is the best free alternative to EnvShare. AES-256-GCM zero-knowledge encryption, self-destructing links, and a complete suite of notes and offline notepad tools.",
   alternates: {
@@ -126,6 +126,85 @@ export default function EnvShareComparisonPage() {
             </Link>
           </div>
         </div>
+
+        {/* FAQ Section */}
+        <div className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">Frequently Asked Questions</h2>
+          <div className="space-y-4 text-sm leading-relaxed">
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                What makes ProtectedShare a good EnvShare alternative?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                While EnvShare is an excellent tool for sharing monospaced .env files and API keys, the original project has been unmaintained for over two years. ProtectedShare is an active, modern implementation that incorporates the same zero-knowledge URL-hash based encryption, but adds secure notes (for two-channel password delivery), an offline-first encrypted notepad, dark/light themes, and regular dependency updates.
+              </div>
+            </details>
+
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                How does EnvShare compare to ProtectedShare's Secure Notes?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                In EnvShare mode, the decryption key is appended as a URL hash fragment (e.g. <code>#key=...</code>) allowing one-click decryption for developers. In Secure Notes mode, you set a custom password or auto-generate one, and must deliver the password separately to the recipient. This allows true multi-channel verification for high-security credentials.
+              </div>
+            </details>
+
+            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
+                Can I self-host my own instance of ProtectedShare?
+                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
+                Yes! ProtectedShare is 100% open-source and provides full Docker deployment guides. You can pull the Next.js frontend package and host it on your own server, pointing it to your own Cloudflare Worker database instance.
+              </div>
+            </details>
+          </div>
+        </div>
+
+        {/* JSON-LD: FAQPage Schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: [
+                {
+                  "@type": "Question",
+                  name: "What makes ProtectedShare a good EnvShare alternative?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "While EnvShare is an excellent tool for sharing monospaced .env files and API keys, the original project has been unmaintained for over two years. ProtectedShare is an active, modern implementation that incorporates the same zero-knowledge URL-hash based encryption, but adds secure notes (for two-channel password delivery), an offline-first encrypted notepad, dark/light themes, and regular dependency updates.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "How does EnvShare compare to ProtectedShare's Secure Notes?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "In EnvShare mode, the decryption key is appended as a URL hash fragment (e.g. #key=...) allowing one-click decryption for developers. In Secure Notes mode, you set a custom password or auto-generate one, and must deliver the password separately to the recipient. This allows true multi-channel verification for high-security credentials.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Can I self-host my own instance of ProtectedShare?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Yes! ProtectedShare is 100% open-source and provides full Docker deployment guides. You can pull the Next.js frontend package and host it on your own server, pointing it to your own Cloudflare Worker database instance.",
+                  },
+                },
+              ],
+            }),
+          }}
+        />
 
         <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
           <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>
