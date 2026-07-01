@@ -9,13 +9,20 @@ KEY_LOCATION = f"https://{HOST}/{KEY}.txt"
 SITEMAP_PATH = "apps/web/.next/server/app/sitemap.xml.body"
 
 def main():
-    if not os.path.exists(SITEMAP_PATH):
-        print(f"Error: Sitemap not found at {SITEMAP_PATH}")
-        # Try finding it in another location or fetching it via HTTP as fallback
-        return
-
-    with open(SITEMAP_PATH, "r", encoding="utf-8") as f:
-        xml_data = f.read()
+    xml_data = ""
+    if os.path.exists(SITEMAP_PATH):
+        with open(SITEMAP_PATH, "r", encoding="utf-8") as f:
+            xml_data = f.read()
+    else:
+        print(f"Local sitemap not found at {SITEMAP_PATH}. Attempting HTTP fallback fetch...")
+        try:
+            url = f"https://{HOST}/sitemap.xml"
+            with urllib.request.urlopen(url) as response:
+                xml_data = response.read().decode("utf-8")
+            print("Successfully fetched sitemap via HTTP.")
+        except Exception as e:
+            print(f"Error: Unable to load sitemap locally or via HTTP: {e}")
+            return
 
     # Extract all <loc> tags from the sitemap
     urls = re.findall(r'<loc>(.*?)</loc>', xml_data)
