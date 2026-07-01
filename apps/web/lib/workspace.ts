@@ -124,10 +124,25 @@ export async function openWorkspace(username: string, password: string): Promise
 
   const passwordProof = await derivePasswordProof(password);
 
-  const response = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}?proof=${encodeURIComponent(passwordProof)}`), {
+  let response = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}?proof=${encodeURIComponent(passwordProof)}`), {
     method: "GET",
     headers: { "Accept": "application/json" }
   });
+
+  let isLegacy = false;
+  if (!response.ok && response.status === 401) {
+    // Attempt fallback with legacy proof (SHA-256)
+    const legacyProof = await sha256(password);
+    const legacyResponse = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}?proof=${encodeURIComponent(legacyProof)}`), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+
+    if (legacyResponse.ok) {
+      response = legacyResponse;
+      isLegacy = true;
+    }
+  }
 
   if (!response.ok) {
     const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
@@ -148,6 +163,21 @@ export async function openWorkspace(username: string, password: string): Promise
 
   if (verifier !== WORKSPACE_VERIFIER) {
     throw new Error("Invalid username or password.");
+  }
+
+  // Upgrade the proof on the server dynamically and transparently
+  if (isLegacy) {
+    try {
+      const legacyProof = await sha256(password);
+      await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}/migrate-proof`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ legacyProof, newProof: passwordProof })
+      });
+      console.log(`[Migration] Successfully upgraded password proof to PBKDF2 for workspace: ${username}`);
+    } catch (migrationErr) {
+      console.error("[Migration] Failed to migrate password proof to PBKDF2 format:", migrationErr);
+    }
   }
 
   const decryptedVault = await decrypt(

@@ -781,6 +781,46 @@ const handleWorkspaceHeartbeat = async (c: Context<{ Bindings: Bindings }>) => {
   }
 };
 
+const handleMigratePasswordProof = async (c: Context<{ Bindings: Bindings }>) => {
+  await ensureWorkspacesTable(c.env.DB);
+  const username = (c.req.param("username") || "").trim().toLowerCase();
+  if (!username) {
+    return jsonError("Username is required.", "MISSING_USERNAME", 400);
+  }
+
+  const body = await c.req.json().catch(() => null) as { legacyProof?: string; newProof?: string } | null;
+  if (!body || typeof body.legacyProof !== "string" || !body.legacyProof.trim() || typeof body.newProof !== "string" || !body.newProof.trim()) {
+    return jsonError("Invalid migration payload.", "INVALID_PAYLOAD", 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    "SELECT password_proof FROM workspaces WHERE username = ?"
+  )
+    .bind(username)
+    .first<{ password_proof: string }>();
+
+  if (!row) {
+    return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
+  }
+
+  if (row.password_proof !== body.legacyProof) {
+    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
+  }
+
+  try {
+    await c.env.DB.prepare(
+      "UPDATE workspaces SET password_proof = ? WHERE username = ?"
+    )
+      .bind(body.newProof, username)
+      .run();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Database error";
+    return jsonError(`Failed to migrate proof: ${msg}`, "DATABASE_ERROR", 500);
+  }
+
+  return c.json({ success: true });
+};
+
 // Bind handlers to both plural and singular routes for backward/forward compatibility
 app.post("/api/workspaces", handleCreateWorkspace);
 app.post("/api/workspace", handleCreateWorkspace);
@@ -796,6 +836,9 @@ app.delete("/api/workspace/:username", handleDeleteWorkspace);
 
 app.post("/api/workspaces/:username/heartbeat", handleWorkspaceHeartbeat);
 app.post("/api/workspace/:username/heartbeat", handleWorkspaceHeartbeat);
+
+app.post("/api/workspaces/:username/migrate-proof", handleMigratePasswordProof);
+app.post("/api/workspace/:username/migrate-proof", handleMigratePasswordProof);
 
 app.post("/api/inquiries", async (c) => {
   let body: { name?: string; email?: string; company?: string; message?: string };
