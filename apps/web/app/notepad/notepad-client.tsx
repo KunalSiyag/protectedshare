@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
+import { decrypt, derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
 import { Plus, LogOut, Save, Trash2, Copy, Download, Link2, Check, AlertTriangle, X, FileText, Cloud, Loader2, Key, Eye, EyeOff, Columns, Edit2, Palette, Lock } from "lucide-react";
@@ -21,6 +21,7 @@ import {
   syncLocalWorkspaceToCloud,
   renameWorkspaceLocal,
   UsernameConflictError,
+  WorkspaceConflictError,
   type WorkspaceNote
 } from "../../lib/workspace";
 import { apiUrl } from "../../lib/api";
@@ -125,6 +126,7 @@ type SessionState = {
   password: string;
   notes: WorkspaceNote[];
   storageMode: "local" | "cloud";
+  lastKnownUpdatedAt?: number;
 };
 
 type AuthMode = "signin" | "create";
@@ -284,6 +286,7 @@ export default function NotepadClient() {
 
     try {
       let notes: WorkspaceNote[] = [];
+      let lastKnownUpdatedAt: number | undefined;
       if (storageMode === "local") {
         if (authMode === "create") {
           await createWorkspaceLocal(username, password);
@@ -293,14 +296,17 @@ export default function NotepadClient() {
         if (authMode === "create") {
           await createWorkspace(username, password);
         }
-        notes = await openWorkspace(username, password);
+        const openRes = await openWorkspace(username, password);
+        notes = openRes.notes;
+        lastKnownUpdatedAt = openRes.updatedAt;
       }
 
       setSession({
         username: username.trim().toLowerCase(),
         password,
         notes,
-        storageMode
+        storageMode,
+        lastKnownUpdatedAt
       });
       setSelectedNoteId(notes[0]?.id ?? null);
     } catch (caughtError: unknown) {
@@ -314,10 +320,72 @@ export default function NotepadClient() {
 
     if (session.storageMode === "local") {
       await saveWorkspaceNotesLocal(session.username, session.password, nextNotes);
+      setSession({ ...session, notes: nextNotes });
     } else {
-      await saveWorkspaceNotes(session.username, session.password, nextNotes);
+      try {
+        const newUpdatedAt = await saveWorkspaceNotes(
+          session.username,
+          session.password,
+          nextNotes,
+          session.lastKnownUpdatedAt
+        );
+        setSession({ ...session, notes: nextNotes, lastKnownUpdatedAt: newUpdatedAt });
+      } catch (err: unknown) {
+        if (err instanceof WorkspaceConflictError) {
+          let serverNotes: WorkspaceNote[] = [];
+          if (err.vault) {
+            try {
+              const decryptedVault = await decrypt(
+                err.vault.encryptedBlob,
+                session.password,
+                err.vault.iv,
+                err.vault.salt
+              );
+              serverNotes = JSON.parse(decryptedVault) as WorkspaceNote[];
+            } catch {
+              // Ignore decryption error
+            }
+          }
+
+          // Auto-merge notes (LWW Element Set CRDT style)
+          const mergedNotesMap = new Map<string, WorkspaceNote>();
+          for (const note of serverNotes) {
+            mergedNotesMap.set(note.id, note);
+          }
+          for (const note of nextNotes) {
+            const existing = mergedNotesMap.get(note.id);
+            if (!existing || note.updatedAt > existing.updatedAt) {
+              mergedNotesMap.set(note.id, note);
+            }
+          }
+          const mergedNotes = Array.from(mergedNotesMap.values()).sort(
+            (a, b) => b.updatedAt - a.updatedAt
+          );
+
+          alert("Conflict detected: This notepad has been updated on another device. Your changes have been automatically merged to prevent data loss.");
+
+          try {
+            const finalUpdatedAt = await saveWorkspaceNotes(
+              session.username,
+              session.password,
+              mergedNotes,
+              err.updatedAt
+            );
+            setSession({
+              ...session,
+              notes: mergedNotes,
+              lastKnownUpdatedAt: finalUpdatedAt
+            });
+          } catch (saveErr: unknown) {
+            const message = saveErr instanceof Error ? saveErr.message : "Failed to save merged notes.";
+            alert(message);
+          }
+        } else {
+          const message = err instanceof Error ? err.message : "Failed to save notes.";
+          alert(message);
+        }
+      }
     }
-    setSession({ ...session, notes: nextNotes });
   }, [session]);
 
   const handleCreateNote = async () => {

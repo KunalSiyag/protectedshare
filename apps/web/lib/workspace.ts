@@ -22,6 +22,7 @@ type GetWorkspaceResponse = {
   username: string;
   verifier: EncryptedPayload;
   vault: EncryptedPayload;
+  updatedAt: number;
 };
 
 function normalizeUsername(username: string): string {
@@ -109,7 +110,12 @@ export async function createWorkspace(username: string, password: string): Promi
   }
 }
 
-export async function openWorkspace(username: string, password: string): Promise<WorkspaceNote[]> {
+export type OpenWorkspaceResult = {
+  notes: WorkspaceNote[];
+  updatedAt: number;
+};
+
+export async function openWorkspace(username: string, password: string): Promise<OpenWorkspaceResult> {
   const hashedUsername = await hashUsername(username);
 
   if (!password.trim()) {
@@ -156,17 +162,27 @@ export async function openWorkspace(username: string, password: string): Promise
     throw new Error("Notepad data is corrupted.");
   }
 
-  return notes.sort((first, second) => second.updatedAt - first.updatedAt);
+  const sortedNotes = notes.sort((first, second) => second.updatedAt - first.updatedAt);
+  return {
+    notes: sortedNotes,
+    updatedAt: data.updatedAt
+  };
 }
 
-export async function saveWorkspaceNotes(username: string, password: string, notes: WorkspaceNote[]): Promise<void> {
+export async function saveWorkspaceNotes(
+  username: string,
+  password: string,
+  notes: WorkspaceNote[],
+  lastKnownUpdatedAt?: number
+): Promise<number> {
   const hashedUsername = await hashUsername(username);
   const vault = await encrypt(JSON.stringify(notes), password);
   const passwordProof = await derivePasswordProof(password);
 
   const payload = {
     passwordProof,
-    vault
+    vault,
+    lastKnownUpdatedAt
   };
 
   const response = await fetch(apiUrl(`/api/workspaces/${encodeURIComponent(hashedUsername)}`), {
@@ -176,9 +192,24 @@ export async function saveWorkspaceNotes(username: string, password: string, not
   });
 
   if (!response.ok) {
-    const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
+    const errorPayload = await response.json().catch(() => null) as {
+      error?: string;
+      code?: string;
+      updatedAt?: number;
+      vault?: EncryptedPayload;
+    } | null;
+    if (response.status === 409 && errorPayload?.code === "SYNC_CONFLICT") {
+      throw new WorkspaceConflictError(
+        errorPayload.error ?? "Conflict detected.",
+        errorPayload.updatedAt ?? 0,
+        errorPayload.vault
+      );
+    }
     throw new Error(errorPayload?.error ?? "Failed to save notepad notes online.");
   }
+
+  const resJson = await response.json() as { success: boolean; updatedAt: number };
+  return resJson.updatedAt;
 }
 
 export async function deleteWorkspace(username: string, password: string): Promise<void> {
@@ -352,6 +383,17 @@ export class UsernameConflictError extends Error {
   }
 }
 
+export class WorkspaceConflictError extends Error {
+  constructor(
+    message: string,
+    public updatedAt: number,
+    public vault?: { encryptedBlob: string; iv: string; salt: string }
+  ) {
+    super(message);
+    this.name = "WorkspaceConflictError";
+  }
+}
+
 export async function syncLocalWorkspaceToCloud(username: string, password: string, notes: WorkspaceNote[]): Promise<void> {
   try {
     // 1. Try to create the workspace online (this checks if username is unique)
@@ -364,9 +406,9 @@ export async function syncLocalWorkspaceToCloud(username: string, password: stri
       // The workspace already exists online under this username.
       // Let's verify if the password matches the online workspace by opening it.
       try {
-        await openWorkspace(username, password);
+        const openRes = await openWorkspace(username, password);
         // If authentication succeeds, we can safely sync/overwrite the online notes.
-        await saveWorkspaceNotes(username, password, notes);
+        await saveWorkspaceNotes(username, password, notes, openRes.updatedAt);
       } catch {
         // If opening fails, it means the username belongs to someone else (wrong password).
         throw new UsernameConflictError("This username is already taken on the cloud. Choose a different username to upload your notes.");

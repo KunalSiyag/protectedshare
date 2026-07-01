@@ -448,6 +448,7 @@ type CreateWorkspaceRequest = {
 type UpdateWorkspaceRequest = {
   passwordProof: string;
   vault: WorkspacePayload;
+  lastKnownUpdatedAt?: number;
 };
 
 type WorkspaceRow = {
@@ -566,7 +567,7 @@ const handleGetWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
   }
 
   const row = await c.env.DB.prepare(
-    `SELECT username, password_proof, verifier_blob, verifier_iv, verifier_salt, vault_blob, vault_iv, vault_salt
+    `SELECT username, password_proof, verifier_blob, verifier_iv, verifier_salt, vault_blob, vault_iv, vault_salt, updated_at
      FROM workspaces
      WHERE username = ?`
   )
@@ -592,7 +593,8 @@ const handleGetWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
       encryptedBlob: row.vault_blob,
       iv: row.vault_iv,
       salt: row.vault_salt
-    }
+    },
+    updatedAt: row.updated_at
   });
 };
 
@@ -616,12 +618,12 @@ const handleUpdateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
     return jsonError("Invalid save payload.", "INVALID_PAYLOAD", 400);
   }
 
-  // Verify proof
+  // Verify proof and fetch current updated_at
   const row = await c.env.DB.prepare(
-    "SELECT password_proof FROM workspaces WHERE username = ?"
+    "SELECT password_proof, verifier_blob, verifier_iv, verifier_salt, vault_blob, vault_iv, vault_salt, updated_at FROM workspaces WHERE username = ?"
   )
     .bind(username)
-    .first<{ password_proof: string }>();
+    .first<WorkspaceRow>();
 
   if (!row) {
     return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
@@ -629,6 +631,20 @@ const handleUpdateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
 
   if (row.password_proof !== body.passwordProof) {
     return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
+  }
+
+  // Conflict check (OCC)
+  if (typeof body.lastKnownUpdatedAt === "number" && row.updated_at > body.lastKnownUpdatedAt) {
+    return c.json({
+      error: "Conflict detected. This notepad has been updated on another device.",
+      code: "SYNC_CONFLICT",
+      updatedAt: row.updated_at,
+      vault: {
+        encryptedBlob: row.vault_blob,
+        iv: row.vault_iv,
+        salt: row.vault_salt
+      }
+    }, 409);
   }
 
   const updatedAt = nowEpochSeconds();
@@ -652,7 +668,7 @@ const handleUpdateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
     return jsonError(`Failed to save notes: ${msg}`, "DATABASE_ERROR", 500);
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true, updatedAt });
 };
 
 const handleDeleteWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
