@@ -56,12 +56,29 @@ export const GetSecretResponseSchema = z.object({
   remainingReads: z.number().int().nonnegative().optional()
 });
 
+export const CreateChatMessageRequestSchema = z.object({
+  payload: NotePayloadSchema,
+});
+
+export const ChatMessageResponseSchema = z.object({
+  id: z.string().min(1),
+  payload: NotePayloadSchema,
+  createdAt: z.number().int().nonnegative()
+});
+
+export const GetChatMessagesResponseSchema = z.object({
+  messages: z.array(ChatMessageResponseSchema)
+});
+
 export const ApiErrorSchema = z.object({
   error: z.string().min(1),
   code: z.string().min(1)
 });
 
 export type NotePayload = z.infer<typeof NotePayloadSchema>;
+export type CreateChatMessageRequest = z.infer<typeof CreateChatMessageRequestSchema>;
+export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;
+export type GetChatMessagesResponse = z.infer<typeof GetChatMessagesResponseSchema>;
 export type CreateNoteRequest = z.infer<typeof CreateNoteRequestSchema>;
 export type CreateNoteResponse = z.infer<typeof CreateNoteResponseSchema>;
 export type GetNoteResponse = z.infer<typeof GetNoteResponseSchema>;

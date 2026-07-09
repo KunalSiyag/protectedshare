@@ -10,7 +10,11 @@ import {
   CreateSecretRequestSchema,
   type GetNoteResponse,
   type GetSecretResponse,
-  type HealthCheck
+  type HealthCheck,
+  type CreateChatMessageRequest,
+  CreateChatMessageRequestSchema,
+  type GetChatMessagesResponse,
+  type ChatMessageResponse
 } from "@protectedshare/contracts";
 
 type Bindings = {
@@ -38,6 +42,15 @@ type SecretRow = {
   is_burn_after_read?: number;
   reads_remaining: number | null;
   expires_at: number;
+  created_at: number;
+};
+
+type ChatMessageRow = {
+  id: string;
+  room_id: string;
+  encrypted_blob: string;
+  iv: string;
+  salt: string;
   created_at: number;
 };
 
@@ -839,6 +852,95 @@ app.post("/api/workspace/:username/heartbeat", handleWorkspaceHeartbeat);
 
 app.post("/api/workspaces/:username/migrate-proof", handleMigratePasswordProof);
 app.post("/api/workspace/:username/migrate-proof", handleMigratePasswordProof);
+
+app.post("/api/chat/:roomId", async (c) => {
+  const roomId = c.req.param("roomId");
+  if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
+    return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
+  }
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return jsonError("Invalid JSON body", "INVALID_JSON", 400);
+  }
+
+  const result = CreateChatMessageRequestSchema.safeParse(body);
+  if (!result.success) {
+    return jsonError("Invalid request payload", "VALIDATION_ERROR", 400);
+  }
+
+  const { payload } = result.data;
+  const id = crypto.randomUUID();
+  const now = Date.now();
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO chat_messages (id, room_id, encrypted_blob, iv, salt, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        id,
+        roomId,
+        payload.encryptedBlob,
+        payload.iv,
+        payload.salt,
+        now
+      )
+      .run();
+
+    const response: ChatMessageResponse = {
+      id,
+      payload,
+      createdAt: now,
+    };
+    return c.json(response, 201);
+  } catch (error) {
+    console.error("Database error in chat POST:", error);
+    return jsonError("Internal server error", "INTERNAL_ERROR", 500);
+  }
+});
+
+app.get("/api/chat/:roomId", async (c) => {
+  const roomId = c.req.param("roomId");
+  if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
+    return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
+  }
+
+  const sinceParam = c.req.query("since");
+  const since = sinceParam ? parseInt(sinceParam, 10) : 0;
+  if (isNaN(since)) {
+    return jsonError("Invalid since parameter", "INVALID_PARAMETER", 400);
+  }
+
+  try {
+    const { results } = await c.env.DB.prepare(
+      `SELECT * FROM chat_messages
+       WHERE room_id = ? AND created_at > ?
+       ORDER BY created_at ASC
+       LIMIT 100`
+    )
+      .bind(roomId, since)
+      .all<ChatMessageRow>();
+
+    const messages: ChatMessageResponse[] = results.map(row => ({
+      id: row.id,
+      payload: {
+        encryptedBlob: row.encrypted_blob,
+        iv: row.iv,
+        salt: row.salt,
+      },
+      createdAt: row.created_at,
+    }));
+
+    const response: GetChatMessagesResponse = { messages };
+    return c.json(response, 200);
+  } catch (error) {
+    console.error("Database error in chat GET:", error);
+    return jsonError("Internal server error", "INTERNAL_ERROR", 500);
+  }
+});
 
 app.post("/api/inquiries", async (c) => {
   let body: { name?: string; email?: string; company?: string; message?: string };

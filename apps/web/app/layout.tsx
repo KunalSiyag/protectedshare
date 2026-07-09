@@ -35,6 +35,9 @@ export const metadata: Metadata = {
     "share api key",
     "free online notepad encrypted",
     "privnote alternative",
+    "anonymous chatroom",
+    "encrypted chat",
+    "zero knowledge chat",
   ],
   authors: [{ name: "ProtectedShare Team" }],
   creator: "ProtectedShare",
@@ -79,7 +82,7 @@ export const metadata: Metadata = {
   },
   verification: {
     // Add your Google Search Console verification code here after setup
-    // google: "your-verification-code",
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
   },
 };
 

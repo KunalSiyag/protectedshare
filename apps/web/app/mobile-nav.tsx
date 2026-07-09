@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: "/notes", label: "Secure Notes", short: "Notes" },
   { href: "/secrets", label: "EnvShare", short: "EnvShare" },
   { href: "/notepad", label: "Notepad", short: "Notepad" },
+  { href: "/chat", label: "Chatroom", short: "Chat" },
   { href: "/blog", label: "Blog", short: "Blog" },
   { href: "/self-host", label: "Self-Host", short: "Self-Host" },
 ] as const;
