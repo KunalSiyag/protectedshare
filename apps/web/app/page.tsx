@@ -75,6 +75,7 @@ export default function HomePage() {
               "No tracking or cookies",
               "Free ProtectedText alternative",
               "Free Privnote alternative",
+              "Anonymous Encrypted Chatroom",
             ],
           }),
         }}
@@ -178,7 +179,7 @@ export default function HomePage() {
 
             {/* Subtitle */}
             <p className="mt-6 text-sm md:text-base text-zinc-650 dark:text-zinc-400 max-w-xl leading-relaxed">
-              Privacy-first secret sharing. Encrypt credentials, configuration <code className="font-mono text-xs bg-zinc-200/50 dark:bg-zinc-800/60 px-1.5 py-0.5 rounded">.env</code> files, and private text directly in your browser. Raw keys never touch the cloud. No signup, no tracking.
+              Privacy-first secret sharing. Encrypt credentials, configuration <code className="font-mono text-xs bg-zinc-200/50 dark:bg-zinc-800/60 px-1.5 py-0.5 rounded">.env</code> files, join anonymous chatrooms, and write private text directly in your browser. Raw keys never touch the cloud. No signup, no tracking.
             </p>
 
             {/* Call to Action Group */}
@@ -192,14 +193,23 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/notes"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:white hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
               >
                 <Lock className="h-4 w-4 text-amber-500" />
                 <span>Secure Notes</span>
               </Link>
               <Link
+                href="/chat"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
+              >
+                <svg className="h-4 w-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span>Chatroom</span>
+              </Link>
+              <Link
                 href="/notepad"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:white hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
               >
                 <FileText className="h-4 w-4 text-blue-500" />
                 <span>Encrypted Notepad</span>
@@ -297,7 +307,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Note Sharing Card */}
             <div className="flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/40 p-6 shadow-sm dark:shadow-none hover:border-amber-500/40 dark:hover:border-amber-500/30 hover:shadow-[0_12px_40px_-15px_rgba(245,158,11,0.18)] hover:scale-[1.015] hover:bg-amber-500/[0.01] transition-all duration-300 group">
               <div className="p-3 rounded-lg bg-amber-500/10 text-amber-500 w-fit mb-5">
@@ -348,6 +358,26 @@ export default function HomePage() {
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-emerald-400 group-hover:gap-2.5 transition-all"
               >
                 <span>Open Private Notepad</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {/* Chatroom Card */}
+            <div className="flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/40 p-6 shadow-sm dark:shadow-none hover:border-pink-500/40 dark:hover:border-pink-500/30 hover:shadow-[0_12px_40px_-15px_rgba(236,72,153,0.18)] hover:scale-[1.015] hover:bg-pink-500/[0.01] transition-all duration-300 group">
+              <div className="p-3 rounded-lg bg-pink-500/10 text-pink-500 w-fit mb-5">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Encrypted Chatroom</h3>
+              <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
+                An anonymous, real-time end-to-end encrypted chatroom. Share the link over a secure channel. Keys never leave the browser.
+              </p>
+              <Link
+                href="/chat"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-emerald-400 group-hover:gap-2.5 transition-all"
+              >
+                <span>Join Secure Chat</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -565,7 +595,11 @@ export default function HomePage() {
           <div className="space-y-4">
             <FaqItem
               question="Is ProtectedShare really free?"
-              answer="Yes, 100% free with no signup, no accounts, and no usage limits. Create unlimited encrypted notes, share .env files, and generate self-destructing secret links at zero cost."
+              answer="Yes, 100% free with no signup, no accounts, and no usage limits. Create unlimited encrypted notes, share .env files, start secure chatrooms, and generate self-destructing secret links at zero cost."
+            />
+            <FaqItem
+              question="How does the Encrypted Chatroom work?"
+              answer="Our chatrooms use client-side AES-256-GCM encryption. The room ID and password you use to join are embedded in your browser URL's hash fragment (#), which means they are never sent to our servers. We just store the encrypted message blobs, making it mathematically impossible for us to read your chats."
             />
             <FaqItem
               question="What is the difference between Secure Notes and EnvShare?"

@@ -289,6 +289,16 @@ export default function SecretsClient() {
           </CardContent>
         </Card>
       )}
+
+      {/* Internal SEO Links */}
+      <div className="mt-8 text-center text-xs text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
+        <p>Looking for a different tool?</p>
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
+          <a href="/notes" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Secure Notes</a>
+          <a href="/notepad" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Encrypted Notepad</a>
+          <a href="/chat" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Anonymous Chatroom</a>
+        </div>
+      </div>
     </main>
   );
 }

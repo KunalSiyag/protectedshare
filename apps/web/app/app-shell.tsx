@@ -70,6 +70,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/self-host" className="hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
                 Self-Host
               </Link>
+              <Link href="/chat" className="hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
+                Chat
+              </Link>
             </nav>
             <ThemeToggle />
           </div>
@@ -179,6 +182,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/contact" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Contact Us</Link>
             <Link href="/blog" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Blog</Link>
             <Link href="/self-host" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Self-Host</Link>
+            <Link href="/chat" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Chatroom</Link>
             <Link href="/privacy" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Terms of Service</Link>
           </div>
