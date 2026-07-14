@@ -2,9 +2,15 @@
 
 import { useState, useEffect, useRef } from "react";
 import { encrypt, decrypt, generateRandomPassword } from "@protectedshare/crypto";
-import type { CreateChatMessageRequest, GetChatMessagesResponse, ChatMessageResponse } from "@protectedshare/contracts";
+import type {
+  CreateChatMessageRequest,
+  GetChatMessagesResponse,
+  ChatMessageResponse,
+  GetChatPresenceResponse,
+  UpdateChatPresenceRequest,
+} from "@protectedshare/contracts";
 import { Button, Card, CardContent, Input } from "@protectedshare/ui";
-import { Loader2, Send, Lock, ShieldCheck, User } from "lucide-react";
+import { Loader2, Send, Lock, ShieldCheck, User, Users, LogOut, RotateCcw, Signal } from "lucide-react";
 import { apiUrl } from "../../lib/api";
 
 type Message = {
@@ -15,6 +21,7 @@ type Message = {
 };
 
 const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789_-";
+const CHAT_CLIENT_ID_STORAGE_KEY = "protectedshare-chat-client-id";
 
 function generateRoomId(length = 12): string {
   if (typeof globalThis.crypto === "undefined") {
@@ -66,6 +73,74 @@ function buildInviteUrl(origin: string, nextRoomId: string, nextPassword: string
   return `${origin}/chat#${encodeURIComponent(nextRoomId)}:${encodeURIComponent(nextPassword)}`;
 }
 
+function createChatClientId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getChatClientId(): string {
+  if (typeof window === "undefined") {
+    return createChatClientId();
+  }
+
+  const existing = window.sessionStorage.getItem(CHAT_CLIENT_ID_STORAGE_KEY);
+  if (existing) {
+    return existing;
+  }
+
+  const next = createChatClientId();
+  window.sessionStorage.setItem(CHAT_CLIENT_ID_STORAGE_KEY, next);
+  return next;
+}
+
+async function updateChatPresence(
+  roomId: string,
+  clientId: string,
+  nextState: UpdateChatPresenceRequest["state"],
+  isTyping = false,
+): Promise<GetChatPresenceResponse | null> {
+  try {
+    const res = await fetch(apiUrl(`/api/chat/${roomId}/presence`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        isTyping,
+        state: nextState,
+      } satisfies UpdateChatPresenceRequest),
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    return (await res.json()) as GetChatPresenceResponse;
+  } catch (error) {
+    console.warn("Presence update failed:", error);
+    return null;
+  }
+}
+
+async function leaveChatPresence(roomId: string, clientId: string): Promise<GetChatPresenceResponse | null> {
+  try {
+    const res = await fetch(apiUrl(`/api/chat/${roomId}/presence?clientId=${encodeURIComponent(clientId)}`), {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    return (await res.json()) as GetChatPresenceResponse;
+  } catch (error) {
+    console.warn("Presence leave failed:", error);
+    return null;
+  }
+}
+
 export default function ChatClient() {
   const [mode, setMode] = useState<"create" | "join">("create");
   const [roomId, setRoomId] = useState("");
@@ -78,12 +153,35 @@ export default function ChatClient() {
   const [lastMessageTime, setLastMessageTime] = useState(0);
   const [copiedField, setCopiedField] = useState<"room" | "password" | "invite" | null>(null);
   const [connectionState, setConnectionState] = useState<"idle" | "live" | "fallback">("idle");
+  const [presence, setPresence] = useState<GetChatPresenceResponse | null>(null);
+  const [clientId] = useState(() => getChatClientId());
   const lastMessageTimeRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const heartbeatIntervalRef = useRef<number | null>(null);
+  const typingStateRef = useRef(false);
   const inviteUrl =
     typeof window !== "undefined" && roomId && password
       ? buildInviteUrl(window.location.origin, roomId, password)
       : "";
+
+  const clearTransientState = () => {
+    setMessages([]);
+    setDraft("");
+    setError(null);
+    setIsSending(false);
+    setLastMessageTime(0);
+    setConnectionState("idle");
+    setPresence(null);
+    setCopiedField(null);
+    lastMessageTimeRef.current = 0;
+    typingStateRef.current = false;
+
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  };
 
   // Parse hash and path to auto-join if provided
   useEffect(() => {
@@ -221,6 +319,110 @@ export default function ChatClient() {
     };
   }, [isJoined, roomId, password]);
 
+  useEffect(() => {
+    if (!isJoined || !roomId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncPresence = async (nextState: UpdateChatPresenceRequest["state"], isTyping = false) => {
+      const response = await updateChatPresence(roomId, clientId, nextState, isTyping);
+      if (!cancelled && response) {
+        setPresence(response);
+      }
+    };
+
+    void syncPresence("active", typingStateRef.current);
+
+    if (heartbeatIntervalRef.current) {
+      window.clearInterval(heartbeatIntervalRef.current);
+    }
+
+    heartbeatIntervalRef.current = window.setInterval(() => {
+      void syncPresence("active", typingStateRef.current);
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      if (heartbeatIntervalRef.current) {
+        window.clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+    };
+  }, [isJoined, roomId]);
+
+  useEffect(() => {
+    if (!isJoined || !roomId) {
+      return;
+    }
+
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    const trimmedDraft = draft.trim();
+    if (!trimmedDraft) {
+      if (typingStateRef.current) {
+        typingStateRef.current = false;
+        void updateChatPresence(roomId, clientId, "active", false).then((response) => {
+          if (response) {
+            setPresence(response);
+          }
+        });
+      }
+      return;
+    }
+
+    if (!typingStateRef.current) {
+      typingStateRef.current = true;
+      void updateChatPresence(roomId, clientId, "active", true).then((response) => {
+        if (response) {
+          setPresence(response);
+        }
+      });
+    }
+
+    typingTimeoutRef.current = window.setTimeout(() => {
+      typingStateRef.current = false;
+      void updateChatPresence(roomId, clientId, "active", false).then((response) => {
+        if (response) {
+          setPresence(response);
+        }
+      });
+      typingTimeoutRef.current = null;
+    }, 1200);
+  }, [draft, isJoined, roomId]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+      }
+
+      if (heartbeatIntervalRef.current) {
+        window.clearInterval(heartbeatIntervalRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isJoined || !roomId) {
+      return;
+    }
+
+    const handleBeforeUnload = () => {
+      void fetch(apiUrl(`/api/chat/${roomId}/presence?clientId=${encodeURIComponent(clientId)}`), {
+        method: "DELETE",
+        keepalive: true,
+      });
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isJoined, roomId]);
+
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,6 +437,8 @@ export default function ChatClient() {
       setError("Room ID can only contain letters, numbers, hyphens, and underscores.");
       return;
     }
+
+    clearTransientState();
 
     // Update URL hash for sharing
     window.location.hash = `${encodeURIComponent(roomId)}:${encodeURIComponent(password)}`;
@@ -311,24 +515,72 @@ export default function ChatClient() {
     }, 1800);
   };
 
+  const openRoomSession = (nextRoomId: string, nextPassword: string) => {
+    clearTransientState();
+    setError(null);
+    setRoomId(nextRoomId);
+    setPassword(nextPassword);
+    setMode("create");
+    window.location.hash = `${encodeURIComponent(nextRoomId)}:${encodeURIComponent(nextPassword)}`;
+    setIsJoined(true);
+  };
+
   const handleCreateRoom = () => {
     setError(null);
     try {
       const nextRoomId = generateRoomId();
       const nextPassword = generateRandomPassword(24);
-      const inviteUrl = buildInviteUrl(window.location.origin, nextRoomId, nextPassword);
-      setRoomId(nextRoomId);
-      setPassword(nextPassword);
-      setMode("create");
-      window.location.hash = `${encodeURIComponent(nextRoomId)}:${encodeURIComponent(nextPassword)}`;
-      void navigator.clipboard.writeText(inviteUrl);
+      const nextInviteUrl = buildInviteUrl(window.location.origin, nextRoomId, nextPassword);
+      openRoomSession(nextRoomId, nextPassword);
+      void navigator.clipboard.writeText(nextInviteUrl);
       setCopiedField("invite");
-      setIsJoined(true);
       alert("New room created and invite link copied to clipboard.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create a new room.";
       setError(message);
     }
+  };
+
+  const handleRegenerateRoom = () => {
+    setError(null);
+    try {
+      void leaveChatPresence(roomId, clientId);
+      const nextRoomId = generateRoomId();
+      const nextPassword = generateRandomPassword(24);
+      const nextInviteUrl = buildInviteUrl(window.location.origin, nextRoomId, nextPassword);
+      openRoomSession(nextRoomId, nextPassword);
+      void navigator.clipboard.writeText(nextInviteUrl);
+      setCopiedField("invite");
+      alert("Room regenerated and invite link copied to clipboard.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to regenerate the room.";
+      setError(message);
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    setError(null);
+    if (roomId) {
+      void leaveChatPresence(roomId, clientId);
+    }
+
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    if (heartbeatIntervalRef.current) {
+      window.clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+
+    typingStateRef.current = false;
+    clearTransientState();
+    setRoomId("");
+    setPassword("");
+    setMode("join");
+    setIsJoined(false);
+    window.location.hash = "";
   };
 
   if (!isJoined) {
@@ -459,7 +711,8 @@ export default function ChatClient() {
   return (
       <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-200px)] -mx-3 sm:mx-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+      <div className="flex flex-col gap-3 px-4 py-3 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+        <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -469,9 +722,46 @@ export default function ChatClient() {
             <Lock className="w-3 h-3" /> End-to-end encrypted
           </p>
         </div>
-        <Button variant="outline" onClick={generateInviteLink} className="text-xs h-8 px-2">
-          {copiedField === "invite" ? "Invite Copied" : "Copy Invite"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={generateInviteLink} className="text-xs h-8 px-3">
+            {copiedField === "invite" ? "Invite Copied" : "Copy Invite"}
+          </Button>
+          <Button variant="outline" onClick={handleRegenerateRoom} className="text-xs h-8 px-3">
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            Regenerate Room
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={handleLeaveRoom}
+            className="text-xs h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-500/10"
+          >
+            <LogOut className="mr-1.5 h-3.5 w-3.5" />
+            Leave Room
+          </Button>
+        </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-1 text-zinc-700 dark:text-zinc-300">
+            <Users className="h-3.5 w-3.5 text-blue-600 dark:text-emerald-400" />
+            {presence ? `${presence.onlineCount} member${presence.onlineCount === 1 ? "" : "s"} online` : "Syncing members"}
+          </span>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 ${
+              presence?.typingCount
+                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                : "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400"
+            }`}
+          >
+            <Signal className={`h-3.5 w-3.5 ${presence?.typingCount ? "animate-pulse" : ""}`} />
+            {presence?.typingCount
+              ? `${presence.typingCount} member${presence.typingCount === 1 ? "" : "s"} typing`
+              : "No one typing"}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-1 text-zinc-500 dark:text-zinc-400">
+            {connectionState === "live" ? "Stream live" : connectionState === "fallback" ? "Polling fallback" : "Connecting"}
+          </span>
+        </div>
       </div>
 
       <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60">
@@ -521,9 +811,6 @@ export default function ChatClient() {
             </div>
           </div>
         </div>
-        <p className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-400">
-          Live status: {connectionState === "live" ? "server-push stream" : connectionState === "fallback" ? "polling fallback" : "connecting"}
-        </p>
         <p className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-400">
           Share the invite link for easy access, or send the room ID and password separately for a split-channel handoff.
         </p>

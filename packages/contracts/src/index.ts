@@ -70,6 +70,18 @@ export const GetChatMessagesResponseSchema = z.object({
   messages: z.array(ChatMessageResponseSchema)
 });
 
+export const UpdateChatPresenceRequestSchema = z.object({
+  clientId: z.string().min(1),
+  isTyping: z.boolean().default(false),
+  state: z.enum(["active", "leave"]).default("active")
+});
+
+export const GetChatPresenceResponseSchema = z.object({
+  onlineCount: z.number().int().nonnegative(),
+  typingCount: z.number().int().nonnegative(),
+  generatedAt: z.number().int().nonnegative()
+});
+
 export const ApiErrorSchema = z.object({
   error: z.string().min(1),
   code: z.string().min(1)
@@ -79,6 +91,8 @@ export type NotePayload = z.infer<typeof NotePayloadSchema>;
 export type CreateChatMessageRequest = z.infer<typeof CreateChatMessageRequestSchema>;
 export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;
 export type GetChatMessagesResponse = z.infer<typeof GetChatMessagesResponseSchema>;
+export type UpdateChatPresenceRequest = z.infer<typeof UpdateChatPresenceRequestSchema>;
+export type GetChatPresenceResponse = z.infer<typeof GetChatPresenceResponseSchema>;
 export type CreateNoteRequest = z.infer<typeof CreateNoteRequestSchema>;
 export type CreateNoteResponse = z.infer<typeof CreateNoteResponseSchema>;
 export type GetNoteResponse = z.infer<typeof GetNoteResponseSchema>;

@@ -14,7 +14,10 @@ import {
   type CreateChatMessageRequest,
   CreateChatMessageRequestSchema,
   type GetChatMessagesResponse,
-  type ChatMessageResponse
+  type ChatMessageResponse,
+  type UpdateChatPresenceRequest,
+  UpdateChatPresenceRequestSchema,
+  type GetChatPresenceResponse
 } from "@protectedshare/contracts";
 
 type Bindings = {
@@ -58,6 +61,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 const NANOID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const MILLISECONDS_THRESHOLD = 100_000_000_000;
 const BASE64_URL_PATTERN = /^[A-Za-z0-9_-]+$/;
+const CHAT_PRESENCE_TTL_MS = 15_000;
 
 function jsonError(error: string, code: string, status: number): Response {
   const payload: ApiError = { error, code };
@@ -91,6 +95,82 @@ async function fetchChatMessages(
     },
     createdAt: row.created_at,
   }));
+}
+
+async function pruneStaleChatPresence(db: D1Database, roomId: string, now: number): Promise<void> {
+  const cutoff = now - CHAT_PRESENCE_TTL_MS;
+  await db.prepare(
+    "DELETE FROM chat_room_presence WHERE room_id = ? AND last_seen < ?"
+  )
+    .bind(roomId, cutoff)
+    .run();
+}
+
+async function fetchChatPresence(
+  db: D1Database,
+  roomId: string,
+  now: number,
+): Promise<GetChatPresenceResponse> {
+  await pruneStaleChatPresence(db, roomId, now);
+
+  const onlineRow = await db.prepare(
+    "SELECT COUNT(*) AS count FROM chat_room_presence WHERE room_id = ?"
+  )
+    .bind(roomId)
+    .first<{ count: number }>();
+
+  const typingRow = await db.prepare(
+    "SELECT COUNT(*) AS count FROM chat_room_presence WHERE room_id = ? AND is_typing = 1"
+  )
+    .bind(roomId)
+    .first<{ count: number }>();
+
+  return {
+    onlineCount: onlineRow?.count ?? 0,
+    typingCount: typingRow?.count ?? 0,
+    generatedAt: now,
+  };
+}
+
+async function updateChatPresence(
+  db: D1Database,
+  roomId: string,
+  request: UpdateChatPresenceRequest,
+  now: number,
+): Promise<GetChatPresenceResponse> {
+  if (request.state === "leave") {
+    await db.prepare(
+      "DELETE FROM chat_room_presence WHERE room_id = ? AND client_id = ?"
+    )
+      .bind(roomId, request.clientId)
+      .run();
+  } else {
+    await db.prepare(
+      `INSERT INTO chat_room_presence (
+        room_id,
+        client_id,
+        last_seen,
+        is_typing,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(room_id, client_id) DO UPDATE SET
+        last_seen = excluded.last_seen,
+        is_typing = excluded.is_typing,
+        updated_at = excluded.updated_at`
+    )
+      .bind(
+        roomId,
+        request.clientId,
+        now,
+        request.isTyping ? 1 : 0,
+        now,
+        now
+      )
+      .run();
+  }
+
+  return fetchChatPresence(db, roomId, now);
 }
 
 function normalizeExpiresAt(expiresAt: number): number {
@@ -946,6 +1026,63 @@ app.get("/api/chat/:roomId", async (c) => {
     return c.json(response, 200);
   } catch (error) {
     console.error("Database error in chat GET:", error);
+    return jsonError("Internal server error", "INTERNAL_ERROR", 500);
+  }
+});
+
+app.post("/api/chat/:roomId/presence", async (c) => {
+  const roomId = c.req.param("roomId");
+  if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
+    return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
+  }
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return jsonError("Invalid JSON body", "INVALID_JSON", 400);
+  }
+
+  const result = UpdateChatPresenceRequestSchema.safeParse(body);
+  if (!result.success) {
+    return jsonError("Invalid request payload", "VALIDATION_ERROR", 400);
+  }
+
+  const now = Date.now();
+
+  try {
+    const response = await updateChatPresence(c.env.DB, roomId, result.data, now);
+    return c.json(response, 200);
+  } catch (error) {
+    console.error("Database error in chat presence POST:", error);
+    return jsonError("Internal server error", "INTERNAL_ERROR", 500);
+  }
+});
+
+app.delete("/api/chat/:roomId/presence", async (c) => {
+  const roomId = c.req.param("roomId");
+  if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
+    return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
+  }
+
+  const clientId = c.req.query("clientId");
+  if (!clientId || !clientId.trim()) {
+    return jsonError("clientId is required", "MISSING_CLIENT_ID", 400);
+  }
+
+  const now = Date.now();
+
+  try {
+    await c.env.DB.prepare(
+      "DELETE FROM chat_room_presence WHERE room_id = ? AND client_id = ?"
+    )
+      .bind(roomId, clientId.trim())
+      .run();
+
+    const response = await fetchChatPresence(c.env.DB, roomId, now);
+    return c.json(response, 200);
+  } catch (error) {
+    console.error("Database error in chat presence DELETE:", error);
     return jsonError("Internal server error", "INTERNAL_ERROR", 500);
   }
 });
