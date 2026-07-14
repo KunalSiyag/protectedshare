@@ -68,6 +68,31 @@ function nowEpochSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+async function fetchChatMessages(
+  db: D1Database,
+  roomId: string,
+  since: number,
+): Promise<ChatMessageResponse[]> {
+  const { results } = await db.prepare(
+    `SELECT * FROM chat_messages
+     WHERE room_id = ? AND created_at > ?
+     ORDER BY created_at ASC
+     LIMIT 100`
+  )
+    .bind(roomId, since)
+    .all<ChatMessageRow>();
+
+  return results.map((row) => ({
+    id: row.id,
+    payload: {
+      encryptedBlob: row.encrypted_blob,
+      iv: row.iv,
+      salt: row.salt,
+    },
+    createdAt: row.created_at,
+  }));
+}
+
 function normalizeExpiresAt(expiresAt: number): number {
   if (expiresAt > MILLISECONDS_THRESHOLD) {
     return Math.floor(expiresAt / 1000);
@@ -915,24 +940,7 @@ app.get("/api/chat/:roomId", async (c) => {
   }
 
   try {
-    const { results } = await c.env.DB.prepare(
-      `SELECT * FROM chat_messages
-       WHERE room_id = ? AND created_at > ?
-       ORDER BY created_at ASC
-       LIMIT 100`
-    )
-      .bind(roomId, since)
-      .all<ChatMessageRow>();
-
-    const messages: ChatMessageResponse[] = results.map(row => ({
-      id: row.id,
-      payload: {
-        encryptedBlob: row.encrypted_blob,
-        iv: row.iv,
-        salt: row.salt,
-      },
-      createdAt: row.created_at,
-    }));
+    const messages = await fetchChatMessages(c.env.DB, roomId, since);
 
     const response: GetChatMessagesResponse = { messages };
     return c.json(response, 200);
@@ -940,6 +948,71 @@ app.get("/api/chat/:roomId", async (c) => {
     console.error("Database error in chat GET:", error);
     return jsonError("Internal server error", "INTERNAL_ERROR", 500);
   }
+});
+
+app.get("/api/chat/:roomId/stream", async (c) => {
+  const roomId = c.req.param("roomId");
+  if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
+    return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
+  }
+
+  const sinceParam = c.req.query("since");
+  const initialSince = sinceParam ? parseInt(sinceParam, 10) : 0;
+  if (Number.isNaN(initialSince)) {
+    return jsonError("Invalid since parameter", "INVALID_PARAMETER", 400);
+  }
+
+  const encoder = new TextEncoder();
+  let closed = false;
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const push = (data: unknown, eventName = "messages") => {
+        controller.enqueue(encoder.encode(`event: ${eventName}\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
+      const sendKeepAlive = () => {
+        controller.enqueue(encoder.encode(`: keep-alive\n\n`));
+      };
+
+      let since = initialSince;
+      try {
+        push({ connected: true, roomId }, "ready");
+
+        while (!closed) {
+          const messages = await fetchChatMessages(c.env.DB, roomId, since);
+
+          if (messages.length > 0) {
+            push({ messages }, "messages");
+            since = Math.max(...messages.map((message) => message.createdAt));
+          } else {
+            sendKeepAlive();
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      } catch (error) {
+        console.error("Chat stream error:", error);
+        push({ error: "STREAM_ERROR" }, "error");
+      } finally {
+        controller.close();
+      }
+    },
+    cancel() {
+      closed = true;
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 });
 
 app.post("/api/inquiries", async (c) => {
