@@ -149,14 +149,25 @@ async function fetchChatPresence(
     .bind(roomId)
     .first<{ count: number }>();
 
-  const typingRow = await db.prepare(
-    "SELECT COUNT(*) AS count FROM chat_room_presence WHERE room_id = ? AND is_typing = 1"
-  )
-    .bind(roomId)
-    .first<{ count: number }>();
+  const onlineCount = onlineRow?.count ?? 0;
+
+  // Zero-retention: purge all messages the moment a room goes empty
+  if (onlineCount === 0) {
+    await db.prepare("DELETE FROM chat_messages WHERE room_id = ?")
+      .bind(roomId)
+      .run();
+  }
+
+  const typingRow = onlineCount > 0
+    ? await db.prepare(
+        "SELECT COUNT(*) AS count FROM chat_room_presence WHERE room_id = ? AND is_typing = 1"
+      )
+        .bind(roomId)
+        .first<{ count: number }>()
+    : null;
 
   return {
-    onlineCount: onlineRow?.count ?? 0,
+    onlineCount,
     typingCount: typingRow?.count ?? 0,
     generatedAt: now,
   };
@@ -1253,9 +1264,16 @@ app.post("/api/inquiries", async (c) => {
 
 const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (_event, env) => {
   const now = nowEpochSeconds();
+  const presenceCutoffMs = Date.now() - CHAT_PRESENCE_TTL_MS;
   await env.DB.batch([
     env.DB.prepare("DELETE FROM notes WHERE expires_at <= ?").bind(now),
-    env.DB.prepare("DELETE FROM secrets WHERE expires_at <= ?").bind(now)
+    env.DB.prepare("DELETE FROM secrets WHERE expires_at <= ?").bind(now),
+    // Purge stale presence records
+    env.DB.prepare("DELETE FROM chat_room_presence WHERE last_seen < ?").bind(presenceCutoffMs),
+    // Purge messages for rooms that now have zero presence (zero-retention guarantee)
+    env.DB.prepare(
+      "DELETE FROM chat_messages WHERE room_id NOT IN (SELECT DISTINCT room_id FROM chat_room_presence)"
+    ),
   ]);
 };
 

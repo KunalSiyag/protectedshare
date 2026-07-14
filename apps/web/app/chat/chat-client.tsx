@@ -242,7 +242,7 @@ export default function ChatClient() {
     if (!container) return;
     const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     if (!userScrolledUpRef.current || distFromBottom < 120) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      container.scrollTop = container.scrollHeight;
     }
   }, [messages, isJoined]);
 
