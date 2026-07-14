@@ -1162,7 +1162,7 @@ app.get("/api/chat/:roomId/stream", async (c) => {
             sendKeepAlive();
           }
 
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       } catch (error) {
         console.error("Chat stream error:", error);
