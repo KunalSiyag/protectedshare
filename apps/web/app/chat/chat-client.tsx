@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { encrypt, decrypt } from "@protectedshare/crypto";
+import { encrypt, decrypt, generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateChatMessageRequest, GetChatMessagesResponse, ChatMessageResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, Input } from "@protectedshare/ui";
 import { Loader2, Send, Lock, ShieldCheck, User } from "lucide-react";
@@ -13,6 +13,23 @@ type Message = {
   createdAt: number;
   isSelf: boolean;
 };
+
+const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789_-";
+
+function generateRoomId(length = 12): string {
+  if (typeof globalThis.crypto === "undefined") {
+    throw new Error("Secure random generation is unavailable.");
+  }
+
+  const randomValues = globalThis.crypto.getRandomValues(new Uint32Array(length));
+  let roomId = "";
+
+  for (let index = 0; index < randomValues.length; index += 1) {
+    roomId += ROOM_ID_ALPHABET[randomValues[index] % ROOM_ID_ALPHABET.length];
+  }
+
+  return roomId;
+}
 
 function parseInviteHash(hash: string): { roomId: string; password: string } | null {
   const normalizedHash = hash.replace(/^#/, "");
@@ -154,7 +171,7 @@ export default function ChatClient() {
     }
 
     // Update URL hash for sharing
-    window.location.hash = `${roomId}:${password}`;
+    window.location.hash = `${encodeURIComponent(roomId)}:${encodeURIComponent(password)}`;
     setIsJoined(true);
   };
 
@@ -219,6 +236,24 @@ export default function ChatClient() {
     alert("Invite link copied to clipboard. Share it via a secure channel.");
   };
 
+  const handleCreateRoom = () => {
+    setError(null);
+    try {
+      const nextRoomId = generateRoomId();
+      const nextPassword = generateRandomPassword(24);
+      const inviteUrl = `${window.location.origin}/chat#${encodeURIComponent(nextRoomId)}:${encodeURIComponent(nextPassword)}`;
+      setRoomId(nextRoomId);
+      setPassword(nextPassword);
+      window.location.hash = `${encodeURIComponent(nextRoomId)}:${encodeURIComponent(nextPassword)}`;
+      void navigator.clipboard.writeText(inviteUrl);
+      setIsJoined(true);
+      alert("New room created and invite link copied to clipboard.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create a new room.";
+      setError(message);
+    }
+  };
+
   if (!isJoined) {
     return (
       <div className="max-w-md mx-auto w-full pt-10">
@@ -234,6 +269,19 @@ export default function ChatClient() {
 
         <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm">
           <CardContent className="pt-6">
+            <div className="mb-5 space-y-3">
+              <Button
+                type="button"
+                onClick={handleCreateRoom}
+                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white"
+              >
+                Create New Room
+              </Button>
+              <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+                Or join an existing room with the form below.
+              </p>
+            </div>
+
             <form onSubmit={handleJoin} className="space-y-4">
               {error && (
                 <div className="p-3 text-xs text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20">
