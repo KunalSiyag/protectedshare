@@ -665,7 +665,7 @@ export default function ChatClient() {
                     onChange={(e) => setRoomId(e.target.value)}
                     placeholder="e.g. secure-project-x"
                     className="bg-zinc-50 dark:bg-zinc-900/50"
-                  pattern="[A-Za-z0-9_\\-]+"
+                  pattern="[A-Za-z0-9_-]+"
                 />
               </div>
 

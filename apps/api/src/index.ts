@@ -97,6 +97,36 @@ async function fetchChatMessages(
   }));
 }
 
+async function ensureChatTables(db: D1Database): Promise<void> {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      encrypted_blob TEXT NOT NULL,
+      iv TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+  `).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_chat_messages_room_id ON chat_messages (room_id, created_at)`
+  ).run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS chat_room_presence (
+      room_id TEXT NOT NULL,
+      client_id TEXT NOT NULL,
+      last_seen INTEGER NOT NULL,
+      is_typing INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (room_id, client_id)
+    )
+  `).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_chat_room_presence_room_id ON chat_room_presence (room_id, last_seen)`
+  ).run();
+}
+
 async function pruneStaleChatPresence(db: D1Database, roomId: string, now: number): Promise<void> {
   const cutoff = now - CHAT_PRESENCE_TTL_MS;
   await db.prepare(
@@ -959,6 +989,7 @@ app.post("/api/workspaces/:username/migrate-proof", handleMigratePasswordProof);
 app.post("/api/workspace/:username/migrate-proof", handleMigratePasswordProof);
 
 app.post("/api/chat/:roomId", async (c) => {
+  await ensureChatTables(c.env.DB);
   const roomId = c.req.param("roomId");
   if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
     return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
@@ -1008,6 +1039,7 @@ app.post("/api/chat/:roomId", async (c) => {
 });
 
 app.get("/api/chat/:roomId", async (c) => {
+  await ensureChatTables(c.env.DB);
   const roomId = c.req.param("roomId");
   if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
     return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
@@ -1031,6 +1063,7 @@ app.get("/api/chat/:roomId", async (c) => {
 });
 
 app.post("/api/chat/:roomId/presence", async (c) => {
+  await ensureChatTables(c.env.DB);
   const roomId = c.req.param("roomId");
   if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
     return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
@@ -1060,6 +1093,7 @@ app.post("/api/chat/:roomId/presence", async (c) => {
 });
 
 app.delete("/api/chat/:roomId/presence", async (c) => {
+  await ensureChatTables(c.env.DB);
   const roomId = c.req.param("roomId");
   if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
     return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
@@ -1088,6 +1122,7 @@ app.delete("/api/chat/:roomId/presence", async (c) => {
 });
 
 app.get("/api/chat/:roomId/stream", async (c) => {
+  await ensureChatTables(c.env.DB);
   const roomId = c.req.param("roomId");
   if (!roomId || !BASE64_URL_PATTERN.test(roomId)) {
     return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
