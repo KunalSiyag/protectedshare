@@ -5,6 +5,20 @@ export const metadata: Metadata = {
   title: "Best Free ProtectedText Alternative (AES-256-GCM)",
   description:
     "Why ProtectedShare is the best free alternative to ProtectedText. E2E zero-knowledge AES-256-GCM encryption, self-destructing links, .env file sharing, and a modern mobile-first interface.",
+  keywords: [
+    "ProtectedText alternative",
+    "protected text alternative",
+    "protectedtext alternative",
+    "secret share",
+    "secure text sharing link",
+    "self destruct link",
+    "self-destructing link",
+    "ProtectedText replacement",
+    "free protectedtext alternative",
+    "burn after read link",
+    "zero knowledge note sharing",
+    "encrypted notepad alternative",
+  ],
   alternates: {
     canonical: "https://protectedshare.me/vs/protectedtext",
   },

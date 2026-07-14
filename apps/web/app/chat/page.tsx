@@ -4,6 +4,15 @@ import ChatClient from "./chat-client";
 export const metadata: Metadata = {
   title: "Anonymous Encrypted Chatroom (Zero-Knowledge)",
   description: "Join an end-to-end encrypted, zero-knowledge, anonymous chatroom. Messages are encrypted client-side using AES-256-GCM. No signup required.",
+  keywords: [
+    "anonymous encrypted chatroom",
+    "encrypted chatroom",
+    "secure text sharing link",
+    "secret share",
+    "zero knowledge chat",
+    "private encrypted chat",
+    "chatroom alternative",
+  ],
   alternates: {
     canonical: "https://protectedshare.me/chat",
   },

@@ -27,6 +27,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setContactOpen(true);
   };
 
+  const toolLinks = [
+    { href: "/notes", label: "Secure Notes" },
+    { href: "/secrets", label: "EnvShare" },
+    { href: "/notepad", label: "Encrypted Notepad" },
+    { href: "/chat", label: "Anonymous Chatroom" },
+  ] as const;
+
+  const comparisonLinks = [
+    { href: "/vs/protectedtext", label: "ProtectedText Alternative" },
+    { href: "/vs/privnote", label: "Privnote Alternative" },
+    { href: "/vs/envshare", label: "EnvShare Alternative" },
+  ] as const;
+
+  const guideLinks = [
+    { href: "/blog", label: "Security Blog" },
+    { href: "/self-host", label: "Self-Host" },
+    { href: "/about", label: "About Us" },
+    { href: "/contact", label: "Contact Us" },
+    { href: "/protected-text-alternative", label: "ProtectedText Alternative" },
+    { href: "/secret-share", label: "Secret Share" },
+    { href: "/secure-text-sharing-link", label: "Secure Text Sharing Link" },
+  ] as const;
+
   return (
     <div className="relative min-h-screen flex flex-col w-full overflow-x-hidden bg-zinc-50 dark:bg-[#09090b] transition-colors duration-300">
       {/* ═══ Background photogenic glow grid orbs ═══ */}
@@ -107,7 +130,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ═══ Persistent Global Footer ═══ */}
       <footer className="border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-[#09090b] pt-12 md:pt-16 pb-16 md:pb-24 mt-auto transition-colors duration-300">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-24">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
           <div>
             <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
               <span className="text-blue-600 dark:text-emerald-500 font-mono">{"/*"}</span> Cryptographic Core
@@ -130,6 +153,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="text-zinc-600 dark:text-zinc-400"><strong className="text-zinc-900 dark:text-zinc-200 font-medium">Secure Notes:</strong> Outputs a separated link and password. This allows you to split the delivery across two independent channels (e.g., URL over Slack, password via Signal/SMS), satisfying strict multi-factor defense requirements.</span>
               </li>
             </ul>
+          </div>
+          <div className="flex flex-col gap-8">
+            <div>
+              <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
+                <span className="text-blue-600 dark:text-emerald-500 font-mono">{"<>"}</span> Tools
+              </h3>
+              <ul className="space-y-3 text-sm">
+                {toolLinks.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
+                <span className="text-blue-600 dark:text-emerald-500 font-mono">{"{ }"}</span> Comparisons
+              </h3>
+              <ul className="space-y-3 text-sm">
+                {comparisonLinks.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
           <div className="flex flex-col justify-between">
             <div>
@@ -157,7 +210,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </li>
               </ul>
             </div>
-
+          </div>
+          <div className="flex flex-col justify-between">
+            <div>
+              <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
+                <span className="text-blue-600 dark:text-emerald-500 font-mono">{"//"}</span> Guides
+              </h3>
+              <ul className="space-y-3 text-sm">
+                {guideLinks.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <div className="mt-8 p-4 rounded-lg bg-zinc-200/40 dark:bg-zinc-900/60 border border-zinc-300 dark:border-zinc-800/80 transition-colors duration-300">
               <h4 className="text-xs uppercase font-mono tracking-wider text-zinc-900 dark:text-zinc-200 font-semibold mb-2">Dedicated Infrastructure</h4>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">

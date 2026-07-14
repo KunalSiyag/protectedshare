@@ -5,6 +5,18 @@ export const metadata: Metadata = {
   title: "Best Free EnvShare Alternative (Active & Polished)",
   description:
     "Why ProtectedShare is the best free alternative to EnvShare. AES-256-GCM zero-knowledge encryption, self-destructing links, and a complete suite of notes and offline notepad tools.",
+  keywords: [
+    "EnvShare alternative",
+    "share env file securely",
+    "share api key securely",
+    "secret share",
+    "secure text sharing link",
+    "self destruct link",
+    "self-destructing link",
+    "envshare replacement",
+    "developer secret sharing",
+    "temporary secret link",
+  ],
   alternates: {
     canonical: "https://protectedshare.me/vs/envshare",
   },

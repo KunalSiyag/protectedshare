@@ -17,6 +17,24 @@ export const metadata: Metadata = {
   title: "ProtectedText Alternative | Secret Sharing Website, Online Notepad & EnvShare — No Signup",
   description:
     "The modern ProtectedText alternative and secret sharing website. Free encrypted online notepad, .env file sharing (EnvShare), and self-destructing secret links — all with AES-256 zero-knowledge encryption. No signup, no tracking.",
+  keywords: [
+    "ProtectedText alternative",
+    "protected text alternative",
+    "protectedtext alternative",
+    "secret share",
+    "secure text sharing link",
+    "self destruct link",
+    "self-destructing link",
+    "Privnote alternative",
+    "privnote alternatives",
+    "EnvShare alternative",
+    "share .env files securely",
+    "share API keys securely",
+    "encrypted online notepad",
+    "burn after read secret",
+    "anonymous encrypted chatroom",
+    "zero knowledge note sharing",
+  ],
   alternates: {
     canonical: "https://protectedshare.me",
   },
@@ -502,6 +520,54 @@ export default function HomePage() {
             <p className="text-[10px] text-zinc-500 dark:text-zinc-500 leading-relaxed font-mono">
               * Note: Cloudflare&apos;s global worker network powers our backend database routines, ensuring high availability and edge isolation.
             </p>
+          </div>
+
+          <div className="mt-10 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/40 p-5">
+            <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
+              Popular searches we match
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                "ProtectedText alternative",
+                "protected text alternative",
+                "secret share",
+                "secure text sharing link",
+                "self destruct link",
+                "Privnote alternative",
+                "EnvShare alternative",
+                "encrypted online notepad",
+              ].map((term) => (
+                <span
+                  key={term}
+                  className="rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-400"
+                >
+                  {term}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/40 p-5">
+            <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
+              Exact-match landing pages
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Link href="/protected-text-alternative" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">ProtectedText</p>
+                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">ProtectedText alternative</p>
+                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">A dedicated page for users comparing ProtectedShare with legacy protected text tools.</p>
+              </Link>
+              <Link href="/secret-share" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Secret Share</p>
+                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Secret share</p>
+                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">Focused on one-time secret delivery, burn-after-read links, and temporary message workflows.</p>
+              </Link>
+              <Link href="/secure-text-sharing-link" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Sharing Link</p>
+                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Secure text sharing link</p>
+                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">A page built for people searching for a secure link to share private text instantly.</p>
+              </Link>
+            </div>
           </div>
         </div>
       </section>

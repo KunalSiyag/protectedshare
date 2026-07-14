@@ -5,6 +5,18 @@ export const metadata: Metadata = {
   title: "Best Free Privnote Alternative (Zero-Knowledge)",
   description:
     "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
+  keywords: [
+    "Privnote alternative",
+    "privnote alternatives",
+    "secret share",
+    "secure text sharing link",
+    "self destruct link",
+    "self-destructing link",
+    "free privnote alternative",
+    "burn after read note",
+    "anonymous encrypted note sharing",
+    "zero knowledge secret link",
+  ],
   alternates: {
     canonical: "https://protectedshare.me/vs/privnote",
   },

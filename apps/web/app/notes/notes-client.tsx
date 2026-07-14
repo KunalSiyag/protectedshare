@@ -230,6 +230,11 @@ export default function NotesClient() {
           <a href="/notepad" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Encrypted Notepad</a>
           <a href="/chat" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Anonymous Chatroom</a>
         </div>
+        <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
+          <a href="/vs/protectedtext" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">ProtectedText alternative</a>
+          <a href="/vs/privnote" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Privnote alternative</a>
+          <a href="/blog" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Security blog</a>
+        </div>
       </div>
     </main>
   );

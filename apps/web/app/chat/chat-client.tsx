@@ -14,6 +14,37 @@ type Message = {
   isSelf: boolean;
 };
 
+function parseInviteHash(hash: string): { roomId: string; password: string } | null {
+  const normalizedHash = hash.replace(/^#/, "");
+  if (!normalizedHash) {
+    return null;
+  }
+
+  const separatorIndex = normalizedHash.indexOf(":");
+  if (separatorIndex === -1) {
+    try {
+      return { roomId: decodeURIComponent(normalizedHash), password: "" };
+    } catch {
+      return { roomId: normalizedHash, password: "" };
+    }
+  }
+
+  const rawRoomId = normalizedHash.slice(0, separatorIndex);
+  const rawPassword = normalizedHash.slice(separatorIndex + 1);
+
+  try {
+    return {
+      roomId: decodeURIComponent(rawRoomId),
+      password: decodeURIComponent(rawPassword),
+    };
+  } catch {
+    return {
+      roomId: rawRoomId,
+      password: rawPassword,
+    };
+  }
+}
+
 export default function ChatClient() {
   const [roomId, setRoomId] = useState("");
   const [password, setPassword] = useState("");
@@ -29,16 +60,10 @@ export default function ChatClient() {
   // Parse hash and path to auto-join if provided
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const hash = window.location.hash.replace("#", "");
-      if (hash) {
-        // Expected format: roomId:password
-        const parts = hash.split(":");
-        if (parts.length === 2) {
-          setRoomId(parts[0]);
-          setPassword(parts[1]);
-        } else {
-          setRoomId(hash); // Maybe just room ID in hash
-        }
+      const invite = parseInviteHash(window.location.hash);
+      if (invite) {
+        setRoomId(invite.roomId);
+        setPassword(invite.password);
       }
     }
   }, []);
@@ -189,9 +214,9 @@ export default function ChatClient() {
   };
 
   const generateInviteLink = () => {
-    const url = `${window.location.origin}/chat#${roomId}:${password}`;
-    navigator.clipboard.writeText(url);
-    alert("Invite link copied to clipboard! Share it via a secure channel.");
+    const url = `${window.location.origin}/chat#${encodeURIComponent(roomId)}:${encodeURIComponent(password)}`;
+    void navigator.clipboard.writeText(url);
+    alert("Invite link copied to clipboard. Share it via a secure channel.");
   };
 
   if (!isJoined) {
@@ -256,6 +281,11 @@ export default function ChatClient() {
             <a href="/notes" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Secure Notes</a>
             <a href="/secrets" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">EnvShare (Dev Keys)</a>
             <a href="/notepad" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Encrypted Notepad</a>
+          </div>
+          <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
+            <a href="/vs/privnote" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Privnote alternative</a>
+            <a href="/vs/protectedtext" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">ProtectedText alternative</a>
+            <a href="/blog" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Security blog</a>
           </div>
         </div>
       </div>

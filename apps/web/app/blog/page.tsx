@@ -51,6 +51,32 @@ export default function BlogIndexPage() {
             Share a Secret
           </Link>
         </div>
+
+        <div className="mt-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/50 p-5">
+          <p className="text-xs font-mono uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400">
+            Popular guides and tools
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/vs/protectedtext" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
+              ProtectedText alternative
+            </Link>
+            <Link href="/vs/privnote" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
+              Privnote alternative
+            </Link>
+            <Link href="/vs/envshare" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
+              EnvShare alternative
+            </Link>
+            <Link href="/chat" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
+              Anonymous encrypted chatroom
+            </Link>
+            <Link href="/notes" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
+              Secure notes
+            </Link>
+            <Link href="/secrets" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
+              Share API keys securely
+            </Link>
+          </div>
+        </div>
       </div>
 
       <section className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">

@@ -91,6 +91,17 @@ export default async function BlogPostPage({ params }: PageProps) {
   const currentIndex = BLOG_POSTS.findIndex((item) => item.slug === post.slug);
   const previousPost = currentIndex > 0 ? BLOG_POSTS[currentIndex - 1] : undefined;
   const nextPost = currentIndex < BLOG_POSTS.length - 1 ? BLOG_POSTS[currentIndex + 1] : undefined;
+  const primaryTopic = post.title.split(" ")[0]?.toLowerCase() ?? "";
+  const relatedPosts = BLOG_POSTS
+    .filter((item) => item.slug !== post.slug)
+    .map((item) => ({
+      item,
+      score: (item.category === post.category ? 3 : 0) +
+        (primaryTopic && item.title.toLowerCase().includes(primaryTopic) ? 1 : 0),
+    }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 3)
+    .map(({ item }) => item);
 
   return (
     <main className="max-w-4xl mx-auto px-6 py-12 md:py-20">
@@ -144,6 +155,48 @@ export default async function BlogPostPage({ params }: PageProps) {
       <article className="mt-10">
         <ReactMarkdown components={markdownComponents}>{post.content}</ReactMarkdown>
       </article>
+
+      <div className="mt-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+        <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+          Related guides
+        </h2>
+        <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+          More pages that match the same search intent or security workflow.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {relatedPosts.map((relatedPost) => (
+            <Link
+              key={relatedPost.slug}
+              href={`/blog/${relatedPost.slug}`}
+              className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors"
+            >
+              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                {relatedPost.category}
+              </p>
+              <p className="mt-2 font-semibold text-zinc-950 dark:text-white">
+                {relatedPost.title}
+              </p>
+              <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+                {relatedPost.description}
+              </p>
+            </Link>
+          ))}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link href="/vs/protectedtext" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+            ProtectedText alternative
+          </Link>
+          <Link href="/vs/privnote" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+            Privnote alternative
+          </Link>
+          <Link href="/vs/envshare" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+            EnvShare alternative
+          </Link>
+          <Link href="/chat" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+            Anonymous encrypted chatroom
+          </Link>
+        </div>
+      </div>
 
       <div className="mt-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
         <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
