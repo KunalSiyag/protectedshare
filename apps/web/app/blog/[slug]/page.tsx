@@ -51,6 +51,14 @@ const markdownComponents: Components = {
       {children}
     </strong>
   ),
+  a: ({ children, href }) => (
+    <a
+      href={href}
+      className="font-medium text-blue-600 dark:text-emerald-400 hover:underline"
+    >
+      {children}
+    </a>
+  ),
 };
 
 export async function generateStaticParams() {

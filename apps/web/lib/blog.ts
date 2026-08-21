@@ -536,6 +536,27 @@ You should not need an account, a credit card, or an email address just to write
 Check the practical features too: does the note expire, can you limit how many times it opens, and does it behave well on mobile? Those details decide whether the tool fits real situations like sending a password to a family member or storing a recovery code temporarily.`,
   },
   {
+    slug: "how-to-send-sensitive-information-online-safely",
+    title: "How to Send Sensitive Information Online Safely",
+    description:
+      "A practical guide to moving confidential details across the internet without leaving permanent copies in inboxes and chat logs.",
+    category: "Privacy",
+    publishedAt: "2026-07-02",
+    updatedAt: "2026-07-02",
+    readingTime: "4 min read",
+    content: `## Match the channel to the sensitivity
+
+Most data leaks are not dramatic hacks. They are ordinary messages sent through ordinary channels that happened to keep a copy. Email archives, chat sync, notification previews, and cloud backups all preserve sensitive text long after both parties have forgotten the exchange.
+
+The first rule of sending sensitive information online is simple: assume every plaintext channel retains what you send. Once you accept that, the solution becomes obvious. Encrypt before sending so the retained copies contain nothing readable.
+
+## A workflow you can repeat
+
+Paste the sensitive details into [Secure Notes](/notes), which encrypts them in your browser with AES-256-GCM before upload. Set an expiration that matches how long the information is actually useful, then send the link through your normal channel.
+
+For anything especially sensitive, split the delivery: link through email or chat, decryption password through SMS or a phone call. If the recipient only needs the information once, choose burn-after-read so the ciphertext is deleted at first view. The whole flow takes about a minute and leaves no readable trail behind.`,
+  },
+  {
     slug: "encrypted-pastebin-alternative-for-code-snippets",
     title: "Encrypted Pastebin Alternative for Code Snippets and Secrets",
     description:
@@ -557,6 +578,27 @@ An encrypted alternative flips the model. Your browser encrypts the snippet befo
 Add an expiration and a read limit, and a shared config stops being a permanent artifact. The recipient gets exactly what they need, the paste disappears when its job is done, and a crawler or scraper finds nothing worth taking.`,
   },
   {
+    slug: "best-free-encrypted-notepad-online",
+    title: "The Best Free Encrypted Notepad Online (No Signup)",
+    description:
+      "What separates a genuinely encrypted notepad from a lock icon, plus the features worth checking before you trust one with private notes.",
+    category: "Buyer Guide",
+    publishedAt: "2026-07-16",
+    updatedAt: "2026-07-16",
+    readingTime: "4 min read",
+    content: `## Not all encrypted notepads encrypt
+
+Plenty of note apps advertise privacy while storing your content in readable form on their servers. The lock icon protects the screen, not the data. A genuinely encrypted notepad does the cryptography in your browser, so the server receives nothing but ciphertext it cannot open.
+
+That distinction is the single most important thing to verify. Look for a clear explanation of where encryption happens and where keys live. Vague promises like bank-level security usually mean the platform can read everything.
+
+## The checklist worth using
+
+Before committing to any free encrypted notepad, check five things: client-side encryption, no mandatory account, offline access, markdown support for structured writing, and multi-device sync that still keeps the server blind.
+
+[ProtectedShare's encrypted notepad](/notepad) checks all five: it works offline-first in your browser, encrypts locally, requires zero registration, renders markdown, and syncs encrypted vaults across devices. Because it runs alongside secret sharing and .env tools, you can draft privately and share securely without switching products.`,
+  },
+  {
     slug: "anonymous-chat-room-no-signup-how-it-works",
     title: "Anonymous Chat Rooms With No Signup: How They Work",
     description:
@@ -576,6 +618,27 @@ No-signup chat rooms solve this by making identity optional. You open a URL, sha
 The important detail is who can read the messages. In a well-built anonymous chat, encryption happens in the browser using a key derived from the room address itself. Messages reach the server only as encrypted blobs that relay to other participants.
 
 Because the key never leaves the participants' browsers, even the operator cannot follow the conversation. Combine that with ephemeral storage, where messages disappear rather than accumulate, and the chat room becomes a space that is private by architecture instead of by promise.`,
+  },
+  {
+    slug: "password-manager-vs-one-time-secret-link",
+    title: "Password Manager vs One-Time Secret Link: When to Use Each",
+    description:
+      "Password managers and self-destructing secret links solve different problems. Here is when each one is the right tool.",
+    category: "Comparisons",
+    publishedAt: "2026-07-30",
+    updatedAt: "2026-07-30",
+    readingTime: "4 min read",
+    content: `## Different problems, different tools
+
+A password manager is a vault: long-term storage for credentials you use repeatedly. A one-time secret link is a courier: short-term delivery of a credential to someone who does not have your vault.
+
+The mistake teams make is using one tool for both jobs. Sharing a vault entry by emailing an exported file defeats the vault. Storing every contractor password forever because the courier link was convenient creates a growing pile of stale secrets.
+
+## Use the courier for handoffs
+
+When someone needs a credential once, a [self-destructing secret link](/secrets) is the cleaner path. The recipient gets exactly what they need, the ciphertext deletes itself after reading, and nothing accumulates in either party's records. No shared vault, no guest accounts, no license seats for people who needed one password one time.
+
+Use the vault for everything ongoing, and reserve one-time links for the moment of transfer. The two tools complement each other: the vault reduces how often secrets need to travel, and the courier makes each trip as small and brief as possible.`,
   },
   {
     slug: "api-key-security-best-practices-for-small-teams",
@@ -639,6 +702,27 @@ The difference matters. A hidden message may survive in backups and sync history
 Self-destructing delivery fits any moment when a secret needs to cross a channel that keeps history: sending a Wi-Fi password to a guest, handing a verification code to a family member, passing credentials to a contractor, or moving an activation key between your own devices.
 
 It is not for everything. Conversations that need reference later belong in durable storage. But for the large category of secrets whose value expires the moment they are received, deletion after reading is the honest default, and it costs nothing to adopt.`,
+  },
+  {
+    slug: "how-to-share-wifi-password-safely",
+    title: "How to Share a WiFi Password Safely",
+    description:
+      "The safe ways to give guests, visitors, and new devices your WiFi password without shouting it across the room or taping it to the wall.",
+    category: "Workflows",
+    publishedAt: "2026-08-21",
+    updatedAt: "2026-08-21",
+    readingTime: "3 min read",
+    content: `## The problem with the usual methods
+
+Reading a WiFi password aloud works until someone mishears one character. Taping it to the wall works until visitors photograph it, and the photo ends up synced to someone else's cloud. Texting it works, but the password now lives in message histories on every device involved.
+
+None of these are disasters for a home network, but the same habits break down in offices, cafes, rentals, and guest networks where more strangers pass through.
+
+## Better options for homes and offices
+
+Where possible, create a separate guest network with its own password you can rotate occasionally. That contains risk without changing the main network credential.
+
+When you do need to send the password, skip the group chat. Paste it into a [secure encrypted note](/notes), set burn-after-read, and send the link to your guest. They view it once, connect, and the password vanishes from the conversation. It takes under a minute and works just as well for a houseguest as for a conference room.`,
   },
 ];
 

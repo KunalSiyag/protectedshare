@@ -452,6 +452,17 @@ export default function HomePage() {
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
             </Link>
+
+            <Link
+              href="/vs/onetimesecret"
+              className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
+            >
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-0.5">OneTimeSecret Alternative</h3>
+                <p className="text-[10px] text-zinc-500">Zero-knowledge encryption vs server-held secrets</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
+            </Link>
           </div>
 
           {/* Comparison Table */}
@@ -566,6 +577,16 @@ export default function HomePage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Sharing Link</p>
                 <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Secure text sharing link</p>
                 <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">A page built for people searching for a secure link to share private text instantly.</p>
+              </Link>
+              <Link href="/share-password-securely" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Passwords</p>
+                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Share passwords securely</p>
+                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">A step-by-step guide to sending passwords with encryption, expiries, and split delivery.</p>
+              </Link>
+              <Link href="/anonymous-chat-room" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Chat</p>
+                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Anonymous chat room</p>
+                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">No-signup, end-to-end encrypted rooms for conversations that should not leave a trace.</p>
               </Link>
             </div>
           </div>
