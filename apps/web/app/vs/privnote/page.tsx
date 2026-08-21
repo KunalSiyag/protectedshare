@@ -24,20 +24,11 @@ export const metadata: Metadata = {
     title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
     description: "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
     url: "https://protectedshare.me/vs/privnote",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
     description: "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
-    images: ["/og-image.png"],
   },
 };
 

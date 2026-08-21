@@ -24,20 +24,11 @@ export const metadata: Metadata = {
     title: "Best Free EnvShare Alternative (Active & Polished) — ProtectedShare",
     description: "Why ProtectedShare is the best free alternative to EnvShare. AES-256-GCM zero-knowledge encryption, self-destructing links, and a complete suite of notes and offline notepad tools.",
     url: "https://protectedshare.me/vs/envshare",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Best Free EnvShare Alternative (Active & Polished) — ProtectedShare",
     description: "Why ProtectedShare is the best free alternative to EnvShare. AES-256-GCM zero-knowledge encryption, self-destructing links, and a complete suite of notes and offline notepad tools.",
-    images: ["/og-image.png"],
   },
 };
 

@@ -4,6 +4,13 @@ import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import { BLOG_POSTS, getBlogPost, getBlogSlugs } from "../../../lib/blog";
+import JsonLd from "../../../components/json-ld";
+import {
+  DEFAULT_OG_IMAGE,
+  SITE_NAME,
+  SITE_URL,
+  breadcrumbJsonLd,
+} from "../../../lib/seo";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -113,6 +120,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             "@type": "BlogPosting",
             headline: post.title,
             description: post.description,
+            image: DEFAULT_OG_IMAGE,
             datePublished: post.publishedAt,
             dateModified: post.updatedAt,
             author: {
@@ -121,12 +129,23 @@ export default async function BlogPostPage({ params }: PageProps) {
             },
             publisher: {
               "@type": "Organization",
-              name: "ProtectedShare",
-              url: "https://protectedshare.me",
+              name: SITE_NAME,
+              url: SITE_URL,
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/logo.svg`,
+              },
             },
             mainEntityOfPage: `https://protectedshare.me/blog/${post.slug}`,
           }),
         }}
+      />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Blog", path: "/blog" },
+          { name: post.title, path: `/blog/${post.slug}` },
+        ])}
       />
 
       <div className="flex items-center gap-3 text-xs font-mono uppercase tracking-[0.24em] text-blue-600 dark:text-emerald-400">

@@ -26,20 +26,11 @@ export const metadata: Metadata = {
     title: "Best Free ProtectedText Alternative (AES-256-GCM) — ProtectedShare",
     description: "Why ProtectedShare is the best free alternative to ProtectedText. E2E zero-knowledge AES-256-GCM encryption, self-destructing links, .env file sharing, and a modern mobile-first interface.",
     url: "https://protectedshare.me/vs/protectedtext",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Best Free ProtectedText Alternative (AES-256-GCM) — ProtectedShare",
     description: "Why ProtectedShare is the best free alternative to ProtectedText. E2E zero-knowledge AES-256-GCM encryption, self-destructing links, .env file sharing, and a modern mobile-first interface.",
-    images: ["/og-image.png"],
   },
 };
 

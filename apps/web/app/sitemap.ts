@@ -12,12 +12,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
-    {
-      url: `${baseUrl}/chat`,
-      lastModified: new Date("2026-07-02"),
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
     ...BLOG_POSTS.map((post) => ({
       url: `${baseUrl}/blog/${post.slug}`,
       lastModified: new Date(post.updatedAt),
@@ -47,6 +41,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${baseUrl}/notepad`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/chat`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.8,
