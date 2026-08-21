@@ -449,7 +449,7 @@ For a secure note product, that means covering topics like zero-knowledge encryp
 
 Useful blog posts help users understand what the product does and why it matters. That improves internal linking, creates topical authority, and gives search engines more context about the site.
 
-The most effective SEO blog is not generic filler. It teaches, explains, and points naturally toward the product without pretending the article is something it is not.`,
+    The most effective SEO blog is not generic filler. It teaches, explains, and points naturally toward the product without pretending the article is something it is not.`,
   },
   {
     slug: "best-practices-for-sharing-passwords-in-2026",
@@ -471,6 +471,174 @@ What has changed is the expectation that the workflow should be fast, mobile-fri
 Use a zero-knowledge note or secret link when you need to share the credential, then choose the shortest expiration that fits the task. If the recipient needs the password only once, do not leave it open longer than necessary.
 
 Security works best when it is normal. The more repeatable the workflow is, the more likely your team is to use it every time.`,
+  },
+  {
+    slug: "is-it-safe-to-send-passwords-over-whatsapp-email-or-sms",
+    title: "Is It Safe to Send Passwords Over WhatsApp, Email, or SMS?",
+    description:
+      "Why chat apps, email, and SMS are risky places for passwords, and what to do instead when you need to share a credential quickly.",
+    category: "Security Basics",
+    publishedAt: "2026-06-11",
+    updatedAt: "2026-06-11",
+    readingTime: "4 min read",
+    content: `## Where your password actually goes
+
+When you paste a password into WhatsApp, email, or SMS, you are creating permanent copies in more places than you think. Message histories sync across devices, mail providers index inbox content, telecom systems handle SMS in plaintext, and backups keep everything for years.
+
+None of those systems were designed to store credentials. They were designed to keep conversations. The difference matters because a password stays dangerous long after a conversation feels finished.
+
+## What to do instead
+
+A better habit takes barely more time than pasting into chat. Encrypt the password in your browser so it becomes unreadable ciphertext, generate a one-time link, and send that link through your normal channel. If the platform supports it, send the decryption password separately so no single message reveals everything.
+
+With burn-after-read delivery, the credential disappears after the first view, so a forwarded message or an old backup contains nothing useful. The channel still carries the message, but the message no longer carries the secret.`,
+  },
+  {
+    slug: "secrets-management-basics-for-startups",
+    title: "Secrets Management Basics for Startups",
+    description:
+      "Where to keep API keys, certificates, and credentials when your team is small, moving fast, and has no security team.",
+    category: "Teams",
+    publishedAt: "2026-06-18",
+    updatedAt: "2026-06-18",
+    readingTime: "5 min read",
+    content: `## Start with an inventory, not a platform
+
+Startups rarely lack tools for secrets. They lack certainty about where secrets currently live. Before adopting anything fancy, spend one hour listing every credential your team relies on and where copies exist: cloud consoles, git repos, laptops, chat threads, and that one spreadsheet nobody admits to.
+
+The inventory alone usually surfaces urgent problems, like a production token committed years ago or shared in an onboarding document that has been forwarded five times.
+
+## Build three simple habits
+
+First, keep secrets out of source control using environment files that are git-ignored and a scanning hook that catches mistakes. Second, centralize runtime secrets in whatever managed store your cloud already provides rather than inventing a homegrown scheme.
+
+Third, fix the human path. Most leaks at small companies happen during handoff, not storage. Give the team one standard way to send a credential: encrypt it in the browser, share a link that expires, done. Habits beat platforms when the team is five people and shipping fast.`,
+  },
+  {
+    slug: "password-protected-notes-online-free",
+    title: "Password-Protected Notes Online: A Free Option Without Accounts",
+    description:
+      "How free online notes with password protection work, which features matter, and when a zero-knowledge note tool is the right choice.",
+    category: "Buyer Guide",
+    publishedAt: "2026-06-25",
+    updatedAt: "2026-06-25",
+    readingTime: "4 min read",
+    content: `## What password protection should mean
+
+Many note apps advertise password protection, but the details differ enormously. In some products, the password unlocks a screen while the note itself sits readable on the company servers. In others, the password is the actual encryption key, and nobody except you can decrypt the content.
+
+The second model is called zero-knowledge, and it is the version worth wanting. When the browser encrypts the note before anything leaves your device, the password protection is real cryptography rather than a lock icon.
+
+## What to look for in a free tool
+
+You should not need an account, a credit card, or an email address just to write a private note. A good free option works instantly, encrypts locally, and explains plainly where the key lives.
+
+Check the practical features too: does the note expire, can you limit how many times it opens, and does it behave well on mobile? Those details decide whether the tool fits real situations like sending a password to a family member or storing a recovery code temporarily.`,
+  },
+  {
+    slug: "encrypted-pastebin-alternative-for-code-snippets",
+    title: "Encrypted Pastebin Alternative for Code Snippets and Secrets",
+    description:
+      "Why public pastebins are a bad place for configuration snippets, tokens, and logs, and how encrypted sharing compares.",
+    category: "Developer Security",
+    publishedAt: "2026-07-09",
+    updatedAt: "2026-07-09",
+    readingTime: "4 min read",
+    content: `## The problem with public pastebins
+
+Pastebins are convenient for sharing stack traces and snippets, which is exactly why they are dangerous for everything else. Public pastes get crawled and indexed. Scrapers watch popular pastebin sites specifically to harvest leaked API keys, database URLs, and tokens within seconds.
+
+Even private-looking pastes often sit unencrypted on the server, retained indefinitely, with a URL anyone who obtains it can open. For code that touches credentials, that is a leak waiting to be noticed.
+
+## How encrypted snippet sharing differs
+
+An encrypted alternative flips the model. Your browser encrypts the snippet before upload, so the server stores only ciphertext it cannot read. The decryption key rides in the URL fragment, which browsers never send to the server, or travels to the recipient through a separate channel.
+
+Add an expiration and a read limit, and a shared config stops being a permanent artifact. The recipient gets exactly what they need, the paste disappears when its job is done, and a crawler or scraper finds nothing worth taking.`,
+  },
+  {
+    slug: "anonymous-chat-room-no-signup-how-it-works",
+    title: "Anonymous Chat Rooms With No Signup: How They Work",
+    description:
+      "How signup-free encrypted chat rooms operate, where the keys live, and what makes a temporary chat genuinely private.",
+    category: "Privacy",
+    publishedAt: "2026-07-23",
+    updatedAt: "2026-07-23",
+    readingTime: "4 min read",
+    content: `## Why no-signup chat exists
+
+Sometimes you need a quick private conversation without installing an app or handing over a phone number. Coordinating an incident response, discussing something personal, or simply talking to someone on another team without leaving a trail in a corporate chat tool.
+
+No-signup chat rooms solve this by making identity optional. You open a URL, share it with the person you need, and talk. No account means no profile data to collect, breach, or subpoena.
+
+## Where the encryption happens
+
+The important detail is who can read the messages. In a well-built anonymous chat, encryption happens in the browser using a key derived from the room address itself. Messages reach the server only as encrypted blobs that relay to other participants.
+
+Because the key never leaves the participants' browsers, even the operator cannot follow the conversation. Combine that with ephemeral storage, where messages disappear rather than accumulate, and the chat room becomes a space that is private by architecture instead of by promise.`,
+  },
+  {
+    slug: "api-key-security-best-practices-for-small-teams",
+    title: "API Key Security Best Practices for Small Teams",
+    description:
+      "A practical list of API key habits for teams without a dedicated security engineer, from storage to rotation to sharing.",
+    category: "Developer Security",
+    publishedAt: "2026-08-06",
+    updatedAt: "2026-08-06",
+    readingTime: "5 min read",
+    content: `## Storage and scope come first
+
+Most API key incidents do not involve sophisticated attacks. A key gets committed to a repository, pasted into a support ticket, or left in a Slack channel, and automated scrapers find it within hours. Prevention starts with boring discipline.
+
+Keep production keys out of client-side code, out of git history, and out of chat. Give every key the narrowest scope that works, and set spending limits where the provider allows it. A leaked read-only key is an annoyance. A leaked billing-enabled key is a very bad week.
+
+## Rotation and sharing routines
+
+Treat every key as temporary. Rotate on a schedule, rotate immediately when a teammate leaves, and rotate after any suspected exposure. If rotation is painful, that is a sign keys are scattered across too many places.
+
+For handoffs, never send raw keys through chat or email. Encrypt the key in the browser, share a short-lived link, and have the recipient confirm before the link self-destructs. Small teams rarely need enterprise secrets infrastructure to follow these habits consistently.`,
+  },
+  {
+    slug: "how-to-share-database-credentials-safely",
+    title: "How to Share Database Credentials Safely",
+    description:
+      "Connection strings, passwords, and hostnames deserve better than email attachments. Here is a safer workflow for sharing database access.",
+    category: "Workflows",
+    publishedAt: "2026-08-13",
+    updatedAt: "2026-08-13",
+    readingTime: "4 min read",
+    content: `## Why connection strings are worse than passwords
+
+A database connection string bundles everything an attacker needs in one line: host, port, database name, username, and password. Unlike a forgotten password, a leaked connection string often works from anywhere on the internet until someone notices and rotates it.
+
+That is why emailing a DATABASE_URL or pasting it into a group chat is riskier than most people assume. Mail archives, chat exports, and notification previews all create quiet copies that outlive the project.
+
+## A workflow that limits exposure
+
+Start by reducing what needs to travel. Create a dedicated user with minimal privileges instead of sharing admin credentials, and prefer short-lived access where the database supports it.
+
+When the credential must be sent, encrypt it in the browser before it ever reaches a server, attach an expiration, and use a one-read link if the recipient only needs it once. After onboarding completes, rotate the password. The goal is simple: the credential should be useless to everyone except its intended recipient, and only for as long as necessary.`,
+  },
+  {
+    slug: "self-destructing-messages-explained",
+    title: "Self-Destructing Messages Explained (and When to Use Them)",
+    description:
+      "How disappearing messages work technically, what they protect against, and the everyday situations where they help.",
+    category: "Secret Sharing",
+    publishedAt: "2026-08-20",
+    updatedAt: "2026-08-20",
+    readingTime: "4 min read",
+    content: `## What actually gets destroyed
+
+In messaging apps, self-destructing usually means the app hides old messages and asks the server to delete them. In dedicated secret-sharing tools, the mechanism is stricter: the stored ciphertext is deleted from the database after a set number of reads or an expiration time, and the link stops working permanently.
+
+The difference matters. A hidden message may survive in backups and sync history. A deleted ciphertext is gone, and without the ciphertext, nothing on the server can be decrypted regardless of what keys or URLs circulate later.
+
+## Everyday situations that call for it
+
+Self-destructing delivery fits any moment when a secret needs to cross a channel that keeps history: sending a Wi-Fi password to a guest, handing a verification code to a family member, passing credentials to a contractor, or moving an activation key between your own devices.
+
+It is not for everything. Conversations that need reference later belong in durable storage. But for the large category of secrets whose value expires the moment they are received, deletion after reading is the honest default, and it costs nothing to adopt.`,
   },
 ];
 
