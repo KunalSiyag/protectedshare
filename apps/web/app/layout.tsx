@@ -6,49 +6,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "ProtectedText Alternative | Free Online Notepad & EnvShare — No Signup",
+    default: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     template: "%s | ProtectedShare",
   },
-  description: "The modern ProtectedText alternative. Free encrypted online notepad, .env file sharing (EnvShare), and self-destructing secret links — all with AES-256 zero-knowledge encryption. No signup, no tracking, no compromise.",
+  description: "AES-256 encrypted notes, .env sharing (EnvShare), and self-destructing secret links. Zero-knowledge, no signup, no tracking.",
   keywords: [
-    "free secure notes",
-    "envshare",
-    "no signup",
-    "protectedtext alternative",
-    "protected text",
-    "protected text alternative",
-    "protectedtext alternative",
-    "online notepad",
-    "free notepad online",
-    "share env file",
-    "encrypted notes free",
     "zero-knowledge",
     "secure note sharing",
-    "secret share",
-    "secure text sharing link",
-    "self destruct link",
-    "self-destructing link",
-    "one-time secret",
-    "burn after read",
-    "password sharing tool",
     "encrypted notepad",
-    "self-destructing message",
-    "client-side encryption",
-    "private text sharing",
-    "share password securely",
-    "send API key safely",
-    "temporary secret link",
-    "secure link generator",
-    "AES-256 encryption tool",
-    "share api key",
-    "free online notepad encrypted",
-    "privnote alternative",
-    "privnote alternatives",
-    "anonymous chatroom",
-    "encrypted chat",
-    "zero knowledge chat",
-    "encrypted chatroom",
-    "anonymous encrypted chatroom",
+    "envshare",
+    "self-destructing link",
+    "protectedtext alternative",
   ],
   authors: [{ name: "ProtectedShare Team" }],
   creator: "ProtectedShare",
@@ -60,12 +28,12 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://protectedshare.me",
-    title: "Free Secure Notes & EnvShare — No Signup Required",
+    title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     description: "AES-256 encrypted notes, .env sharing, and burn-after-read secrets. Free forever, no accounts, no tracking.",
     siteName: "ProtectedShare",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
         alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
@@ -74,15 +42,14 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Free Secure Notes & EnvShare — No Signup Required",
+    title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     description: "AES-256 encrypted notes, .env sharing, and burn-after-read secrets. Free forever, no accounts.",
     creator: "@ProtectedShare",
-    images: ["/og-image.png"],
+    images: ["/og-image.jpg"],
   },
   robots: {
     index: true,
     follow: true,
-    nocache: true,
     googleBot: {
       index: true,
       follow: true,
@@ -129,7 +96,7 @@ export default function RootLayout({
           </>
         )}
       </head>
-      <body className="antialiased min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-300 font-sans selection:bg-blue-200 dark:selection:bg-zinc-800 selection:text-zinc-900 dark:selection:text-white flex flex-col transition-colors duration-300">
+      <body className="antialiased min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-300 font-sans selection:bg-blue-200 dark:selection:bg-zinc-800 selection:text-zinc-900 dark:selection:text-white flex flex-col">
         <JsonLd data={organizationJsonLd()} />
         <JsonLd data={websiteJsonLd()} />
         <AppShell>{children}</AppShell>

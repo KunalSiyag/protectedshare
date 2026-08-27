@@ -189,6 +189,7 @@ export default function ChatClient() {
   const heartbeatIntervalRef = useRef<number | null>(null);
   const typingStateRef = useRef(false);
   const userScrolledUpRef = useRef(false);
+  const sessionSaltRef = useRef<string | null>(null);
   const inviteUrl =
     typeof window !== "undefined" && roomId && password
       ? buildInviteUrl(window.location.origin, roomId, password)
@@ -205,6 +206,7 @@ export default function ChatClient() {
     setCopiedField(null);
     lastMessageTimeRef.current = 0;
     typingStateRef.current = false;
+    sessionSaltRef.current = null;
 
     if (typingTimeoutRef.current) {
       window.clearTimeout(typingTimeoutRef.current);
@@ -261,6 +263,9 @@ export default function ChatClient() {
       for (const msg of incomingMessages) {
         try {
           const text = await decrypt(msg.payload.encryptedBlob, password, msg.payload.iv, msg.payload.salt);
+          if (!sessionSaltRef.current) {
+            sessionSaltRef.current = msg.payload.salt;
+          }
           newMsgs.push({
             id: msg.id,
             text,
@@ -496,7 +501,10 @@ export default function ChatClient() {
     setDraft(""); // Optimistic UI clear
 
     try {
-      const encryptedPayload = await encrypt(textToSend, password);
+      const encryptedPayload = await encrypt(textToSend, password, {
+        salt: sessionSaltRef.current ?? undefined,
+      });
+      sessionSaltRef.current = encryptedPayload.salt;
 
       const payload: CreateChatMessageRequest = {
         payload: encryptedPayload

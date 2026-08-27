@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const CANONICAL_HOST = "protectedshare.me";
+
 export function middleware(request: NextRequest) {
-  const host = request.headers.get("host") || "";
+  const hostHeader = request.headers.get("host") || "";
+  const hostname = hostHeader.split(":")[0].toLowerCase();
+
+  if (hostname === `www.${CANONICAL_HOST}`) {
+    const destination = new URL(
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+      `https://${CANONICAL_HOST}`
+    );
+    return NextResponse.redirect(destination, 301);
+  }
+
   const response = NextResponse.next();
 
-  // If the host is NOT our production domain, tell search engines to not index it.
-  // This solves the "Multi-Domain Trap" / duplicate content penalty from staging/preview domains.
-  if (host && !host.includes("protectedshare.me")) {
+  // Preview, staging, and localhost must not compete with the canonical domain.
+  if (hostname && hostname !== CANONICAL_HOST) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
 

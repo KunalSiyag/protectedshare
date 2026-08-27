@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import AppLink from "../components/app-link";
 import {
   ArrowRight,
   FileCode,
@@ -14,38 +14,22 @@ import {
 
 
 export const metadata: Metadata = {
-  title: "ProtectedText Alternative | Secret Sharing Website, Online Notepad & EnvShare — No Signup",
+  title: {
+    absolute: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
+  },
   description:
-    "The modern ProtectedText alternative and secret sharing website. Free encrypted online notepad, .env file sharing (EnvShare), and self-destructing secret links — all with AES-256 zero-knowledge encryption. No signup, no tracking.",
-  keywords: [
-    "ProtectedText alternative",
-    "protected text alternative",
-    "protectedtext alternative",
-    "secret share",
-    "secure text sharing link",
-    "self destruct link",
-    "self-destructing link",
-    "Privnote alternative",
-    "privnote alternatives",
-    "EnvShare alternative",
-    "share .env files securely",
-    "share API keys securely",
-    "encrypted online notepad",
-    "burn after read secret",
-    "anonymous encrypted chatroom",
-    "zero knowledge note sharing",
-  ],
+    "AES-256 encrypted notes, .env file sharing (EnvShare), and self-destructing secret links. Zero-knowledge, no signup, no tracking.",
   alternates: {
     canonical: "https://protectedshare.me",
   },
   openGraph: {
-    title: "ProtectedText Alternative | Secret Sharing Website, Online Notepad & EnvShare",
+    title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     description:
-      "Free encrypted notes, secret sharing, online notepad, and .env sharing with AES-256 encryption. No signup. No tracking. Self-destructing links.",
+      "Free encrypted notes, EnvShare, and self-destructing links. AES-256 in the browser. No signup. No tracking.",
     url: "https://protectedshare.me",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
         alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
@@ -54,10 +38,10 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "ProtectedText Alternative | Secret Sharing Website, Online Notepad & EnvShare",
+    title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     description:
-      "Free encrypted notes, secret sharing, online notepad, and .env sharing with AES-256 encryption. No signup. No tracking. Self-destructing links.",
-    images: ["/og-image.png"],
+      "Free encrypted notes, EnvShare, and self-destructing links. AES-256 in the browser. No signup. No tracking.",
+    images: ["/og-image.jpg"],
   },
 };
 
@@ -202,36 +186,36 @@ export default function HomePage() {
 
             {/* Call to Action Group */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-8 w-full">
-              <Link
+              <AppLink
                 href="/secrets"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-zinc-950 text-white hover:bg-zinc-900 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 text-xs sm:text-sm font-semibold transition-all duration-200 shadow-lg cursor-pointer shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-zinc-950 text-white hover:bg-zinc-900 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 text-xs sm:text-sm font-semibold transition-colors duration-200 shadow-lg cursor-pointer shrink-0"
               >
                 <FileCode className="h-4 w-4" />
                 <span>Share .env / Keys</span>
-              </Link>
-              <Link
+              </AppLink>
+              <AppLink
                 href="/notes"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-colors duration-200 cursor-pointer shadow-sm shrink-0"
               >
                 <Lock className="h-4 w-4 text-amber-500" />
                 <span>Secure Notes</span>
-              </Link>
-              <Link
+              </AppLink>
+              <AppLink
                 href="/chat"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-colors duration-200 cursor-pointer shadow-sm shrink-0"
               >
                 <svg className="h-4 w-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
                 <span>Chatroom</span>
-              </Link>
-              <Link
+              </AppLink>
+              <AppLink
                 href="/notepad"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer shadow-sm shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-colors duration-200 cursor-pointer shadow-sm shrink-0"
               >
                 <FileText className="h-4 w-4 text-blue-500" />
                 <span>Encrypted Notepad</span>
-              </Link>
+              </AppLink>
             </div>
 
             {/* Checkmarks */}
@@ -255,7 +239,7 @@ export default function HomePage() {
 
           {/* Right Column: Visual Mockup */}
           <div className="lg:col-span-5 w-full flex justify-center">
-            <div className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/85 shadow-2xl overflow-hidden font-sans hover:border-blue-500/40 dark:hover:border-emerald-500/40 hover:shadow-[0_0_50px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_0_50px_-12px_rgba(16,185,129,0.12)] transition-all duration-500">
+            <div className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/85 shadow-2xl overflow-hidden font-sans">
               {/* Window Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 select-none">
                 <div className="flex gap-1.5">
@@ -335,13 +319,13 @@ export default function HomePage() {
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
                 Create password-protected letters and configurations. Send the decryption key separate from the secure link to achieve high-grade two-channel security.
               </p>
-              <Link
+              <AppLink
                 href="/notes"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-emerald-400 group-hover:gap-2.5 transition-all"
               >
                 <span>Write Secure Note</span>
                 <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              </AppLink>
             </div>
 
             {/* EnvShare Card */}
@@ -353,13 +337,13 @@ export default function HomePage() {
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
                 Share database strings, configurations, and API keys. The decryption key remains stored inside the URL hash fragment, never reaching database log servers.
               </p>
-              <Link
+              <AppLink
                 href="/secrets"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-emerald-400 group-hover:gap-2.5 transition-all"
               >
                 <span>Share Secrets Safely</span>
                 <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              </AppLink>
             </div>
 
             {/* Notepad Card */}
@@ -371,13 +355,13 @@ export default function HomePage() {
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
                 An offline-first personal scratchpad. Encrypts documents with client-side SHA-256 account credentials and supports markdown rendering and custom styling themes.
               </p>
-              <Link
+              <AppLink
                 href="/notepad"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-emerald-400 group-hover:gap-2.5 transition-all"
               >
                 <span>Open Private Notepad</span>
                 <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              </AppLink>
             </div>
 
             {/* Chatroom Card */}
@@ -391,13 +375,13 @@ export default function HomePage() {
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
                 An anonymous, real-time end-to-end encrypted chatroom. Share the link over a secure channel. Keys never leave the browser.
               </p>
-              <Link
+              <AppLink
                 href="/chat"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-emerald-400 group-hover:gap-2.5 transition-all"
               >
                 <span>Join Secure Chat</span>
                 <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              </AppLink>
             </div>
           </div>
         </div>
@@ -420,7 +404,7 @@ export default function HomePage() {
 
           {/* Internal linking grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16 w-full">
-            <Link
+            <AppLink
               href="/vs/protectedtext"
               className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
             >
@@ -429,9 +413,9 @@ export default function HomePage() {
                 <p className="text-[10px] text-zinc-500">AES-256-GCM vs AES-256-CBC comparison</p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
-            </Link>
+            </AppLink>
 
-            <Link
+            <AppLink
               href="/vs/privnote"
               className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
             >
@@ -440,9 +424,9 @@ export default function HomePage() {
                 <p className="text-[10px] text-zinc-500">True zero-tracking, ad-free notepad sharing</p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
-            </Link>
+            </AppLink>
 
-            <Link
+            <AppLink
               href="/vs/envshare"
               className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
             >
@@ -451,9 +435,9 @@ export default function HomePage() {
                 <p className="text-[10px] text-zinc-500">Self-hosted worker configurations &amp; UI upgrades</p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
-            </Link>
+            </AppLink>
 
-            <Link
+            <AppLink
               href="/vs/onetimesecret"
               className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/40 hover:border-blue-500/60 dark:hover:border-emerald-500/60 hover:shadow-[0_4px_25px_-12px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_4px_25px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.01] transition-all cursor-pointer group shadow-sm duration-300"
             >
@@ -462,7 +446,7 @@ export default function HomePage() {
                 <p className="text-[10px] text-zinc-500">Zero-knowledge encryption vs server-held secrets</p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-500 dark:group-hover:text-emerald-400 transition-all" />
-            </Link>
+            </AppLink>
           </div>
 
           {/* Comparison Table */}
@@ -521,75 +505,18 @@ export default function HomePage() {
           </div>
           
           <div className="mt-6 flex flex-col items-center gap-2">
-            <Link
+            <AppLink
               href="/blog"
               className="text-xs font-bold text-blue-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
             >
               <span>Read the security blog for guides and updates</span>
               <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            </AppLink>
             <p className="text-[10px] text-zinc-500 dark:text-zinc-500 leading-relaxed font-mono">
               * Note: Cloudflare&apos;s global worker network powers our backend database routines, ensuring high availability and edge isolation.
             </p>
           </div>
 
-          <div className="mt-10 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/40 p-5">
-            <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
-              Popular searches we match
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                "ProtectedText alternative",
-                "protected text alternative",
-                "secret share",
-                "secure text sharing link",
-                "self destruct link",
-                "Privnote alternative",
-                "EnvShare alternative",
-                "encrypted online notepad",
-              ].map((term) => (
-                <span
-                  key={term}
-                  className="rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-400"
-                >
-                  {term}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/40 p-5">
-            <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
-              Exact-match landing pages
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Link href="/protected-text-alternative" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">ProtectedText</p>
-                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">ProtectedText alternative</p>
-                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">A dedicated page for users comparing ProtectedShare with legacy protected text tools.</p>
-              </Link>
-              <Link href="/secret-share" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Secret Share</p>
-                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Secret share</p>
-                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">Focused on one-time secret delivery, burn-after-read links, and temporary message workflows.</p>
-              </Link>
-              <Link href="/secure-text-sharing-link" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Sharing Link</p>
-                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Secure text sharing link</p>
-                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">A page built for people searching for a secure link to share private text instantly.</p>
-              </Link>
-              <Link href="/share-password-securely" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Passwords</p>
-                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Share passwords securely</p>
-                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">A step-by-step guide to sending passwords with encryption, expiries, and split delivery.</p>
-              </Link>
-              <Link href="/anonymous-chat-room" className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Chat</p>
-                <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-white">Anonymous chat room</p>
-                <p className="mt-2 text-xs leading-6 text-zinc-600 dark:text-zinc-400">No-signup, end-to-end encrypted rooms for conversations that should not leave a trace.</p>
-              </Link>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -655,13 +582,13 @@ export default function HomePage() {
             <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-4">
               Need dedicated infrastructure for your enterprise? ProtectedShare supports quick deployment via Docker. You can provision completely isolated, self-hosted frontend and API nodes.
             </p>
-            <Link
+            <AppLink
               href="/self-host"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-emerald-400 hover:underline"
             >
               <span>Read the Docker self-hosting instructions</span>
               <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            </AppLink>
           </div>
         </div>
       </section>

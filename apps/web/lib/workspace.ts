@@ -3,6 +3,19 @@ import { apiUrl } from "./api";
 
 const WORKSPACE_PREFIX = "protectedshare.workspace.v1";
 const WORKSPACE_VERIFIER = "workspace-auth-verifier";
+const vaultSaltByUser = new Map<string, string>();
+
+function rememberVaultSalt(username: string, salt: string): void {
+  vaultSaltByUser.set(normalizeUsername(username), salt);
+}
+
+function vaultSaltFor(username: string): string | undefined {
+  return vaultSaltByUser.get(normalizeUsername(username));
+}
+
+function forgetVaultSalt(username: string): void {
+  vaultSaltByUser.delete(normalizeUsername(username));
+}
 
 export type WorkspaceNote = {
   id: string;
@@ -86,6 +99,7 @@ export async function createWorkspace(username: string, password: string): Promi
 
   const verifier = await encrypt(WORKSPACE_VERIFIER, password);
   const vault = await encrypt(JSON.stringify([]), password);
+  rememberVaultSalt(username, vault.salt);
   const passwordProof = await derivePasswordProof(password);
 
   const payload = {
@@ -186,6 +200,7 @@ export async function openWorkspace(username: string, password: string): Promise
     data.vault.iv,
     data.vault.salt
   );
+  rememberVaultSalt(username, data.vault.salt);
 
   const notes = JSON.parse(decryptedVault) as WorkspaceNote[];
   if (!Array.isArray(notes)) {
@@ -206,7 +221,8 @@ export async function saveWorkspaceNotes(
   lastKnownUpdatedAt?: number
 ): Promise<number> {
   const hashedUsername = await hashUsername(username);
-  const vault = await encrypt(JSON.stringify(notes), password);
+  const vault = await encrypt(JSON.stringify(notes), password, { salt: vaultSaltFor(username) });
+  rememberVaultSalt(username, vault.salt);
   const passwordProof = await derivePasswordProof(password);
 
   const payload = {
@@ -277,6 +293,8 @@ export async function deleteWorkspace(username: string, password: string): Promi
     const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
     throw new Error(errorPayload?.error ?? "Failed to delete notepad online.");
   }
+
+  forgetVaultSalt(username);
 }
 
 // ──────────────────────────────────────────
@@ -299,6 +317,7 @@ export async function createWorkspaceLocal(username: string, password: string): 
 
   const verifier = await encrypt(WORKSPACE_VERIFIER, password);
   const vault = await encrypt(JSON.stringify([]), password);
+  rememberVaultSalt(normalized, vault.salt);
 
   const record: WorkspaceRecord = {
     username: normalized,
@@ -335,6 +354,7 @@ export async function openWorkspaceLocal(username: string, password: string): Pr
     record.vault.iv,
     record.vault.salt
   );
+  rememberVaultSalt(normalized, record.vault.salt);
 
   const notes = JSON.parse(decryptedVault) as WorkspaceNote[];
   if (!Array.isArray(notes)) {
@@ -352,7 +372,8 @@ export async function saveWorkspaceNotesLocal(username: string, password: string
     throw new Error("Local notepad not found.");
   }
 
-  const vault = await encrypt(JSON.stringify(notes), password);
+  const vault = await encrypt(JSON.stringify(notes), password, { salt: vaultSaltFor(normalized) });
+  rememberVaultSalt(normalized, vault.salt);
   const updatedRecord: WorkspaceRecord = {
     ...record,
     vault
@@ -381,6 +402,7 @@ export async function deleteWorkspaceLocal(username: string, password: string): 
   }
 
   storage.removeItem(storageKey(normalized));
+  forgetVaultSalt(normalized);
 }
 
 export async function renameWorkspaceLocal(
@@ -422,6 +444,9 @@ export async function renameWorkspaceLocal(
   const updatedRecord: WorkspaceRecord = { ...record, username: newNormalized };
   storage.setItem(storageKey(newNormalized), JSON.stringify(updatedRecord));
   storage.removeItem(storageKey(oldNormalized));
+  const previousSalt = vaultSaltFor(oldNormalized) ?? record.vault.salt;
+  forgetVaultSalt(oldNormalized);
+  rememberVaultSalt(newNormalized, previousSalt);
 }
 
 /**

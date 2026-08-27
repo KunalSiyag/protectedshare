@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import AppLink from "../components/app-link";
 import { usePathname } from "next/navigation";
 
 const NAV_LINKS = [
@@ -87,7 +87,7 @@ export default function MobileNav() {
           <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl dark:shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <nav className="py-2">
               {NAV_LINKS.map(({ href, label }) => (
-                <Link
+                <AppLink
                   key={href}
                   href={href}
                   className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
@@ -100,7 +100,7 @@ export default function MobileNav() {
                     isActive(href) ? "bg-blue-600 dark:bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-700"
                   }`} />
                   {label}
-                </Link>
+                </AppLink>
               ))}
             </nav>
             <div className="border-t border-zinc-100 dark:border-zinc-800 px-4 py-3">

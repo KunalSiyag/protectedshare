@@ -1,6 +1,6 @@
 export const SITE_URL = "https://protectedshare.me";
 export const SITE_NAME = "ProtectedShare";
-export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
+export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.jpg`;
 
 export function organizationJsonLd() {
   return {

@@ -8,6 +8,11 @@ export type EncryptedPayload = {
   salt: string;
 };
 
+export type EncryptOptions = {
+  /** Reuse a previous payload's salt so PBKDF2 can hit the in-memory key cache. IV is still unique. */
+  salt?: string;
+};
+
 const PBKDF2_ITERATIONS = 210_000;
 const PBKDF2_HASH = "SHA-256";
 const AES_ALGORITHM = "AES-GCM";
@@ -15,8 +20,12 @@ const AES_KEY_LENGTH = 256;
 const IV_LENGTH = 12;
 const SALT_LENGTH = 16;
 const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=";
+const AES_KEY_CACHE_LIMIT = 64;
+const PROOF_CACHE_LIMIT = 16;
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
+const aesKeyCache = new Map<string, CryptoKey>();
+const passwordProofCache = new Map<string, string>();
 
 function requireCrypto(): Crypto {
   if (!isCryptoRuntimeAvailable()) {
@@ -51,7 +60,37 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return new Uint8Array(bytes).buffer;
 }
 
+function remember<K, V>(cache: Map<K, V>, key: K, value: V, limit: number): V {
+  if (cache.has(key)) {
+    cache.delete(key);
+  }
+  cache.set(key, value);
+  if (cache.size > limit) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) {
+      cache.delete(oldest);
+    }
+  }
+  return value;
+}
+
+function readLru<K, V>(cache: Map<K, V>, key: K): V | undefined {
+  const cached = cache.get(key);
+  if (cached === undefined) {
+    return undefined;
+  }
+  cache.delete(key);
+  cache.set(key, cached);
+  return cached;
+}
+
 async function deriveAesKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+  const cacheId = `${password}\0${bytesToBase64Url(salt)}`;
+  const cached = readLru(aesKeyCache, cacheId);
+  if (cached) {
+    return cached;
+  }
+
   const cryptoRuntime = requireCrypto();
   const passwordKey = await cryptoRuntime.subtle.importKey(
     "raw",
@@ -61,7 +100,7 @@ async function deriveAesKey(password: string, salt: Uint8Array): Promise<CryptoK
     ["deriveKey"]
   );
 
-  return cryptoRuntime.subtle.deriveKey(
+  const key = await cryptoRuntime.subtle.deriveKey(
     {
       name: "PBKDF2",
       salt: toArrayBuffer(salt),
@@ -73,12 +112,30 @@ async function deriveAesKey(password: string, salt: Uint8Array): Promise<CryptoK
     false,
     ["encrypt", "decrypt"]
   );
+
+  return remember(aesKeyCache, cacheId, key, AES_KEY_CACHE_LIMIT);
 }
 
-export async function encrypt(plaintext: string, password: string): Promise<EncryptedPayload> {
+export async function encrypt(
+  plaintext: string,
+  password: string,
+  options?: EncryptOptions
+): Promise<EncryptedPayload> {
   const cryptoRuntime = requireCrypto();
   const iv = cryptoRuntime.getRandomValues(new Uint8Array(IV_LENGTH));
-  const salt = cryptoRuntime.getRandomValues(new Uint8Array(SALT_LENGTH));
+  let salt = cryptoRuntime.getRandomValues(new Uint8Array(SALT_LENGTH));
+
+  if (options?.salt) {
+    try {
+      const reused = base64UrlToBytes(options.salt);
+      if (reused.length === SALT_LENGTH) {
+        salt = new Uint8Array(reused);
+      }
+    } catch {
+      // Fall through to a freshly generated salt.
+    }
+  }
+
   const key = await deriveAesKey(password, salt);
   const encrypted = await cryptoRuntime.subtle.encrypt(
     { name: AES_ALGORITHM, iv: toArrayBuffer(iv) },
@@ -119,6 +176,11 @@ export async function sha256(value: string): Promise<string> {
 }
 
 export async function derivePasswordProof(password: string): Promise<string> {
+  const cached = readLru(passwordProofCache, password);
+  if (cached) {
+    return cached;
+  }
+
   const cryptoRuntime = requireCrypto();
   const salt = textEncoder.encode("protectedshare-proof-salt-v1");
   const passwordKey = await cryptoRuntime.subtle.importKey(
@@ -144,7 +206,13 @@ export async function derivePasswordProof(password: string): Promise<string> {
 
   const exported = await cryptoRuntime.subtle.exportKey("raw", derivedKey);
   const digest = await cryptoRuntime.subtle.digest("SHA-256", exported);
-  return bytesToBase64Url(new Uint8Array(digest));
+  const proof = bytesToBase64Url(new Uint8Array(digest));
+  return remember(passwordProofCache, password, proof, PROOF_CACHE_LIMIT);
+}
+
+export function clearDerivedKeyCache(): void {
+  aesKeyCache.clear();
+  passwordProofCache.clear();
 }
 
 export function generateRandomPassword(length = 24): string {

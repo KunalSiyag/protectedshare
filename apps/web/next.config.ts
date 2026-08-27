@@ -7,6 +7,40 @@ const nextConfig: NextConfig = {
     "@protectedshare/ui",
     "@protectedshare/formatting"
   ],
+  async redirects() {
+    return [
+      {
+        source: "/protected-text-alternative",
+        destination: "/vs/protectedtext",
+        permanent: true,
+      },
+      {
+        source: "/secret-share",
+        destination: "/notes",
+        permanent: true,
+      },
+      {
+        source: "/secure-text-sharing-link",
+        destination: "/notes",
+        permanent: true,
+      },
+      {
+        source: "/share-password-securely",
+        destination: "/notes",
+        permanent: true,
+      },
+      {
+        source: "/anonymous-chat-room",
+        destination: "/chat",
+        permanent: true,
+      },
+      {
+        source: "/og-image.png",
+        destination: "/og-image.jpg",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
