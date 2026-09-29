@@ -6,6 +6,7 @@ import type { CreateSecretRequest, CreateSecretResponse } from "@protectedshare/
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@protectedshare/ui";
 import { Loader2, Copy, Check, ShieldCheck, Lock, Sparkles, Clock, FileCode2, RefreshCw } from "lucide-react";
 import { apiUrl } from "../../lib/api";
+import { copyText, describeRequestFailure, readApiError } from "../../lib/feedback";
 
 const TTL_OPTIONS = [
   { label: "1 hour",   ms: 60 * 60 * 1000 },
@@ -73,22 +74,28 @@ export default function SecretsClient() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to create secret on server.");
+      if (!res.ok) {
+        throw new Error(await readApiError(res, "Could not save this secret. Try again in a moment."));
+      }
 
       const data: CreateSecretResponse = await res.json();
       setShareUrl(`${window.location.origin}/secrets/${data.id}#${encryptionPassword}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setError(describeRequestFailure(err, "Could not save this secret. Try again in a moment."));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!shareUrl) return;
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await copyText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err: unknown) {
+      setError(describeRequestFailure(err, "Could not copy. Select the link and copy it manually."));
+    }
   };
 
   const handleReset = () => {
@@ -142,6 +149,7 @@ export default function SecretsClient() {
             </div>
 
             {/* Textarea */}
+            <label htmlFor="secret-content" className="sr-only">Secret or .env contents</label>
             <textarea
               id="secret-content"
               name="content"
@@ -153,7 +161,8 @@ export default function SecretsClient() {
               spellCheck={false}
               autoCapitalize="none"
               autoCorrect="off"
-              className="w-full bg-transparent font-mono text-sm text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 resize-none px-4 py-4 focus:outline-none leading-relaxed"
+              autoComplete="off"
+              className="w-full bg-transparent font-mono text-base text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 resize-none px-4 py-4 focus:outline-none leading-relaxed"
             />
           </div>
 
@@ -163,13 +172,14 @@ export default function SecretsClient() {
               <Clock className="h-3.5 w-3.5" />
               Expires after
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Expires after">
               {TTL_OPTIONS.map((opt, i) => (
                 <button
                   key={opt.label}
                   type="button"
+                  aria-pressed={ttlIndex === i}
                   onClick={() => setTtlIndex(i)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-155 ${
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
                     ttlIndex === i
                       ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
                       : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
@@ -187,13 +197,14 @@ export default function SecretsClient() {
               <ShieldCheck className="h-3.5 w-3.5" />
               Burns after
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Burns after">
               {READS_OPTIONS.map((opt, i) => (
                 <button
                   key={opt.value}
                   type="button"
+                  aria-pressed={readIndex === i}
                   onClick={() => setReadIndex(i)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-155 ${
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
                     readIndex === i
                       ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
                       : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
@@ -212,14 +223,16 @@ export default function SecretsClient() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-3">
+            <p role="alert" className="text-sm text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-3 break-words">
               {error}
             </p>
           )}
+          <p role="status" className="sr-only">{loading ? "Encrypting secret." : ""}</p>
 
           <Button
             type="submit"
             disabled={loading || !content.trim()}
+            aria-busy={loading}
             className="w-full h-11 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
           >
             {loading
@@ -249,6 +262,10 @@ export default function SecretsClient() {
           </CardHeader>
 
           <CardContent className="pt-5 space-y-5">
+            <p role="status" className="sr-only">{copied ? "Encrypted link copied." : ""}</p>
+            {error ? (
+              <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p>
+            ) : null}
             {/* Warning */}
             <div className="flex items-start gap-3 text-xs bg-amber-50 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-lg px-4 py-3 text-amber-700 dark:text-amber-400">
               <span className="text-base leading-none mt-0.5">⚠️</span>

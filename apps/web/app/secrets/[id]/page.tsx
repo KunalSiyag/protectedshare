@@ -6,6 +6,7 @@ import type { GetSecretResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@protectedshare/ui";
 import { Loader2, AlertTriangle, KeySquare, Copy, Check } from "lucide-react";
 import { apiUrl } from "../../../lib/api";
+import { copyText, describeRequestFailure, readApiError } from "../../../lib/feedback";
 
 export default function SecretsByIdPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -30,7 +31,7 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
       if (!res.ok) {
         if (res.status === 401) throw new Error("Invalid secret password.");
         if (res.status === 404) throw new Error("Secret not found. It may have already been viewed and destroyed.");
-        throw new Error("Failed to fetch secret from server.");
+        throw new Error(await readApiError(res, "Could not load this secret. Try again in a moment."));
       }
 
       const data: GetSecretResponse = await res.json();
@@ -43,8 +44,7 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
 
       setContent(decryptedContent);
     } catch (caughtError: unknown) {
-      const message = caughtError instanceof Error ? caughtError.message : "Decryption failed.";
-      setError(message);
+      setError(describeRequestFailure(caughtError, "Could not open this secret. Try again in a moment."));
       setContent(null);
     } finally {
       setLoading(false);
@@ -67,9 +67,15 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
 
   const handleCopy = async () => {
     if (!content) return;
-    await navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await copyText(content);
+      setError(null);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (caughtError: unknown) {
+      setCopied(false);
+      setError(describeRequestFailure(caughtError, "Could not copy. Select the secret and copy it manually."));
+    }
   };
 
   return (
@@ -86,9 +92,12 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
         </p>
       </div>
 
+      <p className="sr-only" role="status">
+        {loading ? "Unlocking secret." : copied ? "Secret copied." : ""}
+      </p>
       {loading ? (
         <div className="flex flex-col items-center justify-center p-12 text-zinc-500 dark:text-zinc-400">
-          <Loader2 className="h-8 w-8 animate-spin mb-4 text-blue-600 dark:text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin mb-4 text-blue-600 dark:text-emerald-500" aria-hidden="true" />
           <span className="text-sm font-medium">Unlocking secret...</span>
         </div>
       ) : content ? (
@@ -107,9 +116,10 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
                 <code className="text-blue-700 dark:text-emerald-400 font-mono text-base break-all block whitespace-pre-wrap">{content}</code>
               </div>
               <Button onClick={handleCopy} className="w-full h-11 text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300">
-                {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                {copied ? <Check className="h-4 w-4 mr-2" aria-hidden="true" /> : <Copy className="h-4 w-4 mr-2" aria-hidden="true" />}
                 {copied ? "Copied to Clipboard" : "Copy Secret Payload"}
               </Button>
+              {error ? <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-300 break-words">{error}</p> : null}
             </CardContent>
           </Card>
         </div>
@@ -121,16 +131,22 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
           </CardHeader>
           <CardContent>
             <form onSubmit={handleUnlock} className="space-y-4">
-              <Input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter secret password"
-                autoComplete="current-password"
-                className="font-mono h-10 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
-              />
-              {error ? <p className="text-sm font-medium text-red-500">{error}</p> : null}
-              <Button type="submit" className="w-full h-10 font-bold shadow-sm rounded-lg">
+              <div className="space-y-1.5">
+                <label htmlFor="secret-decrypt-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Secret password</label>
+                <Input
+                  id="secret-decrypt-password"
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter secret password"
+                  autoComplete="current-password"
+                  spellCheck={false}
+                  className="font-mono h-11 text-base border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
+                />
+              </div>
+              {error ? <p role="alert" className="text-sm font-medium text-red-700 dark:text-red-300">{error}</p> : null}
+              <Button type="submit" aria-busy={loading} className="w-full h-11 font-bold shadow-sm rounded-lg">
                 Unlock Ephemeral Payload
               </Button>
             </form>

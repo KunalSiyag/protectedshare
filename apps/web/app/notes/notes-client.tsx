@@ -6,6 +6,7 @@ import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/cont
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
 import { Loader2, Copy, Check, ShieldCheck, Lock, Sparkles, Key } from "lucide-react";
 import { apiUrl } from "../../lib/api";
+import { copyText, describeRequestFailure, readApiError } from "../../lib/feedback";
 import { PasswordStrengthIndicator } from "../../components/password-helper";
 
 
@@ -48,24 +49,27 @@ export default function NotesClient() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to create note on server");
+        throw new Error(await readApiError(res, "Could not save this note. Try again in a moment."));
       }
 
       const data: CreateNoteResponse = await res.json();
       setShareUrl(`${window.location.origin}/notes/${data.id}`);
       setSharePassword(encryptionPassword);
     } catch (caughtError: unknown) {
-      const message = caughtError instanceof Error ? caughtError.message : "An error occurred";
-      setError(message);
+      setError(describeRequestFailure(caughtError, "Could not save this note. Try again in a moment."));
     } finally {
       setLoading(false);
     }
   };
 
   const handleCopy = async (value: string, field: "url" | "password") => {
-    await navigator.clipboard.writeText(value);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
+    try {
+      await copyText(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (caughtError: unknown) {
+      setError(describeRequestFailure(caughtError, "Could not copy. Select the text and copy it manually."));
+    }
   };
 
   return (
@@ -84,21 +88,21 @@ export default function NotesClient() {
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Note Content (Markdown supported)</label>
+                <label htmlFor="note-content" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Note Content (Markdown supported)</label>
                 <Textarea
                   id="note-content"
                   name="content"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Type your secure note here..."
-                  className="min-h-[220px] font-mono text-sm leading-relaxed border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
+                  className="min-h-[220px] font-mono text-base leading-relaxed border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Password (Optional)</label>
+                  <label htmlFor="note-password" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Password (Optional)</label>
                   <div className="relative">
                     <Input
                       id="note-password"
@@ -107,13 +111,15 @@ export default function NotesClient() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Auto-generate strong password"
-                      className="font-mono h-10 pr-10 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg w-full"
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="font-mono h-11 text-base pr-12 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg w-full"
                     />
                     <button
                       type="button"
                       onClick={() => setPassword(generateRandomPassword(16))}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
-                      title="Generate secure password"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 p-2 rounded transition-colors"
+                      aria-label="Generate secure password"
                     >
                       <Key className="h-4 w-4" />
                     </button>
@@ -123,13 +129,13 @@ export default function NotesClient() {
 
 
                 <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Expiration</label>
+                  <label htmlFor="note-expires" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Expiration</label>
                   <select
                     id="note-expires"
                     name="expiresIn"
                     value={expiresIn}
                     onChange={(e) => setExpiresIn(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 px-3 py-2 text-sm shadow-sm transition-all focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 text-zinc-900 dark:text-zinc-100 outline-none cursor-pointer"
+                    className="flex h-11 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 px-3 py-2 text-base shadow-sm transition-all focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 text-zinc-900 dark:text-zinc-100 outline-none cursor-pointer"
                   >
                     <option value="3600">1 Hour</option>
                     <option value="86400">1 Day</option>
@@ -157,11 +163,12 @@ export default function NotesClient() {
                 </div>
               </div>
 
-              {error ? <p className="text-sm text-red-500">{error}</p> : null}
+              {error ? <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p> : null}
+              <p role="status" className="sr-only">{loading ? "Encrypting note." : ""}</p>
 
-              <Button type="submit" disabled={loading || !content.trim()} className="w-full h-11 text-sm font-semibold rounded-lg shadow-sm hover:shadow-lg transition-all duration-300">
+              <Button type="submit" disabled={loading || !content.trim()} aria-busy={loading} className="w-full h-11 text-sm font-semibold rounded-lg shadow-sm hover:shadow-lg transition-all duration-300">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                Encrypt &amp; Create Link
+                {loading ? "Encrypting note…" : "Encrypt & Create Link"}
               </Button>
             </form>
           </CardContent>
@@ -169,6 +176,10 @@ export default function NotesClient() {
       ) : (
         <Card className="border-blue-500/20 dark:border-emerald-500/20 bg-blue-500/[0.02] dark:bg-emerald-500/[0.01] shadow-lg backdrop-blur-sm">
           <CardContent className="pt-6 space-y-6">
+            <p role="status" className="sr-only">
+              {copiedField === "url" ? "Share link copied." : copiedField === "password" ? "Password copied." : ""}
+            </p>
+            {error ? <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p> : null}
             <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800/80 pb-5">
               <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-emerald-500/10 text-blue-600 dark:text-emerald-500">
                 <ShieldCheck className="h-6 w-6" />
@@ -184,10 +195,10 @@ export default function NotesClient() {
             </p>
 
             <div className="space-y-2.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Share Link</label>
-              <div className="flex items-center space-x-2">
-                <Input readOnly value={shareUrl} className="font-mono bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-10" />
-                <Button variant="outline" onClick={() => handleCopy(shareUrl, "url")} className="shrink-0 w-24 h-10 border-zinc-200 dark:border-zinc-800">
+              <label htmlFor="note-share-url" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Share Link</label>
+              <div className="flex items-center gap-2 min-w-0">
+                <Input id="note-share-url" readOnly value={shareUrl} className="font-mono min-w-0 text-base bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-11" />
+                <Button variant="outline" onClick={() => handleCopy(shareUrl, "url")} className="shrink-0 whitespace-nowrap h-11 px-3 border-zinc-200 dark:border-zinc-800">
                   {copiedField === "url" ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
                   {copiedField === "url" ? "Copied" : "Copy"}
                 </Button>
@@ -195,10 +206,10 @@ export default function NotesClient() {
             </div>
 
             <div className="space-y-2.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Decryption Password</label>
-              <div className="flex items-center space-x-2">
-                <Input readOnly value={sharePassword} className="font-mono bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-10" />
-                <Button variant="outline" onClick={() => handleCopy(sharePassword, "password")} className="shrink-0 w-24 h-10 border-zinc-200 dark:border-zinc-800">
+              <label htmlFor="note-share-password" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Decryption Password</label>
+              <div className="flex items-center gap-2 min-w-0">
+                <Input id="note-share-password" readOnly value={sharePassword} className="font-mono min-w-0 text-base bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-11" />
+                <Button variant="outline" onClick={() => handleCopy(sharePassword, "password")} className="shrink-0 whitespace-nowrap h-11 px-3 border-zinc-200 dark:border-zinc-800">
                   {copiedField === "password" ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
                   {copiedField === "password" ? "Copied" : "Copy"}
                 </Button>

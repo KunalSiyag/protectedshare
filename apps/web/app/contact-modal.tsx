@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
-import { Loader2, CheckCircle2, AlertCircle, X, ShieldAlert, Sparkles } from "lucide-react";
+import { Button, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
+import { Loader2, CheckCircle2, AlertCircle, X, Sparkles } from "lucide-react";
 import { apiUrl } from "../lib/api";
+import { describeRequestFailure, readApiError } from "../lib/feedback";
+import ModalDialog from "../components/modal-dialog";
 
 type ContactModalProps = {
   isOpen: boolean;
@@ -31,21 +33,17 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
     }
   }, [isOpen]);
 
-  // Handle ESC key to close
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !message.trim()) return;
+
+    const trimmedEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("Enter a valid email address so we can reply.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -56,38 +54,34 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          email: email.trim(),
+          email: trimmedEmail,
           company: company.trim() || undefined,
           message: message.trim(),
         }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to submit inquiry. Please try again.");
+        throw new Error(await readApiError(res, "Could not send your message. Try again in a moment."));
       }
 
       setSuccess(true);
     } catch (caughtError: unknown) {
-      const msg = caughtError instanceof Error ? caughtError.message : "Submission failed";
-      setError(msg);
+      setError(describeRequestFailure(caughtError, "Could not send your message. Try again in a moment."));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Dark backdrop overlay */}
-      <div
-        className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
-        onClick={onClose}
-      />
-
-      {/* Modal Dialog */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101] overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Close Button */}
+    <ModalDialog
+      titleId="contact-dialog-title"
+      descriptionId={success ? undefined : "contact-dialog-description"}
+      focusToken={success ? "success" : "form"}
+      onClose={onClose}
+      panelClassName="relative w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101]"
+    >
         <button
+          type="button"
           onClick={onClose}
           className="absolute right-4 top-4 p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
           aria-label="Close dialog"
@@ -102,10 +96,10 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                 <Sparkles className="h-5 w-5" />
                 <span className="text-xs uppercase font-mono tracking-wider font-bold">Isolated Clusters</span>
               </div>
-              <CardTitle className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
+              <CardTitle id="contact-dialog-title" className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
                 Let&apos;s Build a Custom Deal
               </CardTitle>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+              <p id="contact-dialog-description" className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                 Describe your requirements for isolated cloud hardware, on-premises nodes, custom branding, or high-volume API access keys.
               </p>
             </CardHeader>
@@ -123,7 +117,8 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Jane Doe"
-                      className="h-10 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
+                      autoComplete="name"
+                      className="h-10 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -133,10 +128,11 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                       name="email"
                       type="email"
                       required
+                      autoComplete="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="jane@company.com"
-                      className="h-10 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
+                      className="h-10 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -150,7 +146,8 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     placeholder="Acme Corp"
-                    className="h-10 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
+                    autoComplete="organization"
+                    className="h-10 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
                   />
                 </div>
 
@@ -164,14 +161,14 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Enter what custom dedicated capabilities or license packages your team requires..."
                     rows={4}
-                    className="border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 resize-none text-sm"
+                    className="border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 resize-none text-base"
                   />
                 </div>
 
                 {error ? (
-                  <div className="flex items-center gap-2 text-xs font-semibold text-red-500 bg-red-500/5 border border-red-500/10 p-3 rounded-lg">
+                  <div role="alert" className="flex items-start gap-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 p-3 rounded-lg">
                     <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{error}</span>
+                    <span className="break-words">{error}</span>
                   </div>
                 ) : null}
 
@@ -184,7 +181,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Transmitting Proposal...
+                        Sending your message…
                       </>
                     ) : (
                       "Submit Business Proposal"
@@ -196,10 +193,10 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
           </>
         ) : (
           <CardContent className="py-12 flex flex-col items-center justify-center text-center px-6">
-            <div className="p-3 rounded-full bg-blue-50 dark:bg-emerald-500/10 text-blue-600 dark:text-emerald-500 mb-4 animate-bounce">
+            <div className="p-3 rounded-full bg-blue-50 dark:bg-emerald-500/10 text-blue-600 dark:text-emerald-500 mb-4">
               <CheckCircle2 className="h-10 w-10" />
             </div>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Proposal Logged Successfully</h3>
+            <h3 id="contact-dialog-title" className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Proposal Logged Successfully</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed">
               Your inquiry has been stored directly in our secure database. Our administrators will analyze your specifications and reach out shortly.
             </p>
@@ -211,7 +208,6 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
             </Button>
           </CardContent>
         )}
-      </div>
-    </div>
+    </ModalDialog>
   );
 }

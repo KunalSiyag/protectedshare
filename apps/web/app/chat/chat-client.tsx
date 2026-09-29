@@ -12,6 +12,7 @@ import type {
 import { Button, Card, CardContent, Input } from "@protectedshare/ui";
 import { Loader2, Send, Lock, ShieldCheck, Users, LogOut, RotateCcw, Signal, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { apiUrl } from "../../lib/api";
+import { copyText, describeRequestFailure, readApiError } from "../../lib/feedback";
 
 type Message = {
   id: string;
@@ -517,7 +518,7 @@ export default function ChatClient() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to send message");
+        throw new Error(await readApiError(res, "Could not send that message. It is still in the box — try again."));
       }
 
       const data: ChatMessageResponse = await res.json();
@@ -541,28 +542,28 @@ export default function ChatClient() {
         setLastMessageTime(data.createdAt);
       }
 
-    } catch (err: any) {
-      console.error("Send error:", err);
-      setError(err.message || "Failed to send message. Please try again.");
-      setDraft(textToSend); // Restore draft on failure
+    } catch (err: unknown) {
+      setError(describeRequestFailure(err, "Could not send that message. It is still in the box — try again."));
+      setDraft(textToSend);
     } finally {
       setIsSending(false);
     }
   };
 
-  const generateInviteLink = () => {
-    const url = inviteUrl;
-    void navigator.clipboard.writeText(url);
-    setCopiedField("invite");
-    alert("Invite link copied to clipboard. Share it via a secure channel.");
+  const copyToClipboard = async (value: string, field: "room" | "password" | "invite") => {
+    try {
+      await copyText(value);
+      setCopiedField(field);
+      window.setTimeout(() => {
+        setCopiedField((current) => (current === field ? null : current));
+      }, 1800);
+    } catch (caught) {
+      setError(describeRequestFailure(caught, "Could not copy. Select the text and copy it manually."));
+    }
   };
 
-  const copyToClipboard = async (value: string, field: "room" | "password" | "invite") => {
-    await navigator.clipboard.writeText(value);
-    setCopiedField(field);
-    window.setTimeout(() => {
-      setCopiedField((current) => (current === field ? null : current));
-    }, 1800);
+  const generateInviteLink = () => {
+    void copyToClipboard(inviteUrl, "invite");
   };
 
   const openRoomSession = (nextRoomId: string, nextPassword: string) => {
@@ -583,9 +584,7 @@ export default function ChatClient() {
       const nextPassword = generateRandomPassword(24);
       const nextInviteUrl = buildInviteUrl(window.location.origin, nextRoomId, nextPassword);
       openRoomSession(nextRoomId, nextPassword);
-      void navigator.clipboard.writeText(nextInviteUrl);
-      setCopiedField("invite");
-      alert("New room created and invite link copied to clipboard.");
+      void copyToClipboard(nextInviteUrl, "invite");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create a new room.";
       setError(message);
@@ -600,9 +599,7 @@ export default function ChatClient() {
       const nextPassword = generateRandomPassword(24);
       const nextInviteUrl = buildInviteUrl(window.location.origin, nextRoomId, nextPassword);
       openRoomSession(nextRoomId, nextPassword);
-      void navigator.clipboard.writeText(nextInviteUrl);
-      setCopiedField("invite");
-      alert("Room regenerated and invite link copied to clipboard.");
+      void copyToClipboard(nextInviteUrl, "invite");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to regenerate the room.";
       setError(message);
@@ -637,7 +634,7 @@ export default function ChatClient() {
 
   if (!isJoined) {
     return (
-      <div className="max-w-md mx-auto w-full pt-10">
+      <main className="max-w-md mx-auto w-full pt-10">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full mb-4 ring-4 ring-white dark:ring-zinc-950">
             <Lock className="w-6 h-6 text-zinc-900 dark:text-white" />
@@ -654,6 +651,7 @@ export default function ChatClient() {
               <Button
                 type="button"
                 variant={mode === "create" ? "default" : "ghost"}
+                aria-pressed={mode === "create"}
                 onClick={() => {
                   setMode("create");
                   setError(null);
@@ -665,6 +663,7 @@ export default function ChatClient() {
               <Button
                 type="button"
                 variant={mode === "join" ? "default" : "ghost"}
+                aria-pressed={mode === "join"}
                 onClick={() => {
                   setMode("join");
                   setError(null);
@@ -678,7 +677,7 @@ export default function ChatClient() {
             {mode === "create" ? (
               <div className="space-y-4">
                 {error && (
-                  <div className="p-3 text-xs text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20">
+                  <div role="alert" className="p-3 text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20 break-words">
                     {error}
                   </div>
                 )}
@@ -703,33 +702,38 @@ export default function ChatClient() {
             ) : (
               <form onSubmit={handleJoin} className="space-y-4">
                 {error && (
-                  <div className="p-3 text-xs text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20">
+                  <div role="alert" className="p-3 text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20 break-words">
                     {error}
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
+                  <label htmlFor="chat-room-id" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
                     Room ID
                   </label>
                   <Input
+                    id="chat-room-id"
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value)}
                     placeholder="e.g. secure-project-x"
-                    className="bg-zinc-50 dark:bg-zinc-900/50"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="bg-zinc-50 dark:bg-zinc-900/50 text-base"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
+                  <label htmlFor="chat-room-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
                     Encryption Password
                   </label>
                   <Input
+                    id="chat-room-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Shared secret key"
-                    className="bg-zinc-50 dark:bg-zinc-900/50"
+                    autoComplete="off"
+                    className="bg-zinc-50 dark:bg-zinc-900/50 text-base"
                   />
                 </div>
 
@@ -755,12 +759,12 @@ export default function ChatClient() {
             <a href="/blog" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Security blog</a>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-      <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-200px)] -mx-3 sm:mx-0">
+      <main className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-200px)] -mx-3 sm:mx-0">
       {/* Header — compact row */}
       <div className="px-4 py-2.5 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
         <div className="flex items-center justify-between gap-2">
@@ -774,57 +778,62 @@ export default function ChatClient() {
               </span>
             )}
             {presence?.typingCount ? (
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 animate-pulse shrink-0">typing…</span>
+              <span aria-live="polite" className="text-[10px] text-amber-700 dark:text-amber-300 shrink-0">typing…</span>
             ) : null}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setIsInfoExpanded(v => !v)}
-              className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 flex items-center gap-0.5 px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              title={isInfoExpanded ? "Hide room info" : "Show room info"}
+              aria-expanded={isInfoExpanded}
+              aria-controls="chat-room-info"
+              className="text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center gap-0.5 px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               {isInfoExpanded ? "Hide" : "Info"}
               <ChevronDown className={`w-3 h-3 transition-transform ${isInfoExpanded ? "rotate-180" : ""}`} />
             </button>
-            <Button variant="outline" onClick={generateInviteLink} className="text-[10px] h-7 px-2">
-              {copiedField === "invite" ? "✓ Copied" : "Invite"}
+            <Button variant="outline" onClick={generateInviteLink} className="text-xs h-9 px-3">
+              {copiedField === "invite" ? "Copied" : "Invite"}
             </Button>
-            <Button variant="outline" onClick={handleRegenerateRoom} className="text-[10px] h-7 px-2">
-              <RotateCcw className="w-3 h-3" />
+            <Button variant="outline" onClick={handleRegenerateRoom} aria-label="Create a new room and copy a new invite link" className="h-9 w-9 p-0">
+              <RotateCcw className="w-3.5 h-3.5" />
             </Button>
             <Button
               variant="ghost"
               onClick={handleLeaveRoom}
-              className="text-[10px] h-7 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10"
+              aria-label="Leave room"
+              className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10"
             >
-              <LogOut className="w-3 h-3" />
+              <LogOut className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
+        <p role="status" className="sr-only">
+          {copiedField === "invite" ? "Invite link copied." : copiedField === "room" ? "Room ID copied." : copiedField === "password" ? "Password copied." : ""}
+        </p>
 
         {/* Collapsible room info */}
         {isInfoExpanded && (
-          <div className="mt-2 grid gap-2 sm:grid-cols-3 border-t border-zinc-100 dark:border-zinc-800 pt-2">
+          <div id="chat-room-info" className="mt-2 grid gap-2 sm:grid-cols-3 border-t border-zinc-100 dark:border-zinc-800 pt-2">
             <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-2">
               <p className="text-[9px] uppercase tracking-widest text-zinc-400 mb-1">Room ID</p>
               <div className="flex items-center gap-1">
                 <code className="flex-1 font-mono text-xs truncate text-zinc-800 dark:text-zinc-100">{roomId}</code>
-                <button type="button" onClick={() => copyToClipboard(roomId, "room")} className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 shrink-0">{copiedField === "room" ? "✓" : "Copy"}</button>
+                <button type="button" onClick={() => copyToClipboard(roomId, "room")} className="text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 shrink-0 px-2 py-1">{copiedField === "room" ? "Copied" : "Copy"}</button>
               </div>
             </div>
             <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-2">
               <p className="text-[9px] uppercase tracking-widest text-zinc-400 mb-1">Password</p>
               <div className="flex items-center gap-1">
                 <code className="flex-1 font-mono text-xs truncate text-zinc-800 dark:text-zinc-100">{'•'.repeat(Math.min(password.length, 20))}</code>
-                <button type="button" onClick={() => copyToClipboard(password, "password")} className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 shrink-0">{copiedField === "password" ? "✓" : "Copy"}</button>
+                <button type="button" onClick={() => copyToClipboard(password, "password")} className="text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 shrink-0 px-2 py-1">{copiedField === "password" ? "Copied" : "Copy"}</button>
               </div>
             </div>
             <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-2">
               <p className="text-[9px] uppercase tracking-widest text-zinc-400 mb-1">Invite Link</p>
               <div className="flex items-center gap-1">
                 <code className="flex-1 font-mono text-xs truncate text-zinc-800 dark:text-zinc-100">{inviteUrl.replace(/^https?:\/\//, '')}</code>
-                <button type="button" onClick={() => copyToClipboard(inviteUrl, "invite")} className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 shrink-0">{copiedField === "invite" ? "✓" : "Copy"}</button>
+                <button type="button" onClick={() => copyToClipboard(inviteUrl, "invite")} className="text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 shrink-0 px-2 py-1">{copiedField === "invite" ? "Copied" : "Copy"}</button>
               </div>
             </div>
           </div>
@@ -877,26 +886,33 @@ export default function ChatClient() {
       {/* Input Area */}
       <div className="p-3 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
         <form onSubmit={handleSend} className="flex items-center gap-2 max-w-4xl mx-auto">
+          <label htmlFor="chat-draft" className="sr-only">Message</label>
           <Input
+            id="chat-draft"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Type an encrypted message..."
-            className="flex-1 bg-zinc-100 dark:bg-zinc-900 border-transparent focus-visible:ring-blue-500 dark:focus-visible:ring-emerald-500 rounded-full px-4 h-10"
+            className="flex-1 min-w-0 bg-zinc-100 dark:bg-zinc-900 border-transparent focus-visible:ring-blue-500 dark:focus-visible:ring-emerald-500 rounded-full px-4 h-11 text-base"
             disabled={isSending}
             autoComplete="off"
           />
           <Button
             type="submit"
             disabled={!draft.trim() || isSending}
-            className="rounded-full h-10 w-10 p-0 shrink-0 bg-blue-600 hover:bg-blue-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center"
+            aria-label="Send message"
+            aria-busy={isSending}
+            className="rounded-full h-11 w-11 p-0 shrink-0 bg-blue-600 hover:bg-blue-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center"
           >
             {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
           </Button>
         </form>
         {error && (
-          <p className="text-[10px] text-red-500 mt-2 text-center">{error}</p>
+          <p role="alert" className="text-xs text-red-700 dark:text-red-300 mt-2 text-center break-words">{error}</p>
         )}
+        <p role="status" className="sr-only">
+          {messages.length > 0 ? `${messages[messages.length - 1].isSelf ? "You said" : "New message"}: ${messages[messages.length - 1].text}` : ""}
+        </p>
       </div>
-    </div>
+    </main>
   );
 }

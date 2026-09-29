@@ -6,8 +6,10 @@ import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/cont
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
 import { Plus, LogOut, Save, Trash2, Copy, Download, Link2, Check, AlertTriangle, X, FileText, Cloud, Loader2, Key, Eye, EyeOff, Columns, Edit2, Palette, Lock } from "lucide-react";
 import { PasswordStrengthIndicator } from "../../components/password-helper";
+import ModalDialog from "../../components/modal-dialog";
 import ReactMarkdown from "react-markdown";
 import { generateSelfDecryptingHtml } from "../../lib/self-decrypting-html";
+import { copyText, describeRequestFailure } from "../../lib/feedback";
 
 import {
   createWorkspace,
@@ -142,6 +144,7 @@ function createNoteId(): string {
 
 export default function NotepadClient() {
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
+  const [authBusy, setAuthBusy] = useState(false);
   const [storageMode, setStorageMode] = useState<"local" | "cloud">("local");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -309,6 +312,8 @@ export default function NotepadClient() {
 
   const handleAuth = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (authBusy) return;
+    setAuthBusy(true);
     setError(null);
 
     try {
@@ -337,8 +342,9 @@ export default function NotepadClient() {
       });
       setSelectedNoteId(notes[0]?.id ?? null);
     } catch (caughtError: unknown) {
-      const message = caughtError instanceof Error ? caughtError.message : "Unable to open notepad.";
-      setError(message);
+      setError(describeRequestFailure(caughtError, "Unable to open this notepad. Check the username and password, then try again."));
+    } finally {
+      setAuthBusy(false);
     }
   };
 
@@ -587,9 +593,13 @@ export default function NotepadClient() {
   }, [editTitle, editBody]);
 
   const copyValue = async (value: string, field: "url" | "password") => {
-    await navigator.clipboard.writeText(value);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 1200);
+    try {
+      await copyText(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 1200);
+    } catch (caughtError: unknown) {
+      setStatus(describeRequestFailure(caughtError, "Could not copy. Select the text and copy it manually."));
+    }
   };
 
   const handleDeleteNotebook = async () => {
@@ -759,6 +769,7 @@ export default function NotepadClient() {
                 <Button
                   type="button"
                   variant={authMode === "signin" ? "default" : "outline"}
+                  aria-pressed={authMode === "signin"}
                   onClick={() => { setAuthMode("signin"); setPassword(""); setShowPassword(false); }}
                 >
                   Sign In
@@ -766,6 +777,7 @@ export default function NotepadClient() {
                 <Button
                   type="button"
                   variant={authMode === "create" ? "default" : "outline"}
+                  aria-pressed={authMode === "create"}
                   onClick={() => { setAuthMode("create"); setPassword(""); setShowPassword(false); }}
                 >
                   Create
@@ -774,28 +786,30 @@ export default function NotepadClient() {
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Storage Target</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label="Storage target">
                   <button
                     type="button"
-                    className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                    aria-pressed={storageMode === "local"}
+                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       storageMode === "local"
                         ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-sm"
                         : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-white/70 dark:bg-zinc-900/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
                     }`}
                     onClick={() => setStorageMode("local")}
                   >
-                    💻 Local Browser
+                    Local browser
                   </button>
                   <button
                     type="button"
-                    className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                    aria-pressed={storageMode === "cloud"}
+                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       storageMode === "cloud"
                         ? `${themes[themeColor].accentBg} text-white dark:text-zinc-900 border-transparent shadow-sm`
                         : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-white/70 dark:bg-zinc-900/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
                     }`}
                     onClick={() => setStorageMode("cloud")}
                   >
-                    ☁️ Cloud Sync
+                    Cloud sync
                   </button>
                 </div>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-550 leading-relaxed font-mono">
@@ -805,53 +819,60 @@ export default function NotepadClient() {
                 </p>
               </div>
 
-              <Input
-                id="notepad-username"
-                name="username"
-                type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder="Username"
-                autoComplete="username"
-                required
-              />
-              <div className="relative">
+              <div className="space-y-1.5">
+                <label htmlFor="notepad-username" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Username</label>
                 <Input
-                  id="notepad-password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Password"
-                  autoComplete={authMode === "create" ? "new-password" : "current-password"}
+                  id="notepad-username"
+                  name="username"
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="Username"
+                  autoComplete="username"
                   required
-                  className={`font-mono h-10 pr-20 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
+                  className="h-11 text-base"
                 />
-                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                  {authMode === "create" && (
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="notepad-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Password</label>
+                <div className="relative">
+                  <Input
+                    id="notepad-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Password"
+                    autoComplete={authMode === "create" ? "new-password" : "current-password"}
+                    required
+                    className={`font-mono h-11 text-base pr-20 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
+                  />
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    {authMode === "create" && (
+                      <button
+                        type="button"
+                        onClick={() => setPassword(generateRandomPassword(16))}
+                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
+                        aria-label="Generate secure password"
+                      >
+                        <Key className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setPassword(generateRandomPassword(16))}
-                      className="text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
-                      title="Generate secure password"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
-                      <Key className="h-4 w-4" />
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  </div>
                 </div>
               </div>
               {authMode === "create" && <PasswordStrengthIndicator password={password} />}
-              {error ? <p className="text-sm text-red-500">{error}</p> : null}
-              <Button type="submit" className="w-full">
-                {authMode === "create" ? "Create Notepad" : "Open Notepad"}
+              {error ? <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p> : null}
+              <Button type="submit" disabled={authBusy || !username.trim() || !password.trim()} aria-busy={authBusy} className="w-full h-11">
+                {authBusy ? "Opening notepad…" : authMode === "create" ? "Create Notepad" : "Open Notepad"}
               </Button>
             </form>
             <div className="relative flex py-4 items-center">
@@ -935,16 +956,17 @@ export default function NotepadClient() {
           {/* Markdown preview toggle buttons */}
           {hasNote && (
             <>
-              <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-zinc-200 dark:border-zinc-800/60 shrink-0">
+              <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-zinc-200 dark:border-zinc-800/60 shrink-0" role="group" aria-label="Editor mode">
                 <button
                   type="button"
                   onClick={() => setEditorMode("edit")}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
+                  aria-pressed={editorMode === "edit"}
+                  aria-label="Write"
+                  className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded transition-colors ${
                     editorMode === "edit"
                       ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-350"
+                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
                   }`}
-                  title="Write markdown (Edit mode)"
                 >
                   <Edit2 className="h-3.5 w-3.5" />
                   <span className="hidden md:inline">Write</span>
@@ -952,12 +974,13 @@ export default function NotepadClient() {
                 <button
                   type="button"
                   onClick={() => setEditorMode("split")}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
+                  aria-pressed={editorMode === "split"}
+                  aria-label="Split"
+                  className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded transition-colors ${
                     editorMode === "split"
                       ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-350"
+                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
                   }`}
-                  title="Side-by-side edit and preview"
                 >
                   <Columns className="h-3.5 w-3.5" />
                   <span className="hidden md:inline">Split</span>
@@ -965,12 +988,13 @@ export default function NotepadClient() {
                 <button
                   type="button"
                   onClick={() => setEditorMode("preview")}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
+                  aria-pressed={editorMode === "preview"}
+                  aria-label="Preview"
+                  className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded transition-colors ${
                     editorMode === "preview"
                       ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-350"
+                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
                   }`}
-                  title="Full preview"
                 >
                   <Eye className="h-3.5 w-3.5" />
                   <span className="hidden md:inline">Preview</span>
@@ -993,8 +1017,8 @@ export default function NotepadClient() {
               <button
                 type="button"
                 onClick={session.username === "guest" ? () => setShowSyncModal(true) : handleSyncToCloud}
-                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-md ${themes[themeColor].accentBg} ${themes[themeColor].accentHover} text-white dark:text-zinc-950 transition-colors shadow-md`}
-                title={session.username === "guest" ? "Sync scratchpad to serverless Cloud" : "Sync offline local notes to serverless Cloud"}
+                className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold rounded-md ${themes[themeColor].accentBg} ${themes[themeColor].accentHover} text-white dark:text-zinc-950 transition-colors shadow-md`}
+                aria-label={session.username === "guest" ? "Sync scratchpad to cloud" : "Sync local notes to cloud"}
               >
                 <Cloud className="h-3 w-3 shrink-0" />
                 <span className="hidden md:inline">Go Online</span>
@@ -1022,8 +1046,10 @@ export default function NotepadClient() {
               <button
                 type="button"
                 onClick={() => setShowThemeDropdown(!showThemeDropdown)}
-                className="flex items-center gap-1 p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 rounded-md transition-colors"
-                title="Change notepad theme"
+                className="flex items-center gap-1 p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 rounded-md transition-colors"
+                aria-label="Change notepad theme"
+                aria-expanded={showThemeDropdown}
+                aria-haspopup="menu"
               >
                 <Palette className="h-4 w-4" />
               </button>
@@ -1042,7 +1068,8 @@ export default function NotepadClient() {
                         key={key}
                         type="button"
                         onClick={() => handleThemeChange(key)}
-                        className={`w-full text-left px-3 py-1.5 text-xs font-semibold flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors ${
+                        aria-pressed={themeColor === key}
+                        className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors ${
                           themeColor === key 
                             ? "text-zinc-900 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-900/60" 
                             : "text-zinc-600 dark:text-zinc-400"
@@ -1050,7 +1077,7 @@ export default function NotepadClient() {
                       >
                         <span className={`w-2 h-2 rounded-full ${t.colorDot}`} />
                         <span>{t.name}</span>
-                        {themeColor === key && <span className="ml-auto text-[10px] text-zinc-400 dark:text-zinc-500">✓</span>}
+                        {themeColor === key && <span className="ml-auto text-[10px] text-zinc-500 dark:text-zinc-400" aria-hidden="true">✓</span>}
                       </button>
                     ))}
                   </div>
@@ -1084,7 +1111,7 @@ export default function NotepadClient() {
         <div className="shrink-0 border-b border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/5 px-4 py-3">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-400 flex-1">
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400 flex-1">
               Permanently delete <strong>@{session.username}</strong> and all notes?
             </p>
             <div className="flex gap-2 shrink-0">
@@ -1118,6 +1145,7 @@ export default function NotepadClient() {
               </p>
             </div>
             <form onSubmit={handleRenameAndSync} className="flex items-center gap-2 shrink-0">
+              <label htmlFor="rename-username" className="sr-only">New username</label>
               <input
                 id="rename-username"
                 name="rename-username"
@@ -1125,7 +1153,8 @@ export default function NotepadClient() {
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 placeholder="New username"
-                className="h-8 py-1 px-3 text-xs w-48 font-mono rounded-md border border-amber-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 outline-none"
+                autoComplete="username"
+                className="h-11 min-w-0 w-full sm:w-48 px-3 text-base font-mono rounded-md border border-amber-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 outline-none"
                 required
               />
               <button
@@ -1141,14 +1170,15 @@ export default function NotepadClient() {
                   setShowRenameModal(false);
                   setRenameError(null);
                 }}
-                className="p-1.5 rounded hover:bg-amber-100 dark:hover:bg-zinc-800 text-amber-600 dark:text-amber-400"
+                className="p-2 rounded hover:bg-amber-100 dark:hover:bg-zinc-800 text-amber-700 dark:text-amber-300"
+                aria-label="Dismiss rename"
               >
                 <X className="h-4 w-4" />
               </button>
             </form>
           </div>
           {renameError ? (
-            <p className="text-xs text-red-500 mt-1.5 ml-6">{renameError}</p>
+            <p role="alert" className="text-xs text-red-700 dark:text-red-300 mt-1.5 break-words">{renameError}</p>
           ) : null}
         </div>
       ) : null}
@@ -1166,9 +1196,10 @@ export default function NotepadClient() {
               <button
                 type="button"
                 onClick={() => copyValue(shareUrl, "url")}
-                className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                aria-label={copiedField === "url" ? "Share link copied" : "Copy share link"}
+                className="text-xs px-2 py-2 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
               >
-                {copiedField === "url" ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                {copiedField === "url" ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
             </div>
             <div className="flex items-center gap-1.5 min-w-0">
@@ -1178,15 +1209,20 @@ export default function NotepadClient() {
               <button
                 type="button"
                 onClick={() => copyValue(sharePassword, "password")}
-                className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                aria-label={copiedField === "password" ? "Password copied" : "Copy password"}
+                className="text-xs px-2 py-2 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
               >
-                {copiedField === "password" ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                {copiedField === "password" ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
             </div>
+            <p role="status" className="sr-only">
+              {copiedField === "url" ? "Share link copied." : copiedField === "password" ? "Password copied." : ""}
+            </p>
             <button
               type="button"
               onClick={() => { setShareUrl(null); setSharePassword(null); }}
-              className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 shrink-0"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 shrink-0 p-2"
+              aria-label="Dismiss share link"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -1211,28 +1247,34 @@ export default function NotepadClient() {
           session.notes.map((note) => {
             const isActive = note.id === selectedNoteId;
             return (
-              <button
+              <div
                 key={note.id}
-                type="button"
-                onClick={() => setSelectedNoteId(note.id)}
-                className={`group relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-r border-zinc-200 dark:border-zinc-800 max-w-[180px] transition-all whitespace-nowrap ${
+                className={`group relative flex items-center max-w-[180px] border-r border-zinc-200 dark:border-zinc-800 ${
                   isActive
                     ? `bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 border-b-2 ${themes[themeColor].borderActive} -mb-px`
-                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
                 }`}
               >
-                <FileText className={`h-3 w-3 shrink-0 transition-colors ${isActive ? themes[themeColor].accentText : "opacity-50 text-zinc-500"}`} />
-                <span className={`truncate transition-colors ${isActive ? themes[themeColor].accentText + " font-bold" : ""}`}>{note.title || "Untitled note"}</span>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => handleCloseTab(note.id, e)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCloseTab(note.id, e as unknown as React.MouseEvent); }}
-                  className="shrink-0 ml-1 p-0.5 rounded hover:bg-zinc-300/60 dark:hover:bg-zinc-700/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                <button
+                  type="button"
+                  onClick={() => setSelectedNoteId(note.id)}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`flex items-center gap-1.5 min-w-0 px-3 py-2.5 text-xs font-semibold whitespace-nowrap ${
+                    isActive ? "" : "hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  }`}
                 >
-                  <X className="h-2.5 w-2.5" />
-                </span>
-              </button>
+                  <FileText className={`h-3 w-3 shrink-0 ${isActive ? themes[themeColor].accentText : "opacity-50 text-zinc-500"}`} />
+                  <span className={`truncate ${isActive ? themes[themeColor].accentText + " font-bold" : ""}`}>{note.title || "Untitled note"}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Close ${note.title || "Untitled note"}`}
+                  onClick={(e) => handleCloseTab(note.id, e)}
+                  className="shrink-0 mr-1 p-1 rounded hover:bg-zinc-300/60 dark:hover:bg-zinc-700/60 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
             );
           })
         )}
@@ -1240,8 +1282,8 @@ export default function NotepadClient() {
         <button
           type="button"
           onClick={handleCreateNote}
-          className="shrink-0 px-2.5 py-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 transition-colors"
-          title="New note"
+          className="shrink-0 px-2.5 py-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 transition-colors"
+          aria-label="New note"
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -1263,7 +1305,8 @@ export default function NotepadClient() {
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Note title..."
-                    className="w-full bg-transparent text-lg font-semibold text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 outline-none"
+                    aria-label="Note title"
+                    className="w-full min-w-0 bg-transparent text-lg font-semibold text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none"
                   />
                   {editorMode === "split" && (
                     <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-zinc-400 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 ml-2 shrink-0 select-none">
@@ -1278,7 +1321,8 @@ export default function NotepadClient() {
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
                   placeholder="Start writing..."
-                  className="flex-1 w-full resize-none bg-transparent px-4 py-3 text-sm font-mono leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 outline-none"
+                  aria-label="Note body"
+                  className="flex-1 w-full min-h-0 resize-none bg-transparent px-4 py-3 text-base font-mono leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none"
                 />
               </div>
             )}
@@ -1331,16 +1375,17 @@ export default function NotepadClient() {
       </div>
 
       {showSyncModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
-            onClick={() => {
-              setShowSyncModal(false);
-              setSyncError(null);
-            }}
-          />
-          <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101] overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 duration-200">
+        <ModalDialog
+          titleId="sync-dialog-title"
+          descriptionId="sync-dialog-description"
+          onClose={() => {
+            setShowSyncModal(false);
+            setSyncError(null);
+          }}
+          panelClassName="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101]"
+        >
             <button
+              type="button"
               onClick={() => {
                 setShowSyncModal(false);
                 setSyncError(null);
@@ -1356,10 +1401,10 @@ export default function NotepadClient() {
                 <Cloud className="h-5 w-5 animate-pulse" />
                 <span className="text-xs uppercase font-mono tracking-wider font-bold">Go Online</span>
               </div>
-              <CardTitle className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
+              <CardTitle id="sync-dialog-title" className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
                 Sync Scratchpad to Cloud
               </CardTitle>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+              <p id="sync-dialog-description" className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                 Enter a username and password to secure your notes and sync them to the serverless cloud. This allows you to access them from any device securely.
               </p>
             </CardHeader>
@@ -1376,7 +1421,8 @@ export default function NotepadClient() {
                     value={syncUsername}
                     onChange={(e) => setSyncUsername(e.target.value)}
                     placeholder="Choose username"
-                    className={`h-10 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder}`}
+                    autoComplete="username"
+                    className={`h-11 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder}`}
                   />
                 </div>
 
@@ -1391,22 +1437,23 @@ export default function NotepadClient() {
                       value={syncPassword}
                       onChange={(e) => setSyncPassword(e.target.value)}
                       placeholder="Choose password"
-                      className={`h-10 pr-20 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
+                      autoComplete="new-password"
+                      className={`h-11 text-base pr-20 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
                     />
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setSyncPassword(generateRandomPassword(16))}
-                        className="text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
-                        title="Generate secure password"
+                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
+                        aria-label="Generate secure password"
                       >
                         <Key className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowSyncPassword(!showSyncPassword)}
-                        className="text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
-                        title={showSyncPassword ? "Hide password" : "Show password"}
+                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
+                        aria-label={showSyncPassword ? "Hide password" : "Show password"}
                       >
                         {showSyncPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -1416,9 +1463,9 @@ export default function NotepadClient() {
                 </div>
 
                 {syncError ? (
-                  <div className="flex items-center gap-2 text-xs font-semibold text-red-500 bg-red-500/5 border border-red-500/10 p-3 rounded-lg">
+                  <div role="alert" className="flex items-start gap-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 p-3 rounded-lg">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span>{syncError}</span>
+                    <span className="break-words">{syncError}</span>
                   </div>
                 ) : null}
 
@@ -1426,6 +1473,7 @@ export default function NotepadClient() {
                   <Button
                     type="submit"
                     disabled={isSyncing || !syncUsername.trim() || !syncPassword.trim()}
+                    aria-busy={isSyncing}
                     className="w-full h-11 text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300"
                   >
                     {isSyncing ? (
@@ -1440,23 +1488,23 @@ export default function NotepadClient() {
                 </div>
               </form>
             </CardContent>
-          </div>
-        </div>
+        </ModalDialog>
       )}
 
       {showExportHtmlModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
-            onClick={() => {
-              setShowExportHtmlModal(false);
-              setExportPassword("");
-              setExportConfirmPassword("");
-              setExportError(null);
-            }}
-          />
-          <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101] overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 duration-200">
+        <ModalDialog
+          titleId="export-dialog-title"
+          descriptionId="export-dialog-description"
+          onClose={() => {
+            setShowExportHtmlModal(false);
+            setExportPassword("");
+            setExportConfirmPassword("");
+            setExportError(null);
+          }}
+          panelClassName="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101]"
+        >
             <button
+              type="button"
               onClick={() => {
                 setShowExportHtmlModal(false);
                 setExportPassword("");
@@ -1474,10 +1522,10 @@ export default function NotepadClient() {
                 <Lock className="h-5 w-5" />
                 <span className="text-xs uppercase font-mono tracking-wider font-bold">Secure Export</span>
               </div>
-              <CardTitle className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
+              <CardTitle id="export-dialog-title" className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
                 Export Self-Decrypting Note
               </CardTitle>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+              <p id="export-dialog-description" className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                 Generate a standalone encrypted HTML file. You can open and decrypt it completely offline in any web browser using the password defined below.
               </p>
             </CardHeader>
@@ -1495,22 +1543,23 @@ export default function NotepadClient() {
                       value={exportPassword}
                       onChange={(e) => setExportPassword(e.target.value)}
                       placeholder="Choose password for this file"
-                      className={`h-10 pr-20 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
+                      autoComplete="new-password"
+                      className={`h-11 text-base pr-20 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
                     />
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setExportPassword(generateRandomPassword(16))}
-                        className="text-zinc-400 hover:text-zinc-655 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
-                        title="Generate secure password"
+                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
+                        aria-label="Generate secure password"
                       >
                         <Key className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowExportPassword(!showExportPassword)}
-                        className="text-zinc-400 hover:text-zinc-655 dark:hover:text-zinc-250 p-1.5 rounded transition-colors"
-                        title={showExportPassword ? "Hide password" : "Show password"}
+                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
+                        aria-label={showExportPassword ? "Hide password" : "Show password"}
                       >
                         {showExportPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -1529,14 +1578,15 @@ export default function NotepadClient() {
                     value={exportConfirmPassword}
                     onChange={(e) => setExportConfirmPassword(e.target.value)}
                     placeholder="Verify password"
-                    className={`h-10 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder}`}
+                    autoComplete="new-password"
+                    className={`h-11 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder}`}
                   />
                 </div>
 
                 {exportError ? (
-                  <div className="flex items-center gap-2 text-xs font-semibold text-red-500 bg-red-500/5 border border-red-500/10 p-3 rounded-lg">
+                  <div role="alert" className="flex items-start gap-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 p-3 rounded-lg">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span>{exportError}</span>
+                    <span className="break-words">{exportError}</span>
                   </div>
                 ) : null}
 
@@ -1544,6 +1594,7 @@ export default function NotepadClient() {
                   <Button
                     type="submit"
                     disabled={isExportingHtml || !exportPassword.trim() || exportPassword !== exportConfirmPassword}
+                    aria-busy={isExportingHtml}
                     className={`w-full h-11 text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300 ${themes[themeColor].accentBg} ${themes[themeColor].accentHover} text-white dark:text-zinc-950`}
                   >
                     {isExportingHtml ? (
@@ -1558,8 +1609,7 @@ export default function NotepadClient() {
                 </div>
               </form>
             </CardContent>
-          </div>
-        </div>
+        </ModalDialog>
       )}
 
       {/* Internal SEO Links */}
@@ -1601,6 +1651,7 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={shortcut ? `${label} (${shortcut})` : label}
       title={shortcut ? `${label} (${shortcut})` : label}
       className={`
         flex items-center gap-1.5 rounded-md transition-colors whitespace-nowrap

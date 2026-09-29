@@ -7,6 +7,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@protec
 import { Loader2, AlertTriangle, ShieldCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { apiUrl } from "../../../lib/api";
+import { describeRequestFailure, readApiError } from "../../../lib/feedback";
 
 export default function NotesByIdPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -31,7 +32,7 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
       if (!res.ok) {
         if (res.status === 401) throw new Error("Invalid password.");
         if (res.status === 404) throw new Error("Note not found or expired.");
-        throw new Error("Failed to fetch note from server.");
+        throw new Error(await readApiError(res, "Could not load this note. Try again in a moment."));
       }
 
       const data: GetNoteResponse = await res.json();
@@ -46,8 +47,7 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
 
       setContent(decryptedContent);
     } catch (caughtError: unknown) {
-      const message = caughtError instanceof Error ? caughtError.message : "Decryption failed.";
-      setError(message);
+      setError(describeRequestFailure(caughtError, "Could not open this note. Try again in a moment."));
       setContent(null);
     } finally {
       setLoading(false);
@@ -79,9 +79,10 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
         </p>
       </div>
 
+      <p className="sr-only" role="status">{loading ? "Decrypting note." : ""}</p>
       {loading ? (
         <div className="flex flex-col items-center justify-center p-16 text-zinc-500 dark:text-zinc-400">
-          <Loader2 className="h-8 w-8 animate-spin mb-3 text-blue-600 dark:text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin mb-3 text-blue-600 dark:text-emerald-500" aria-hidden="true" />
           <span className="text-sm font-medium">Deriving cryptographic keys &amp; decrypting...</span>
         </div>
       ) : content ? (
@@ -117,18 +118,22 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
           </CardHeader>
           <CardContent>
             <form onSubmit={handleUnlock} className="space-y-4">
-              <Input
-                id="decrypt-password"
-                name="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter note password"
-                autoComplete="current-password"
-                className="font-mono h-10 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
-              />
-              {error ? <p className="text-sm font-medium text-red-500">{error}</p> : null}
-              <Button type="submit" className="w-full h-10 font-bold shadow-sm rounded-lg">
+              <div className="space-y-1.5">
+                <label htmlFor="decrypt-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Decryption password</label>
+                <Input
+                  id="decrypt-password"
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter note password"
+                  autoComplete="current-password"
+                  spellCheck={false}
+                  className="font-mono h-11 text-base border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
+                />
+              </div>
+              {error ? <p role="alert" className="text-sm font-medium text-red-700 dark:text-red-300">{error}</p> : null}
+              <Button type="submit" aria-busy={loading} className="w-full h-11 font-bold shadow-sm rounded-lg">
                 Unlock Decrypted Payload
               </Button>
             </form>
