@@ -1,44 +1,64 @@
 "use client";
 
 import { useState } from "react";
-import { derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
+import { generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
 import { Loader2, Copy, Check, ShieldCheck, Lock, Sparkles, Key } from "lucide-react";
 import { apiUrl } from "../../lib/api";
+import { sealForShare } from "../../lib/crypto-task";
 import { copyText, describeRequestFailure, readApiError } from "../../lib/feedback";
 import { PasswordStrengthIndicator } from "../../components/password-helper";
+import {
+  EXPIRY_PRESETS,
+  type ExpiryChoice,
+  formatShareDeadline,
+  resolveExpiresAt,
+  toDatetimeLocal,
+  withPasswordHash,
+} from "../../lib/share-window";
 
+type Delivery = "link" | "password";
 
 export default function NotesClient() {
   const [content, setContent] = useState("");
   const [password, setPassword] = useState("");
-  const [expiresIn, setExpiresIn] = useState("86400");
+  const [delivery, setDelivery] = useState<Delivery>("link");
+  const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>("86400");
+  const [customExpiry, setCustomExpiry] = useState(() => toDatetimeLocal(Date.now() + 2 * 24 * 60 * 60 * 1000));
   const [isBurnAfterRead, setIsBurnAfterRead] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [sharePassword, setSharePassword] = useState<string | null>(null);
+  const [shareDelivery, setShareDelivery] = useState<Delivery>("link");
+  const [shareDeadline, setShareDeadline] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<"url" | "password" | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
+    const expiry = resolveExpiresAt(expiryChoice, customExpiry);
+    if ("error" in expiry) {
+      setError(expiry.error);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setShareUrl(null);
     setSharePassword(null);
+    setShareDeadline(null);
 
     try {
       const encryptionPassword = password.trim() || generateRandomPassword(16);
-      const encryptedPayload = await encrypt(content, encryptionPassword);
-      const passwordProof = await derivePasswordProof(encryptionPassword);
+      const sealed = await sealForShare(content, encryptionPassword);
 
       const payload: CreateNoteRequest = {
-        payload: encryptedPayload,
-        passwordProof,
-        expiresAt: Date.now() + Number.parseInt(expiresIn, 10) * 1000,
+        payload: sealed.payload,
+        passwordProof: sealed.passwordProof,
+        expiresAt: expiry.expiresAt,
         isBurnAfterRead
       };
 
@@ -53,8 +73,11 @@ export default function NotesClient() {
       }
 
       const data: CreateNoteResponse = await res.json();
-      setShareUrl(`${window.location.origin}/notes/${data.id}`);
+      const baseUrl = `${window.location.origin}/notes/${data.id}`;
+      setShareUrl(delivery === "link" ? withPasswordHash(baseUrl, encryptionPassword) : baseUrl);
       setSharePassword(encryptionPassword);
+      setShareDelivery(delivery);
+      setShareDeadline(formatShareDeadline(expiry.expiresAt));
     } catch (caughtError: unknown) {
       setError(describeRequestFailure(caughtError, "Could not save this note. Try again in a moment."));
     } finally {
@@ -78,12 +101,12 @@ export default function NotesClient() {
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
           Create <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-emerald-400 dark:to-teal-500">Secure Note</span>
         </h1>
-        <p className="mt-2 text-sm text-zinc-550 dark:text-zinc-400">
-          Browser-side AES-256 zero-knowledge encryption. Plaintext never leaves your machine.
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          Browser-side AES-256 encryption. Plaintext stays on this device. A link can open the note by itself, or you can keep the password separate.
         </p>
       </div>
 
-      {!shareUrl || !sharePassword ? (
+      {!shareUrl ? (
         <Card className="border-zinc-200 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-950/20 backdrop-blur-sm shadow-md transition-all duration-300">
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -100,9 +123,44 @@ export default function NotesClient() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">How the recipient opens it</p>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="How the recipient opens this note">
+                  <button
+                    type="button"
+                    aria-pressed={delivery === "link"}
+                    onClick={() => setDelivery("link")}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                      delivery === "link"
+                        ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
+                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
+                    }`}
+                  >
+                    Open from the link
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={delivery === "password"}
+                    onClick={() => setDelivery("password")}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                      delivery === "password"
+                        ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
+                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
+                    }`}
+                  >
+                    Separate password
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  {delivery === "link"
+                    ? "Anyone with the full link can read the note. The password stays in the link and is not sent to the server."
+                    : "Send the link and the password through different channels. The link alone cannot open the note."}
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label htmlFor="note-password" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Password (Optional)</label>
+                  <label htmlFor="note-password" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Password</label>
                   <div className="relative">
                     <Input
                       id="note-password"
@@ -110,7 +168,7 @@ export default function NotesClient() {
                       type="text"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Auto-generate strong password"
+                      placeholder="Leave blank to generate one"
                       autoComplete="off"
                       spellCheck={false}
                       className="font-mono h-11 text-base pr-12 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg w-full"
@@ -127,20 +185,35 @@ export default function NotesClient() {
                   <PasswordStrengthIndicator password={password} />
                 </div>
 
-
                 <div className="space-y-2">
                   <label htmlFor="note-expires" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Expiration</label>
                   <select
                     id="note-expires"
                     name="expiresIn"
-                    value={expiresIn}
-                    onChange={(e) => setExpiresIn(e.target.value)}
+                    value={expiryChoice}
+                    onChange={(e) => setExpiryChoice(e.target.value as ExpiryChoice)}
                     className="flex h-11 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 px-3 py-2 text-base shadow-sm transition-all focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 text-zinc-900 dark:text-zinc-100 outline-none cursor-pointer"
                   >
-                    <option value="3600">1 Hour</option>
-                    <option value="86400">1 Day</option>
-                    <option value="604800">7 Days</option>
+                    {EXPIRY_PRESETS.map((preset) => (
+                      <option key={preset.value} value={preset.value}>{preset.label}</option>
+                    ))}
+                    <option value="custom">Custom date and time</option>
                   </select>
+                  {expiryChoice === "custom" ? (
+                    <input
+                      id="note-expires-custom"
+                      name="customExpiry"
+                      type="datetime-local"
+                      required
+                      value={customExpiry}
+                      min={toDatetimeLocal(Date.now() + 5 * 60 * 1000)}
+                      max={toDatetimeLocal(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+                      onChange={(e) => setCustomExpiry(e.target.value)}
+                      aria-label="Custom expiration date and time"
+                      className="flex h-11 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 px-3 py-2 text-base shadow-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500 dark:focus:border-emerald-500"
+                    />
+                  ) : null}
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">A link can live for at most 30 days.</p>
                 </div>
               </div>
 
@@ -158,7 +231,7 @@ export default function NotesClient() {
                     Burn after reading
                   </label>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
-                    Destroys the note payload from our database permanently after the first successful decryption.
+                    Deletes the note from the database after the first successful open.
                   </p>
                 </div>
               </div>
@@ -186,12 +259,16 @@ export default function NotesClient() {
               </div>
               <div>
                 <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Note Created &amp; Encrypted</CardTitle>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Zero-knowledge storage successfully verified.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Expires {shareDeadline}.{isBurnAfterRead ? " Deleted after the first open." : ""}
+                </p>
               </div>
             </div>
 
             <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed bg-zinc-50 dark:bg-zinc-900/20 p-3 rounded-lg border border-zinc-200/50 dark:border-zinc-800/50">
-              For ultimate security, transmit the **Share Link** and **Password** through different communication channels (e.g. link via email, password via SMS/Signal).
+              {shareDelivery === "link"
+                ? "This link opens the note. Anyone who has the full link can read it, so send it only to the person who should see it."
+                : "Send the link and the password through different channels. For example, send the link by email and the password in a separate message."}
             </p>
 
             <div className="space-y-2.5">
@@ -205,22 +282,25 @@ export default function NotesClient() {
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              <label htmlFor="note-share-password" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Decryption Password</label>
-              <div className="flex items-center gap-2 min-w-0">
-                <Input id="note-share-password" readOnly value={sharePassword} className="font-mono min-w-0 text-base bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-11" />
-                <Button variant="outline" onClick={() => handleCopy(sharePassword, "password")} className="shrink-0 whitespace-nowrap h-11 px-3 border-zinc-200 dark:border-zinc-800">
-                  {copiedField === "password" ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
-                  {copiedField === "password" ? "Copied" : "Copy"}
-                </Button>
+            {shareDelivery === "password" && sharePassword ? (
+              <div className="space-y-2.5">
+                <label htmlFor="note-share-password" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Decryption Password</label>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Input id="note-share-password" readOnly value={sharePassword} className="font-mono min-w-0 text-base bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-11" />
+                  <Button variant="outline" onClick={() => handleCopy(sharePassword, "password")} className="shrink-0 whitespace-nowrap h-11 px-3 border-zinc-200 dark:border-zinc-800">
+                    {copiedField === "password" ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
+                    {copiedField === "password" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : null}
 
             <Button
               variant="ghost"
               onClick={() => {
                 setShareUrl(null);
                 setSharePassword(null);
+                setShareDeadline(null);
                 setContent("");
                 setPassword("");
               }}
@@ -233,7 +313,6 @@ export default function NotesClient() {
         </Card>
       )}
 
-      {/* Internal SEO Links */}
       <div className="mt-8 text-center text-xs text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
         <p>Looking for a different tool?</p>
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">

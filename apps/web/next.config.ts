@@ -39,6 +39,31 @@ const nextConfig: NextConfig = {
         destination: "/og-image.jpg",
         permanent: true,
       },
+      {
+        source: "/envshare",
+        destination: "/secrets",
+        permanent: true,
+      },
+      {
+        source: "/privnote",
+        destination: "/vs/privnote",
+        permanent: true,
+      },
+      {
+        source: "/protectedtext",
+        destination: "/vs/protectedtext",
+        permanent: true,
+      },
+      {
+        source: "/onetimesecret",
+        destination: "/vs/onetimesecret",
+        permanent: true,
+      },
+      {
+        source: "/one-time-secret",
+        destination: "/vs/onetimesecret",
+        permanent: true,
+      },
     ];
   },
   async headers() {

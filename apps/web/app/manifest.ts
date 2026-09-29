@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "ProtectedShare — Zero-Knowledge Secure Notes & Secret Sharing",
     short_name: "ProtectedShare",
     description:
-      "Free encrypted notes, .env file sharing, self-destructing secrets, and anonymous chatrooms. No signup, no tracking.",
+      "Encrypt notes, .env files, and one-time secrets in the browser, then share a link. No account required.",
     start_url: "/",
     display: "standalone",
     background_color: "#09090b",

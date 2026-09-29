@@ -144,7 +144,12 @@ export default async function BlogPostPage({ params }: PageProps) {
                 url: `${SITE_URL}/logo.svg`,
               },
             },
-            mainEntityOfPage: `https://protectedshare.me/blog/${post.slug}`,
+            articleSection: post.category,
+            inLanguage: "en-US",
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `https://protectedshare.me/blog/${post.slug}`,
+            },
           }),
         }}
       />
@@ -218,6 +223,9 @@ export default async function BlogPostPage({ params }: PageProps) {
           </Link>
           <Link href="/vs/envshare" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
             EnvShare alternative
+          </Link>
+          <Link href="/vs/onetimesecret" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
+            OneTimeSecret alternative
           </Link>
           <Link href="/chat" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
             Anonymous encrypted chatroom

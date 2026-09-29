@@ -1,0 +1,28 @@
+# ProtectedShare
+
+> Encrypt a note, a .env file, or a one-time secret in the browser, then share a link. No account required.
+
+The public site is https://protectedshare.me. The source is https://github.com/KunalSiyag/protectedshare (MIT). Contact: admin@protectedshare.me.
+
+## Tools
+
+- [Secure Notes](https://protectedshare.me/notes): AES-256-GCM in the browser. The link can open the note, or the password can be copied separately. Expiry is 1 hour, 1 day, 7 days, or a custom time up to 30 days. Burn after reading is optional.
+- [EnvShare](https://protectedshare.me/secrets): share a .env file or API key. The password stays in the URL hash. Choose 1 to 100 reads. Same expiry window as notes.
+- [Encrypted Notepad](https://protectedshare.me/notepad): markdown vault. Local mode stays in the browser. Cloud mode uploads ciphertext.
+- [Anonymous Chatroom](https://protectedshare.me/chat): room id plus password. Messages are ciphertext.
+- [Self-host](https://protectedshare.me/self-host): Next.js web app plus a Cloudflare Worker and D1.
+
+## What the server stores
+
+Ciphertext, IV, and salt, plus a password proof used to authorize a read. The proof is not the decryption key. The URL hash is not sent to the server.
+
+## Comparisons
+
+- [Privnote](https://protectedshare.me/vs/privnote)
+- [ProtectedText](https://protectedshare.me/vs/protectedtext)
+- [EnvShare](https://protectedshare.me/vs/envshare)
+- [OneTimeSecret](https://protectedshare.me/vs/onetimesecret)
+
+## Guides
+
+- [Blog](https://protectedshare.me/blog)

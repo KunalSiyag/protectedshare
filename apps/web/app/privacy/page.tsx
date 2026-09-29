@@ -1,12 +1,10 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Privacy Policy",
-  description: "Read the ProtectedShare privacy policy. Learn about our zero-knowledge architecture and why we collect zero tracking data.",
-  alternates: {
-    canonical: "https://protectedshare.me/privacy",
-  },
-};
+  description: "How ProtectedShare stores ciphertext, password proofs, notepad usernames, and contact inquiries.",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (
@@ -59,7 +57,7 @@ export default function PrivacyPage() {
         <section className="space-y-2">
           <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">5. Ephemeral Storage (Auto-Destruction)</h2>
           <p>
-            Encrypted messages generated via EnvShare are automatically deleted from our database after they exceed their read limit (1, 3, 5, or 10 reads) or expire according to the chosen TTL (1 hour, 24 hours, or 7 days). Secure Notes are deleted at the end of their expiration timer or immediately upon the first view if the optional burn-after-reading checkbox is selected.
+            An EnvShare secret is deleted after its read count is used up (any whole number from 1 to 100) or when its expiry passes. Expiry can be 1 hour, 1 day, 7 days, or a custom time at most 30 days out. A Secure Note is deleted when its expiry passes, or on the first open if burn after reading is selected.
           </p>
         </section>
 

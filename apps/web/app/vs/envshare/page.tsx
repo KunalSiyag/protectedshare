@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Breadcrumb } from "../../../components/breadcrumb";
 
 export const metadata: Metadata = {
   title: "Best Free EnvShare Alternative (Active & Polished)",
@@ -36,6 +37,7 @@ export default function EnvShareComparisonPage() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12 md:py-20 transition-colors duration-300">
       <div className="mb-10 text-center">
+        <Breadcrumb items={[{ name: "Home", path: "/" }, { name: "EnvShare alternative", path: "/vs/envshare" }]} />
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-[1.15]">
           The best free <span className="text-blue-600 dark:text-emerald-400">EnvShare</span> alternative
         </h1>
@@ -77,7 +79,7 @@ export default function EnvShareComparisonPage() {
             <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
               <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Configurable Read Limits</td>
               <td className="p-4 text-zinc-600 dark:text-zinc-400">✅ 1 to 100 reads</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ Yes (1, 3, 5, or 10 reads)</td>
+              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ 1 to 100 reads, presets or a custom count</td>
             </tr>
             <tr>
               <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Sign-Up required</td>
@@ -104,7 +106,7 @@ export default function EnvShareComparisonPage() {
           </p>
           <ul className="list-disc pl-5 mt-2.5 text-sm text-zinc-600 dark:text-zinc-400 space-y-1.5">
             <li>**EnvShare Mode:** Share monospaced config blocks that delete after N reads.</li>
-            <li>**Secure Notes:** Write rich messages, lock them with custom passwords, and share keys separately.</li>
+            <li>**Secure Notes:** Write a message, then open it from the link or share the password separately.</li>
             <li>**Notepad:** Use your browser as an encrypted workspace for local notes that are never sent to any server.</li>
           </ul>
         </div>
@@ -142,7 +144,7 @@ export default function EnvShareComparisonPage() {
                 </svg>
               </summary>
               <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
-                While EnvShare is an excellent tool for sharing monospaced .env files and API keys, the original project has been unmaintained for over two years. ProtectedShare is an active, modern implementation that incorporates the same zero-knowledge URL-hash based encryption, but adds secure notes (for two-channel password delivery), an offline-first encrypted notepad, dark/light themes, and regular dependency updates.
+                While EnvShare is an excellent tool for sharing monospaced .env files and API keys, the original project has been unmaintained for over two years. ProtectedShare is an active, modern implementation that incorporates the same zero-knowledge URL-hash based encryption, but adds secure notes that can open from the link or keep the password separate, an offline-first encrypted notepad, dark/light themes, and regular dependency updates.
               </div>
             </details>
 
@@ -154,7 +156,7 @@ export default function EnvShareComparisonPage() {
                 </svg>
               </summary>
               <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
-                In EnvShare mode, the decryption key is appended as a URL hash fragment (e.g. <code>#key=...</code>) allowing one-click decryption for developers. In Secure Notes mode, you set a custom password or auto-generate one, and must deliver the password separately to the recipient. This allows true multi-channel verification for high-security credentials.
+                EnvShare puts the password in the URL hash, so the link opens the secret. Secure Notes can do the same, or you can keep the password off the link and send it separately.
               </div>
             </details>
 
@@ -185,7 +187,7 @@ export default function EnvShareComparisonPage() {
                   name: "What makes ProtectedShare a good EnvShare alternative?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "While EnvShare is an excellent tool for sharing monospaced .env files and API keys, the original project has been unmaintained for over two years. ProtectedShare is an active, modern implementation that incorporates the same zero-knowledge URL-hash based encryption, but adds secure notes (for two-channel password delivery), an offline-first encrypted notepad, dark/light themes, and regular dependency updates.",
+                    text: "While EnvShare is an excellent tool for sharing monospaced .env files and API keys, the original project has been unmaintained for over two years. ProtectedShare is an active, modern implementation that incorporates the same zero-knowledge URL-hash based encryption, but adds secure notes that can open from the link or keep the password separate, an offline-first encrypted notepad, dark/light themes, and regular dependency updates.",
                   },
                 },
                 {
@@ -193,7 +195,7 @@ export default function EnvShareComparisonPage() {
                   name: "How does EnvShare compare to ProtectedShare's Secure Notes?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "In EnvShare mode, the decryption key is appended as a URL hash fragment (e.g. #key=...) allowing one-click decryption for developers. In Secure Notes mode, you set a custom password or auto-generate one, and must deliver the password separately to the recipient. This allows true multi-channel verification for high-security credentials.",
+                    text: "EnvShare puts the password in the URL hash, so the link opens the secret. Secure Notes can do the same, or you can keep the password off the link and send it separately.",
                   },
                 },
                 {
@@ -211,6 +213,7 @@ export default function EnvShareComparisonPage() {
 
         <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
           <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>
+          <Link href="/vs/onetimesecret" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs OneTimeSecret</Link>
           <Link href="/vs/privnote" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs Privnote</Link>
           <Link href="/vs/protectedtext" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs ProtectedText</Link>
           <Link href="/" className="hover:underline">Home</Link>

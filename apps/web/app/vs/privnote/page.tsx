@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Breadcrumb } from "../../../components/breadcrumb";
 
 export const metadata: Metadata = {
   title: "Best Free Privnote Alternative (Zero-Knowledge)",
@@ -36,6 +37,7 @@ export default function PrivnoteComparisonPage() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12 md:py-20 transition-colors duration-300">
       <div className="mb-10 text-center">
+        <Breadcrumb items={[{ name: "Home", path: "/" }, { name: "Privnote alternative", path: "/vs/privnote" }]} />
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-[1.15]">
           The best free <span className="text-blue-600 dark:text-emerald-400">Privnote</span> alternative
         </h1>
@@ -77,7 +79,7 @@ export default function PrivnoteComparisonPage() {
             <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
               <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Configurable Read Limits</td>
               <td className="p-4 text-zinc-600 dark:text-zinc-400">❌ 1 read only</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ Yes (1, 3, 5, or 10 reads)</td>
+              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ 1 to 100 reads</td>
             </tr>
             <tr>
               <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Required Sign-Up</td>
@@ -206,6 +208,7 @@ export default function PrivnoteComparisonPage() {
 
         <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
           <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>
+          <Link href="/vs/onetimesecret" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs OneTimeSecret</Link>
           <Link href="/vs/protectedtext" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs ProtectedText</Link>
           <Link href="/vs/envshare" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs EnvShare</Link>
           <Link href="/" className="hover:underline">Home</Link>

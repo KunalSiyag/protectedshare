@@ -1,18 +1,21 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
+import { generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateSecretRequest, CreateSecretResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@protectedshare/ui";
-import { Loader2, Copy, Check, ShieldCheck, Lock, Sparkles, Clock, FileCode2, RefreshCw } from "lucide-react";
+import { Loader2, Copy, Check, ShieldCheck, Lock, Clock, FileCode2, RefreshCw } from "lucide-react";
 import { apiUrl } from "../../lib/api";
+import { sealForShare } from "../../lib/crypto-task";
 import { copyText, describeRequestFailure, readApiError } from "../../lib/feedback";
-
-const TTL_OPTIONS = [
-  { label: "1 hour",   ms: 60 * 60 * 1000 },
-  { label: "24 hours", ms: 24 * 60 * 60 * 1000 },
-  { label: "7 days",   ms: 7 * 24 * 60 * 60 * 1000 },
-];
+import {
+  EXPIRY_PRESETS,
+  type ExpiryChoice,
+  formatShareDeadline,
+  resolveExpiresAt,
+  toDatetimeLocal,
+  withPasswordHash,
+} from "../../lib/share-window";
 
 const READS_OPTIONS = [
   { label: "1 read", value: 1 },
@@ -37,11 +40,16 @@ API_SECRET=your-secret-here`;
 
 export default function SecretsClient() {
   const [content, setContent]     = useState("");
-  const [ttlIndex, setTtlIndex]   = useState(1); // default 24h
-  const [readIndex, setReadIndex] = useState(0); // default 1 read
+  const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>("86400");
+  const [customExpiry, setCustomExpiry] = useState(() => toDatetimeLocal(Date.now() + 24 * 60 * 60 * 1000));
+  const [readIndex, setReadIndex] = useState(0);
+  const [customReads, setCustomReads] = useState(false);
+  const [readCount, setReadCount] = useState("25");
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [shareUrl, setShareUrl]   = useState<string | null>(null);
+  const [shareReads, setShareReads] = useState(1);
+  const [shareDeadline, setShareDeadline] = useState<string | null>(null);
   const [copied, setCopied]       = useState(false);
 
   const varCount = useMemo(() => countEnvVars(content), [content]);
@@ -51,21 +59,33 @@ export default function SecretsClient() {
     e.preventDefault();
     if (!content.trim()) return;
 
+    const expiry = resolveExpiresAt(expiryChoice, customExpiry);
+    if ("error" in expiry) {
+      setError(expiry.error);
+      return;
+    }
+
+    const reads = customReads ? Number.parseInt(readCount, 10) : READS_OPTIONS[readIndex].value;
+    if (!Number.isInteger(reads) || reads < 1 || reads > 100) {
+      setError("Reads have to be a whole number from 1 to 100.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setShareUrl(null);
+    setShareDeadline(null);
 
     try {
-      const encryptionPassword  = generateRandomPassword(32);
-      const encryptedPayload    = await encrypt(content, encryptionPassword);
-      const passwordProof       = await derivePasswordProof(encryptionPassword);
+      const encryptionPassword = generateRandomPassword(32);
+      const sealed = await sealForShare(content, encryptionPassword);
 
       const payload: CreateSecretRequest = {
-        payload: encryptedPayload,
-        passwordProof,
-        expiresAt: Date.now() + TTL_OPTIONS[ttlIndex].ms,
+        payload: sealed.payload,
+        passwordProof: sealed.passwordProof,
+        expiresAt: expiry.expiresAt,
         isBurnAfterRead: true,
-        maxReads: READS_OPTIONS[readIndex].value,
+        maxReads: reads,
       };
 
       const res = await fetch(apiUrl("/api/secrets"), {
@@ -79,7 +99,9 @@ export default function SecretsClient() {
       }
 
       const data: CreateSecretResponse = await res.json();
-      setShareUrl(`${window.location.origin}/secrets/${data.id}#${encryptionPassword}`);
+      setShareReads(reads);
+      setShareDeadline(formatShareDeadline(expiry.expiresAt));
+      setShareUrl(withPasswordHash(`${window.location.origin}/secrets/${data.id}`, encryptionPassword));
     } catch (err: unknown) {
       setError(describeRequestFailure(err, "Could not save this secret. Try again in a moment."));
     } finally {
@@ -122,7 +144,7 @@ export default function SecretsClient() {
         </h1>
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-lg">
           Paste API keys, database strings, or entire <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">.env</code> files.
-          Encrypted in your browser with AES-256 — the link self-destructs on first open.
+          Encrypted in your browser with AES-256. The link opens the secret, then it is deleted after the reads you allow.
         </p>
       </div>
 
@@ -173,14 +195,14 @@ export default function SecretsClient() {
               Expires after
             </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Expires after">
-              {TTL_OPTIONS.map((opt, i) => (
+              {EXPIRY_PRESETS.map((opt) => (
                 <button
-                  key={opt.label}
+                  key={opt.value}
                   type="button"
-                  aria-pressed={ttlIndex === i}
-                  onClick={() => setTtlIndex(i)}
+                  aria-pressed={expiryChoice === opt.value}
+                  onClick={() => setExpiryChoice(opt.value)}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                    ttlIndex === i
+                    expiryChoice === opt.value
                       ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
                       : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
                   }`}
@@ -188,7 +210,31 @@ export default function SecretsClient() {
                   {opt.label}
                 </button>
               ))}
+              <button
+                type="button"
+                aria-pressed={expiryChoice === "custom"}
+                onClick={() => setExpiryChoice("custom")}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                  expiryChoice === "custom"
+                    ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
+                    : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
+                }`}
+              >
+                Custom
+              </button>
             </div>
+            {expiryChoice === "custom" ? (
+              <input
+                type="datetime-local"
+                required
+                value={customExpiry}
+                min={toDatetimeLocal(Date.now() + 5 * 60 * 1000)}
+                max={toDatetimeLocal(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+                onChange={(event) => setCustomExpiry(event.target.value)}
+                aria-label="Custom expiration date and time"
+                className="h-11 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-base text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500 dark:focus:border-emerald-500"
+              />
+            ) : null}
           </div>
 
           {/* ─── Reads Picker ─── */}
@@ -202,10 +248,13 @@ export default function SecretsClient() {
                 <button
                   key={opt.value}
                   type="button"
-                  aria-pressed={readIndex === i}
-                  onClick={() => setReadIndex(i)}
+                  aria-pressed={!customReads && readIndex === i}
+                  onClick={() => {
+                    setCustomReads(false);
+                    setReadIndex(i);
+                  }}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                    readIndex === i
+                    !customReads && readIndex === i
                       ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
                       : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
                   }`}
@@ -213,13 +262,38 @@ export default function SecretsClient() {
                   {opt.label}
                 </button>
               ))}
+              <button
+                type="button"
+                aria-pressed={customReads}
+                onClick={() => setCustomReads(true)}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                  customReads
+                    ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
+                    : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
+                }`}
+              >
+                Custom
+              </button>
             </div>
+            {customReads ? (
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={100}
+                required
+                value={readCount}
+                onChange={(event) => setReadCount(event.target.value)}
+                aria-label="Number of reads before the secret is deleted"
+                className="h-11 w-24 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-base text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500 dark:focus:border-emerald-500"
+              />
+            ) : null}
           </div>
 
           {/* ─── Security badge ─── */}
           <div className="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-600">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-emerald-500" />
-            <span>AES-256-GCM · Key stays in browser · Deletes after {READS_OPTIONS[readIndex].label}</span>
+            <span>AES-256-GCM · Key stays in the link · Deletes after {customReads ? `${readCount || "0"} reads` : READS_OPTIONS[readIndex].label} · 30 days maximum</span>
           </div>
 
           {error && (
@@ -255,7 +329,7 @@ export default function SecretsClient() {
                   Encrypted link is ready
                 </CardTitle>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Payload secured · Expires in {TTL_OPTIONS[ttlIndex].label}
+                  Expires {shareDeadline} · {shareReads === 1 ? "1 read" : `${shareReads} reads`}
                 </p>
               </div>
             </div>
@@ -267,13 +341,11 @@ export default function SecretsClient() {
               <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p>
             ) : null}
             {/* Warning */}
-            <div className="flex items-start gap-3 text-xs bg-amber-50 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-lg px-4 py-3 text-amber-700 dark:text-amber-400">
-              <span className="text-base leading-none mt-0.5">⚠️</span>
-              <span>
-                <strong>This link is single-use.</strong> It permanently self-destructs the moment it is opened.
-                Share it only with the intended recipient.
-              </span>
-            </div>
+            <p className="text-xs bg-amber-50 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-lg px-4 py-3 text-amber-700 dark:text-amber-400 leading-relaxed">
+              {shareReads === 1
+                ? "This link works once. Opening it deletes the secret. Anyone with the full link can open it."
+                : `This link works ${shareReads} times, then it is deleted. Anyone with the full link can open it.`}
+            </p>
 
             {/* URL row */}
             <div className="flex items-stretch gap-2">

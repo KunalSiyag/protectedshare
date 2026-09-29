@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Breadcrumb } from "../../../components/breadcrumb";
 
 export const metadata: Metadata = {
   title: "Best Free ProtectedText Alternative (AES-256-GCM)",
@@ -38,6 +39,7 @@ export default function ProtectedTextComparisonPage() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12 md:py-20 transition-colors duration-300">
       <div className="mb-10 text-center">
+        <Breadcrumb items={[{ name: "Home", path: "/" }, { name: "ProtectedText alternative", path: "/vs/protectedtext" }]} />
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-[1.15]">
           The best free <span className="text-blue-600 dark:text-emerald-400">ProtectedText</span> alternative
         </h1>
@@ -213,6 +215,7 @@ export default function ProtectedTextComparisonPage() {
 
         <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
           <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>
+          <Link href="/vs/onetimesecret" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs OneTimeSecret</Link>
           <Link href="/vs/privnote" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs Privnote</Link>
           <Link href="/vs/envshare" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs EnvShare</Link>
           <Link href="/" className="hover:underline">Home</Link>

@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Decrypt Secure Note | ProtectedShare",
-  robots: {
-    index: false,
-    follow: false,
-  },
+type LayoutProps = {
+  params: Promise<{ id: string }>;
 };
+
+export async function generateMetadata({ params }: LayoutProps): Promise<Metadata> {
+  const { id } = await params;
+  return {
+    title: "Open secure note",
+    robots: { index: false, follow: false },
+    alternates: { canonical: `https://protectedshare.me/notes/${id}` },
+  };
+}
 
 export default function DecryptNoteLayout({
   children,

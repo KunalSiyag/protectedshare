@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import AppLink from "../components/app-link";
+import { HOME_FAQS } from "../lib/home-faq";
+import { DEFAULT_DESCRIPTION, faqPageJsonLd, webApplicationJsonLd } from "../lib/seo";
 import {
   ArrowRight,
   FileCode,
@@ -17,30 +19,27 @@ export const metadata: Metadata = {
   title: {
     absolute: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
   },
-  description:
-    "AES-256 encrypted notes, .env file sharing (EnvShare), and self-destructing secret links. Zero-knowledge, no signup, no tracking.",
+  description: DEFAULT_DESCRIPTION,
   alternates: {
     canonical: "https://protectedshare.me",
   },
   openGraph: {
     title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
-    description:
-      "Free encrypted notes, EnvShare, and self-destructing links. AES-256 in the browser. No signup. No tracking.",
+    description: DEFAULT_DESCRIPTION,
     url: "https://protectedshare.me",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
+        alt: "ProtectedShare — encrypted notes, EnvShare, and one-time secrets",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
-    description:
-      "Free encrypted notes, EnvShare, and self-destructing links. AES-256 in the browser. No signup. No tracking.",
+    description: DEFAULT_DESCRIPTION,
     images: ["/og-image.jpg"],
   },
 };
@@ -48,108 +47,13 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="flex flex-col items-center bg-zinc-50 dark:bg-[#09090b] text-zinc-800 dark:text-zinc-300 transition-colors duration-300 w-full overflow-hidden">
-      {/* JSON-LD: WebApplication Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "WebApplication",
-            name: "ProtectedShare",
-            url: "https://protectedshare.me",
-            description:
-              "Free zero-knowledge encrypted note sharing, EnvShare (.env file sharing), and self-destructing secret links. Hosted securely on Cloudflare.",
-            applicationCategory: "SecurityApplication",
-            operatingSystem: "Any",
-            offers: {
-              "@type": "Offer",
-              price: "0",
-              priceCurrency: "USD",
-            },
-            featureList: [
-              "AES-256-GCM client-side encryption",
-              "Share .env files securely (EnvShare)",
-              "Self-destructing one-time secrets",
-              "Burn-after-read notes",
-              "Configurable read limits (1-10 reads)",
-              "Offline-first encrypted notepad",
-              "Zero signup required",
-              "No tracking or cookies",
-              "Free ProtectedText alternative",
-              "Free Privnote alternative",
-              "Anonymous Encrypted Chatroom",
-            ],
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webApplicationJsonLd()) }}
       />
-
-      {/* JSON-LD: FAQPage Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            mainEntity: [
-              {
-                "@type": "Question",
-                name: "Is ProtectedShare really free?",
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: "Yes, ProtectedShare is 100% free with no signup, no accounts, and no usage limits. You can create unlimited encrypted notes, share .env files, and generate self-destructing secret links at no cost.",
-                },
-              },
-              {
-                "@type": "Question",
-                name: "How is ProtectedShare different from EnvShare?",
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: "ProtectedShare includes all EnvShare features (AES-256 encrypted .env sharing with configurable TTL and read limits) plus additional tools: encrypted notes with separate password delivery, an offline-first encrypted notepad, dark/light mode, and a mobile-optimized interface. EnvShare is no longer actively maintained, while ProtectedShare is actively developed.",
-                },
-              },
-              {
-                "@type": "Question",
-                name: "What is the difference between Secure Notes and EnvShare?",
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: "Secure Notes is designed for two-channel sharing (you send the link via one app like email, and the password via another like SMS/Signal). EnvShare is built for quick one-click sharing of code/dotenv files where the password is automatically embedded in the link's hash fragment (e.g. #password) so the recipient doesn't have to enter it manually.",
-                },
-              },
-              {
-                "@type": "Question",
-                name: "Can the server read my secrets?",
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: "No. ProtectedShare uses zero-knowledge architecture. Your data is encrypted with AES-256-GCM entirely in your browser before being sent to the server. The encryption key never leaves your device, making it mathematically impossible for anyone — including our servers — to decrypt your data.",
-                },
-              },
-              {
-                "@type": "Question",
-                name: "How do I share API keys and .env files securely?",
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: "Go to the EnvShare page, paste your API keys or .env file content, choose an expiration time (1 hour, 24 hours, or 7 days) and read limit (1 to 10 reads), then click 'Encrypt & Generate Link'. The decryption key stays in the URL hash fragment and is never sent to the server.",
-                },
-              },
-              {
-                "@type": "Question",
-                name: "Is ProtectedShare a good alternative to ProtectedText?",
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: "Yes. ProtectedShare offers stronger encryption (AES-256-GCM vs. AES-256-CBC), a modern mobile-friendly interface, self-destructing notes, .env file sharing, and an offline-first encrypted notepad — all without requiring signup or accounts.",
-                },
-              },
-              {
-                "@type": "Question",
-                name: "What happens after someone opens my secret link?",
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: "It depends on your read limit setting. If set to 1 read (burn-after-read), the encrypted data is permanently deleted from the database immediately after the first view. If set to multiple reads (3, 5, or 10), the counter decrements with each view and the data is deleted when it reaches zero.",
-                },
-              },
-            ],
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageJsonLd(HOME_FAQS)) }}
       />
 
       {/* ═══ SECTION 1: HERO ═══ */}
@@ -249,7 +153,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center gap-1 px-3 py-1 rounded border border-zinc-200/30 dark:border-zinc-800/80 bg-zinc-200/50 dark:bg-zinc-800/50 text-[10px] text-zinc-550 dark:text-zinc-400 font-mono w-48 justify-center select-none truncate">
                   <Lock className="w-2.5 h-2.5 text-emerald-500" />
-                  <span>protectedshare.me/s#key=...</span>
+                  <span>protectedshare.me/secrets/…#</span>
                 </div>
                 <div className="w-12" />
               </div>
@@ -317,7 +221,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Secure Notes &amp; Letters</h3>
               <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed mb-6 flex-1">
-                Create password-protected letters and configurations. Send the decryption key separate from the secure link to achieve high-grade two-channel security.
+                Encrypt a letter in the browser. Open it from the link, or send the password on a separate channel.
               </p>
               <AppLink
                 href="/notes"
@@ -469,14 +373,14 @@ export default function HomePage() {
                 </tr>
                 <tr className="border-b border-zinc-150 dark:border-zinc-850">
                   <td className="p-4 font-semibold text-zinc-900 dark:text-white">Password Delivery</td>
-                  <td className="p-4 text-zinc-650 dark:text-zinc-450">Custom/auto, sent via separate channel</td>
+                  <td className="p-4 text-zinc-650 dark:text-zinc-450">In the link, or sent on a separate channel</td>
                   <td className="p-4 text-zinc-650 dark:text-zinc-450">Embedded in link hash (1-click decryption)</td>
                   <td className="p-4 text-zinc-650 dark:text-zinc-450">User-defined master password (zero-knowledge)</td>
                 </tr>
                 <tr className="border-b border-zinc-150 dark:border-zinc-850">
                   <td className="p-4 font-semibold text-zinc-900 dark:text-white">Persistence</td>
                   <td className="p-4 text-zinc-650 dark:text-zinc-450">Timed expiration (Optional Burn)</td>
-                  <td className="p-4 text-zinc-650 dark:text-zinc-450">Self-destructs after 1-10 reads</td>
+                  <td className="p-4 text-zinc-650 dark:text-zinc-450">Deletes after 1 to 100 reads, or when it expires</td>
                   <td className="p-4 text-zinc-650 dark:text-zinc-450">Cloud-synced vault (persists until deleted)</td>
                 </tr>
                 <tr>
@@ -607,42 +511,9 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-4">
-            <FaqItem
-              question="Is ProtectedShare really free?"
-              answer="Yes, 100% free with no signup, no accounts, and no usage limits. Create unlimited encrypted notes, share .env files, start secure chatrooms, and generate self-destructing secret links at zero cost."
-            />
-            <FaqItem
-              question="How does the Encrypted Chatroom work?"
-              answer="Our chatrooms use client-side AES-256-GCM encryption. The room ID and password you use to join are embedded in your browser URL's hash fragment (#), which means they are never sent to our servers. We just store the encrypted message blobs, making it mathematically impossible for us to read your chats."
-            />
-            <FaqItem
-              question="What is the difference between Secure Notes and EnvShare?"
-              answer="Secure Notes is designed for high-security, 2-channel sharing (you send the note link via one app like Slack, and the password via another like SMS or Signal). EnvShare is built for quick 1-click sharing of code/dotenv files where the decryption key is embedded in the link's hash fragment (e.g. #password) so the recipient doesn't need to manually copy-paste passwords."
-            />
-            <FaqItem
-              question="How is this different from EnvShare?"
-              answer="ProtectedShare includes all EnvShare features (AES-256 encrypted .env sharing with configurable TTL and read limits) plus: encrypted notes with separate password delivery, an offline-first encrypted notepad, dark/light mode, and a mobile-optimized interface. EnvShare is no longer actively maintained."
-            />
-            <FaqItem
-              question="Can the server read my secrets?"
-              answer="No. Your data is encrypted with AES-256-GCM entirely in your browser before being sent to the server. For the Encrypted Notepad, usernames are hashed client-side using SHA-256 before transit so we don't know who owns which notepad, and passwords are never transmitted. The encryption keys never leave your device, making it cryptographically impossible for anyone — including hosts and administrators — to decrypt your data."
-            />
-            <FaqItem
-              question="Is this a good ProtectedText alternative?"
-              answer="Yes. ProtectedShare offers stronger encryption (AES-256-GCM), a modern mobile-friendly interface, self-destructing notes, .env file sharing, and an encrypted notepad — all without accounts."
-            />
-            <FaqItem
-              question="Is ProtectedShare a secret sharing website?"
-              answer="Yes. ProtectedShare is built for sharing secrets, notes, API keys, and .env files through encrypted links that can expire or self-destruct after a set number of reads."
-            />
-            <FaqItem
-              question="How do I share API keys securely?"
-              answer="Go to the EnvShare page, paste your API keys or .env file, choose an expiration time and read limit, then click 'Encrypt & Generate Link'. The decryption key stays in the URL hash fragment and is never sent to the server."
-            />
-            <FaqItem
-              question="What happens after someone opens my link?"
-              answer="It depends on your read limit. If set to 1 read (burn-after-read), the data is permanently deleted after the first view. With multiple reads (3, 5, or 10), the counter decrements and deletes at zero."
-            />
+            {HOME_FAQS.map((item) => (
+              <FaqItem key={item.question} question={item.question} answer={item.answer} />
+            ))}
           </div>
         </div>
       </section>

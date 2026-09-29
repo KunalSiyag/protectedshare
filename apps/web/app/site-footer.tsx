@@ -12,6 +12,7 @@ const comparisonLinks = [
   { href: "/vs/protectedtext", label: "ProtectedText Alternative" },
   { href: "/vs/privnote", label: "Privnote Alternative" },
   { href: "/vs/envshare", label: "EnvShare Alternative" },
+  { href: "/vs/onetimesecret", label: "OneTimeSecret Alternative" },
 ] as const;
 
 const guideLinks = [
@@ -44,8 +45,8 @@ export default function SiteFooter() {
             <li className="flex items-start gap-2">
               <span className="text-blue-600 dark:text-emerald-500 font-mono mt-0.5">-</span>
               <span className="text-zinc-600 dark:text-zinc-400">
-                <strong className="text-zinc-900 dark:text-zinc-200 font-medium">Secure notes:</strong> send the link and
-                password on separate channels.
+                <strong className="text-zinc-900 dark:text-zinc-200 font-medium">Secure notes:</strong> open from the
+                link, or send the password on a separate channel.
               </span>
             </li>
           </ul>

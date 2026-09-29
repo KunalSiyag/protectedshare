@@ -1,12 +1,10 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Terms of Service",
-  description: "Review the terms and conditions for using the ProtectedShare zero-knowledge sharing utility.",
-  alternates: {
-    canonical: "https://protectedshare.me/terms",
-  },
-};
+  description: "Terms for using ProtectedShare to encrypt and share notes, secrets, notepad vaults, and chat messages.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

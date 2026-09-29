@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { decrypt, derivePasswordProof } from "@protectedshare/crypto";
 import type { GetSecretResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@protectedshare/ui";
 import { Loader2, AlertTriangle, KeySquare, Copy, Check } from "lucide-react";
 import { apiUrl } from "../../../lib/api";
+import { decryptForShare, proofForShare } from "../../../lib/crypto-task";
 import { copyText, describeRequestFailure, readApiError } from "../../../lib/feedback";
+import { passwordFromLocationHash } from "../../../lib/share-window";
 
 export default function SecretsByIdPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -14,11 +15,14 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [awaitingHash, setAwaitingHash] = useState(true);
+  const [readsLeft, setReadsLeft] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
 
   const unlockSecret = async (passwordInput: string) => {
     if (!passwordInput.trim()) {
       setError("Password is required.");
+      setAwaitingHash(false);
       return;
     }
 
@@ -26,7 +30,7 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
     setError(null);
 
     try {
-      const proof = await derivePasswordProof(passwordInput);
+      const proof = await proofForShare(passwordInput);
       const res = await fetch(apiUrl(`/api/secrets/${unwrappedParams.id}?proof=${encodeURIComponent(proof)}`));
       if (!res.ok) {
         if (res.status === 401) throw new Error("Invalid secret password.");
@@ -35,27 +39,31 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
       }
 
       const data: GetSecretResponse = await res.json();
-      const decryptedContent = await decrypt(
-        data.payload.encryptedBlob,
+      const decryptedContent = await decryptForShare(
         passwordInput,
+        data.payload.encryptedBlob,
         data.payload.iv,
         data.payload.salt
       );
 
+      setReadsLeft(data.remainingReads ?? 0);
       setContent(decryptedContent);
     } catch (caughtError: unknown) {
       setError(describeRequestFailure(caughtError, "Could not open this secret. Try again in a moment."));
       setContent(null);
     } finally {
+      setAwaitingHash(false);
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const hashPassword = window.location.hash.slice(1);
+    const hashPassword = passwordFromLocationHash();
     if (hashPassword) {
       setPassword(hashPassword);
       void unlockSecret(hashPassword);
+    } else {
+      setAwaitingHash(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unwrappedParams.id]);
@@ -88,25 +96,29 @@ export default function SecretsByIdPage({ params }: { params: Promise<{ id: stri
           Decrypted Ephemeral Secret
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Decrypted client-side in your browser. This payload can only be retrieved once.
+          Decrypted in your browser. The server stores only ciphertext.
         </p>
       </div>
 
       <p className="sr-only" role="status">
-        {loading ? "Unlocking secret." : copied ? "Secret copied." : ""}
+        {loading || awaitingHash ? "Unlocking secret." : copied ? "Secret copied." : ""}
       </p>
-      {loading ? (
+      {loading || awaitingHash ? (
         <div className="flex flex-col items-center justify-center p-12 text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-8 w-8 animate-spin mb-4 text-blue-600 dark:text-emerald-500" aria-hidden="true" />
-          <span className="text-sm font-medium">Unlocking secret...</span>
+          <span className="text-sm font-medium">Opening secret…</span>
         </div>
       ) : content ? (
         <div className="space-y-6">
           <div className="rounded-lg bg-amber-500/[0.04] p-4 border border-amber-500/20 flex flex-col items-center text-center">
             <AlertTriangle className="h-5 w-5 text-amber-500 mb-2" />
-            <h3 className="text-sm font-bold text-amber-600 dark:text-amber-500">Secret Permanently Destroyed</h3>
-            <p className="mt-1 text-xs text-zinc-650 dark:text-zinc-400 leading-normal">
-              This secret has been wiped from the database. It cannot be recovered or re-accessed.
+            <h3 className="text-sm font-bold text-amber-600 dark:text-amber-500">
+              {readsLeft === 0 ? "Secret deleted" : `${readsLeft} ${readsLeft === 1 ? "read" : "reads"} left`}
+            </h3>
+            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
+              {readsLeft === 0
+                ? "This was the last allowed open. The secret has been deleted from the database."
+                : "The secret is still on the server until those reads are used or it expires."}
             </p>
           </div>
 

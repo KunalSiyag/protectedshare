@@ -1,22 +1,14 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { BLOG_POSTS } from "../../lib/blog";
+import JsonLd from "../../components/json-ld";
+import { itemListJsonLd, pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Security & Cryptographic Guides Blog",
+export const metadata = pageMetadata({
+  title: "Secure Note Sharing Guides",
   description:
-    "Secure note-sharing guides, zero-knowledge encryption explainers, .env file tips, and privacy-focused comparisons.",
-  alternates: {
-    canonical: "https://protectedshare.me/blog",
-  },
-  openGraph: {
-    title: "Security & Cryptographic Guides Blog",
-    description:
-      "Secure note-sharing guides, zero-knowledge encryption explainers, .env file tips, and privacy-focused comparisons.",
-    url: "https://protectedshare.me/blog",
-    type: "website",
-  },
-};
+    "Guides on browser-side encryption, burn-after-read secrets, .env sharing, and expiring links.",
+  path: "/blog",
+});
 
 export default function BlogIndexPage() {
   const posts = [...BLOG_POSTS].sort(
@@ -25,6 +17,11 @@ export default function BlogIndexPage() {
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-12 md:py-20">
+      <JsonLd
+        data={itemListJsonLd(
+          posts.map((post) => ({ name: post.title, path: `/blog/${post.slug}` })),
+        )}
+      />
       <div className="max-w-3xl">
         <p className="text-xs font-mono uppercase tracking-[0.24em] text-blue-600 dark:text-emerald-400 mb-4">
           Security Blog
@@ -65,6 +62,9 @@ export default function BlogIndexPage() {
             </Link>
             <Link href="/vs/envshare" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
               EnvShare alternative
+            </Link>
+            <Link href="/vs/onetimesecret" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
+              OneTimeSecret alternative
             </Link>
             <Link href="/chat" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:border-blue-400 dark:hover:border-emerald-400 hover:text-blue-600 dark:hover:text-emerald-400 transition-colors">
               Anonymous encrypted chatroom

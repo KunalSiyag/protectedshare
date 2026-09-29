@@ -7,6 +7,6 @@ export const contentType = "image/png";
 export default function Image() {
   return makeOgImage(
     "Secure Encrypted Notes",
-    "Share passwords and sensitive messages with zero-knowledge AES-256-GCM encryption. Burn-after-read supported."
+    "Open a note from the link, or keep the password separate. Expiry up to 30 days."
   );
 }

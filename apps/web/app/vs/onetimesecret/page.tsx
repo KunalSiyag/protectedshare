@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Breadcrumb } from "../../../components/breadcrumb";
 
 export const metadata: Metadata = {
-  title: "Best Free OneTimeSecret Alternative (Zero-Knowledge) — ProtectedShare",
+  title: "Best Free OneTimeSecret Alternative",
   description:
     "Why ProtectedShare is a strong OneTimeSecret alternative. Browser-side AES-256-GCM encryption, expiring links, configurable read limits, .env sharing, an encrypted notepad, and an anonymous chatroom — all free, no signup.",
   keywords: [
@@ -35,6 +36,7 @@ export default function OneTimeSecretComparisonPage() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12 md:py-20 transition-colors duration-300">
       <div className="mb-10 text-center">
+        <Breadcrumb items={[{ name: "Home", path: "/" }, { name: "OneTimeSecret alternative", path: "/vs/onetimesecret" }]} />
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-[1.15]">
           The best free <span className="text-blue-600 dark:text-emerald-400">OneTimeSecret</span> alternative
         </h1>
@@ -157,9 +159,8 @@ export default function OneTimeSecretComparisonPage() {
               </summary>
               <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
                 Both tools deliver links that expire, but ProtectedShare encrypts your secret in the browser before upload,
-                so the server never holds readable content. You also get configurable read limits (1&ndash;10), flexible
-                expiration windows, developer-focused .env sharing, an encrypted notepad, and an anonymous chatroom &mdash;
-                all free with no accounts.
+                so the server never holds readable content. You also get 1 to 100 reads, an expiry up to 30 days,
+                .env sharing, an encrypted notepad, and an anonymous chatroom, with no account required.
               </div>
             </details>
 
@@ -205,7 +206,7 @@ export default function OneTimeSecretComparisonPage() {
                   name: "What makes ProtectedShare a good OneTimeSecret alternative?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Both tools deliver links that expire, but ProtectedShare encrypts your secret in the browser before upload, so the server never holds readable content. You also get configurable read limits (1-10), flexible expiration windows, developer-focused .env sharing, an encrypted notepad, and an anonymous chatroom - all free with no accounts.",
+                    text: "Both tools deliver links that expire, but ProtectedShare encrypts your secret in the browser before upload, so the server stores ciphertext. You also get 1 to 100 reads, an expiry up to 30 days, .env sharing, an encrypted notepad, and an anonymous chatroom, with no account required.",
                   },
                 },
                 {
@@ -228,6 +229,14 @@ export default function OneTimeSecretComparisonPage() {
             }),
           }}
         />
+
+        <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center font-mono">
+          <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>
+          <Link href="/vs/privnote" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs Privnote</Link>
+          <Link href="/vs/protectedtext" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs ProtectedText</Link>
+          <Link href="/vs/envshare" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs EnvShare</Link>
+          <Link href="/" className="hover:underline">Home</Link>
+        </div>
       </div>
     </main>
   );

@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+/** Shortest lifetime the share forms will send. */
+export const MIN_SHARE_TTL_SECONDS = 5 * 60;
+
+/** Longest lifetime a note or secret may live. */
+export const MAX_SHARE_TTL_SECONDS = 30 * 24 * 60 * 60;
+
 export const HealthCheckSchema = z.object({
   status: z.literal("ok")
 });

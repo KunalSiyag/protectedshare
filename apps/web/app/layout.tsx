@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import AppShell from "./app-shell";
 import JsonLd from "../components/json-ld";
-import { organizationJsonLd, websiteJsonLd } from "../lib/seo";
+import { DEFAULT_DESCRIPTION, organizationJsonLd, websiteJsonLd } from "../lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     default: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     template: "%s | ProtectedShare",
   },
-  description: "AES-256 encrypted notes, .env sharing (EnvShare), and self-destructing secret links. Zero-knowledge, no signup, no tracking.",
+  description: DEFAULT_DESCRIPTION,
   keywords: [
     "zero-knowledge",
     "secure note sharing",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://protectedshare.me",
     title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
-    description: "AES-256 encrypted notes, .env sharing, and burn-after-read secrets. Free forever, no accounts, no tracking.",
+    description: DEFAULT_DESCRIPTION,
     siteName: "ProtectedShare",
     images: [
       {
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
-    description: "AES-256 encrypted notes, .env sharing, and burn-after-read secrets. Free forever, no accounts.",
+    description: DEFAULT_DESCRIPTION,
     creator: "@ProtectedShare",
     images: ["/og-image.jpg"],
   },

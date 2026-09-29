@@ -17,7 +17,8 @@ import {
   type ChatMessageResponse,
   type UpdateChatPresenceRequest,
   UpdateChatPresenceRequestSchema,
-  type GetChatPresenceResponse
+  type GetChatPresenceResponse,
+  MAX_SHARE_TTL_SECONDS
 } from "@protectedshare/contracts";
 
 type Bindings = {
@@ -221,6 +222,16 @@ function normalizeExpiresAt(expiresAt: number): number {
   return expiresAt;
 }
 
+function rejectShareExpiry(expiresAt: number, createdAt: number): Response | null {
+  if (expiresAt <= createdAt) {
+    return jsonError("expiresAt must be in the future.", "INVALID_EXPIRES_AT", 400);
+  }
+  if (expiresAt - createdAt > MAX_SHARE_TTL_SECONDS) {
+    return jsonError("Expiration can be at most 30 days from now.", "EXPIRES_AT_TOO_FAR", 400);
+  }
+  return null;
+}
+
 const MAX_ID_RETRIES = 10;
 
 function createId(size = 5): string {
@@ -321,10 +332,8 @@ app.post("/api/notes", async (c) => {
   const request: CreateNoteRequest = parsed.data;
   const createdAt = nowEpochSeconds();
   const expiresAt = normalizeExpiresAt(request.expiresAt);
-
-  if (expiresAt <= createdAt) {
-    return jsonError("expiresAt must be in the future.", "INVALID_EXPIRES_AT", 400);
-  }
+  const expiryError = rejectShareExpiry(expiresAt, createdAt);
+  if (expiryError) return expiryError;
 
   let noteId: string;
   try {
@@ -466,10 +475,8 @@ app.post("/api/secrets", async (c) => {
   const createdAt = nowEpochSeconds();
   const expiresAt = normalizeExpiresAt(request.expiresAt);
   const maxReads = request.maxReads ?? 1;
-
-  if (expiresAt <= createdAt) {
-    return jsonError("expiresAt must be in the future.", "INVALID_EXPIRES_AT", 400);
-  }
+  const expiryError = rejectShareExpiry(expiresAt, createdAt);
+  if (expiryError) return expiryError;
 
   let secretId: string;
   try {

@@ -1,13 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "About Us",
-  description: "Learn about the mission, philosophy, and technology behind ProtectedShare's zero-knowledge security suite.",
-  alternates: {
-    canonical: "https://protectedshare.me/about",
-  },
-};
+export const metadata = pageMetadata({
+  title: "About",
+  description: "What ProtectedShare is for: handing off an encrypted note, .env file, or one-time secret without an account.",
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

@@ -7,6 +7,6 @@ export const contentType = "image/png";
 export default function Image() {
   return makeOgImage(
     "Share .env Files & API Keys Securely",
-    "Client-side AES-256-GCM encryption with read limits and auto-destruction. The key stays in the URL hash."
+    "1 to 100 reads. Expiry up to 30 days. The password stays in the link hash."
   );
 }

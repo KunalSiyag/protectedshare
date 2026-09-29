@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { decrypt, derivePasswordProof } from "@protectedshare/crypto";
 import type { GetNoteResponse } from "@protectedshare/contracts";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@protectedshare/ui";
 import { Loader2, AlertTriangle, ShieldCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { apiUrl } from "../../../lib/api";
+import { decryptForShare, proofForShare } from "../../../lib/crypto-task";
 import { describeRequestFailure, readApiError } from "../../../lib/feedback";
+import { passwordFromLocationHash } from "../../../lib/share-window";
 
 export default function NotesByIdPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -15,11 +16,13 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [awaitingHash, setAwaitingHash] = useState(true);
   const [isBurn, setIsBurn] = useState(false);
 
   const unlockNote = async (passwordInput: string) => {
     if (!passwordInput.trim()) {
       setError("Password is required.");
+      setAwaitingHash(false);
       return;
     }
 
@@ -27,7 +30,7 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
     setError(null);
 
     try {
-      const proof = await derivePasswordProof(passwordInput);
+      const proof = await proofForShare(passwordInput);
       const res = await fetch(apiUrl(`/api/notes/${unwrappedParams.id}?proof=${encodeURIComponent(proof)}`));
       if (!res.ok) {
         if (res.status === 401) throw new Error("Invalid password.");
@@ -38,9 +41,9 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
       const data: GetNoteResponse = await res.json();
       setIsBurn(data.isBurnAfterRead);
 
-      const decryptedContent = await decrypt(
-        data.payload.encryptedBlob,
+      const decryptedContent = await decryptForShare(
         passwordInput,
+        data.payload.encryptedBlob,
         data.payload.iv,
         data.payload.salt
       );
@@ -50,15 +53,18 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
       setError(describeRequestFailure(caughtError, "Could not open this note. Try again in a moment."));
       setContent(null);
     } finally {
+      setAwaitingHash(false);
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const hashPassword = window.location.hash.slice(1);
+    const hashPassword = passwordFromLocationHash();
     if (hashPassword) {
       setPassword(hashPassword);
       void unlockNote(hashPassword);
+    } else {
+      setAwaitingHash(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unwrappedParams.id]);
@@ -79,11 +85,11 @@ export default function NotesByIdPage({ params }: { params: Promise<{ id: string
         </p>
       </div>
 
-      <p className="sr-only" role="status">{loading ? "Decrypting note." : ""}</p>
-      {loading ? (
+      <p className="sr-only" role="status">{loading || awaitingHash ? "Decrypting note." : ""}</p>
+      {loading || awaitingHash ? (
         <div className="flex flex-col items-center justify-center p-16 text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-8 w-8 animate-spin mb-3 text-blue-600 dark:text-emerald-500" aria-hidden="true" />
-          <span className="text-sm font-medium">Deriving cryptographic keys &amp; decrypting...</span>
+          <span className="text-sm font-medium">Opening note…</span>
         </div>
       ) : content ? (
         <div className="space-y-6">

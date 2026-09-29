@@ -1,21 +1,12 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "../../lib/seo";
 
-export const metadata: Metadata = {
-  title: "Deploy ProtectedShare",
+export const metadata = pageMetadata({
+  title: "Self-Host on Cloudflare",
   description:
-    "Deploy the ProtectedShare web package from GitHub Container Registry and the backend Cloudflare Worker separately for a fully self-hosted setup.",
-  alternates: {
-    canonical: "https://protectedshare.me/self-host",
-  },
-  openGraph: {
-    title: "Deploy ProtectedShare",
-    description:
-      "Deploy the ProtectedShare web package from GitHub Container Registry and the backend Cloudflare Worker separately for a fully self-hosted setup.",
-    url: "https://protectedshare.me/self-host",
-    type: "website",
-  },
-};
+    "Run the ProtectedShare web app from GitHub Container Registry and the API as a Cloudflare Worker with D1.",
+  path: "/self-host",
+});
 
 const webPackageUrl =
   "https://github.com/kunalsiyag/protectedshare/pkgs/container/protectedshare-web";

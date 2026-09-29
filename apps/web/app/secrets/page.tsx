@@ -3,18 +3,18 @@ import SecretsClient from "./secrets-client";
 
 export const metadata: Metadata = {
   title: "EnvShare — Share .env Files & API Keys Securely",
-  description: "Share your environment variables (.env files) and API keys securely with developer-friendly client-side AES-256-GCM encryption. Set read limits and auto-destruction.",
+  description: "Share a .env file or API key. The password stays in the link hash. Choose 1 to 100 reads and an expiry up to 30 days. Encrypted in the browser with AES-256-GCM.",
   alternates: {
     canonical: "https://protectedshare.me/secrets",
   },
   openGraph: {
     title: "EnvShare — Share .env Files & API Keys Securely — ProtectedShare",
-    description: "Share your environment variables (.env files) and API keys securely with developer-friendly client-side AES-256-GCM encryption.",
+    description: "Share a .env file or API key. The password stays in the link hash. Choose 1 to 100 reads and an expiry up to 30 days. Encrypted in the browser with AES-256-GCM.",
     url: "https://protectedshare.me/secrets",
   },
   twitter: {
     title: "EnvShare — Share .env Files & API Keys Securely — ProtectedShare",
-    description: "Share your environment variables (.env files) and API keys securely with developer-friendly client-side AES-256-GCM encryption.",
+    description: "Share a .env file or API key. The password stays in the link hash. Choose 1 to 100 reads and an expiry up to 30 days. Encrypted in the browser with AES-256-GCM.",
   },
 };
 

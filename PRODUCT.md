@@ -10,7 +10,7 @@ web
 
 The primary user is a person handing a secret to someone else without creating an account. The secret is a password, a private note, or a developer credential such as an API key or `.env` file. They are at a browser, often on a short deadline, and they need a link the other person can open.
 
-The recipient is the other half of that job. They have the link, and for a Secure Note they also have a password that arrived through a second channel. They decrypt in their own browser.
+The recipient is the other half of that job. They have the link. A Secure Note opens from that link when the password is in the URL hash, or they type a password that arrived separately. An EnvShare link always carries the password in the hash. They decrypt in their own browser.
 
 Two more tools sit on the same promise. Someone can keep an encrypted notepad in the browser, and optionally sync the ciphertext. Someone can open an anonymous chat room and exchange encrypted messages with people who have the room password. An operator can self-host the web app and the API. An organization can ask, through the contact form, about a dedicated instance. That ask is not a checkout.
 
@@ -24,13 +24,13 @@ The public site is [protectedshare.me](https://protectedshare.me). The repositor
 
 The mechanism is client-side AES-256-GCM. The passphrase is stretched with PBKDF2 (210,000 iterations, SHA-256) in the browser. The server stores the ciphertext, IV, and salt, plus a password proof it can check. It does not store the passphrase or the plaintext.
 
-Secure Notes keep the passphrase off the link so the sender can pass it through a second channel. EnvShare puts the passphrase in the URL hash, which the browser does not send to the server, and deletes the row after a chosen number of reads. The encrypted notepad and the chat room use the same browser encryption for contents that should outlive a single link.
+A Secure Note can keep the passphrase off the link, for a second channel, or place it in the URL hash so the link opens the note. EnvShare always puts the passphrase in the URL hash, which the browser does not send to the server, and deletes the row after a chosen number of reads. The encrypted notepad and the chat room use the same browser encryption for contents that should outlive a single link.
 
 That combination is the position: one open-source web app for an account-free handoff, a burnable credential link, a private notepad, and a password-gated chat room. Comparison pages against EnvShare, Privnote, ProtectedText, and OneTimeSecret are marketing pages in the app. They are not an audit of those products.
 
 ## Operating Context
 
-A sender opens Secure Notes or EnvShare, types the secret, sets an expiry, and encrypts it locally. Notes expire after 1 hour, 1 day, or 7 days, with an optional burn-after-read. EnvShare expires after 1 hour, 24 hours, or 7 days, and allows 1, 3, 5, or 10 reads. The sender copies a link. For a note, they also copy a password. For EnvShare, the password rides in the hash.
+A sender opens Secure Notes or EnvShare, types the secret, sets an expiry, and encrypts it locally. Expiry is 1 hour, 1 day, 7 days, or a custom date at most 30 days out. Notes can burn after the first open. EnvShare allows 1 to 100 reads. The sender copies a link. A note link can include the password, or the password can be copied separately. EnvShare always puts the password in the hash.
 
 The recipient opens the link. The decrypt page uses a hash passphrase when one is present, otherwise they type it. Decryption runs locally. Burn-after-read and a spent read count delete the database row.
 
