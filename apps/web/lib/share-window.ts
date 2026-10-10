@@ -56,3 +56,28 @@ export function passwordFromLocationHash(): string {
 export function withPasswordHash(url: string, password: string): string {
   return `${url}#${encodeURIComponent(password)}`;
 }
+
+/** v2 fragments look like `#k=<key>` (plus other `&name=value` pairs). */
+export function readFragmentParams(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const raw = window.location.hash.slice(1);
+  if (!raw.includes("=")) return {};
+  const params: Record<string, string> = {};
+  for (const part of raw.split("&")) {
+    const [name, ...rest] = part.split("=");
+    if (!name) continue;
+    try {
+      params[name] = decodeURIComponent(rest.join("="));
+    } catch {
+      params[name] = rest.join("=");
+    }
+  }
+  return params;
+}
+
+export function withFragmentParams(url: string, params: Record<string, string>): string {
+  const fragment = Object.entries(params)
+    .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
+    .join("&");
+  return fragment ? `${url}#${fragment}` : url;
+}

@@ -1,60 +1,109 @@
+import type { ReactNode } from "react";
+import { cn } from "@protectedshare/ui";
+import { MetaDot, PageHeader, proseClassName } from "../../components/marketing";
 import { pageMetadata } from "../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Terms of Service",
-  description: "Terms for using ProtectedShare to encrypt and share notes, secrets, notepad vaults, and chat messages.",
+  description:
+    "Terms for using ProtectedShare to encrypt and share notes, secrets, files, requests, notepad vaults and chat messages.",
   path: "/terms",
 });
 
+const EMAIL = "admin@protectedshare.me";
+
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section id={id} className="border-t border-line pt-8 first:border-t-0 first:pt-0">
+      <h2 className="!mt-0">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 export default function TermsPage() {
   return (
-    <main className="max-w-3xl mx-auto px-6 py-12 md:py-20 text-zinc-800 dark:text-zinc-300">
-      <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-6">Terms of Service</h1>
-      <p className="text-xs text-zinc-500 mb-8 font-mono">Last Updated: June 2026</p>
+    <main className="w-full">
+      <PageHeader
+        eyebrow="Legal"
+        title="Terms of service"
+        lead="Plain terms for a free tool. Use it lawfully, keep your own keys, and know that we can't recover what we can't read."
+        meta={
+          <>
+            <span>Last updated October 10, 2026</span>
+            <MetaDot />
+            <span>Applies to protectedshare.me</span>
+          </>
+        }
+      />
 
-      <div className="space-y-6 text-sm leading-relaxed">
-        <section className="space-y-2">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">1. Acceptance of Terms</h2>
+      <article className={cn(proseClassName, "mt-12 flex flex-col gap-10")}>
+        <Section id="agreement" title="Using ProtectedShare">
           <p>
-            By accessing and using ProtectedShare, you agree to comply with and be bound by these Terms of Service. If you do not agree to these terms, please do not access or use our services.
+            By using protectedshare.me you agree to these terms. If you don&apos;t agree, please don&apos;t use the hosted
+            service. The source code is MIT licensed; if you run your own copy, the license governs the code and you set
+            your own terms.
           </p>
-        </section>
+        </Section>
 
-        <section className="space-y-2">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">2. Description of Service</h2>
+        <Section id="service" title="What the service is">
           <p>
-            ProtectedShare provides free browser-side encrypted tools (Secure Notes, EnvShare, and Offline Notepad) for sharing and local drafting of text payloads. The service is provided &quot;as is&quot; with no operational guarantees.
+            ProtectedShare is a set of free browser tools: secure notes, EnvShare, file drop, secret requests, chat, an
+            encrypted notepad, a password generator and an offline text encryptor. Encryption happens in your browser. The
+            server stores ciphertext and the metadata described in our <a href="/privacy">privacy policy</a>.
           </p>
-        </section>
+          <p>
+            Limits apply and may change: shares expire within 30 days, file drops are capped at 25 MB, and chat messages
+            are removed when a room empties. Don&apos;t use ProtectedShare as the only place you keep anything you need to
+            keep.
+          </p>
+        </Section>
 
-        <section className="space-y-2">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">3. User Conduct &amp; Prohibitions</h2>
+        <Section id="keys" title="Your keys are your responsibility">
           <p>
-            You agree to use this service only for lawful purposes. You are strictly prohibited from using the service to store or transmit illegal material, malware, or coordinate cyberattacks. Since all data is encrypted in the browser, users are solely responsible for all content they submit.
+            Links and passwords are the only way to open what you share. We never receive them, so we can&apos;t reset,
+            recover or resend them. Anyone who has a full link (or the link and its password) can open the share until it
+            expires or runs out of reads. Send links to the right people, through channels you trust.
           </p>
-        </section>
+        </Section>
 
-        <section className="space-y-2">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">4. Disclaimer of Warranties</h2>
+        <Section id="acceptable-use" title="Acceptable use">
+          <p>Don&apos;t use ProtectedShare to store or send:</p>
+          <ul>
+            <li>anything illegal where you or the recipient are, including child sexual abuse material</li>
+            <li>malware, or material meant to break into or disrupt other people&apos;s systems</li>
+            <li>content that harasses, threatens or exploits someone, or that you have no right to share</li>
+          </ul>
           <p>
-            We provide our platform without warranties of any kind, whether express or implied. We do not guarantee that the service will be uninterrupted, error-free, or fully secure against unknown cryptographic breakthroughs.
+            This applies to file drops in particular. We can&apos;t see what&apos;s inside an encrypted file, but if we
+            receive a credible report that includes the share id, we will delete it, and we may block abuse of the service,
+            such as automated bulk uploads. Report problems to <a href={`mailto:${EMAIL}`}>{EMAIL}</a> with the id, not the
+            full link.
           </p>
-        </section>
+        </Section>
 
-        <section className="space-y-2">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">5. Limitation of Liability</h2>
+        <Section id="availability" title="Availability">
           <p>
-            In no event shall ProtectedShare, its creators, or administrators be liable for any direct, indirect, incidental, special, or consequential damages arising out of your use of or inability to use this platform.
+            The service is free and provided as is. We try to keep it running, but it may be slow, unavailable or changed
+            without notice. Shares can be lost if something fails, and we may remove features.
           </p>
-        </section>
+        </Section>
 
-        <section className="space-y-2">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">6. Amendments to Terms</h2>
+        <Section id="warranty" title="No warranty, limited liability">
           <p>
-            We reserve the right to modify these terms at any time. Your continued use of the website following any changes signals your acceptance of the updated terms.
+            We provide ProtectedShare without warranties of any kind. We don&apos;t promise it is free of bugs or that its
+            cryptography will hold against every future attack. To the extent the law allows, we aren&apos;t liable for
+            indirect or consequential losses, or for loss of data, arising from your use of the service.
           </p>
-        </section>
-      </div>
+        </Section>
+
+        <Section id="changes" title="Changes">
+          <p>
+            We may update these terms. When we do, the date at the top changes. If you keep using the service after that,
+            the new terms apply. Questions go to <a href={`mailto:${EMAIL}`}>{EMAIL}</a>.
+          </p>
+        </Section>
+      </article>
     </main>
   );
 }

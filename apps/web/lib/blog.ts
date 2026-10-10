@@ -584,7 +584,7 @@ Add an expiration and a read limit, and a shared config stops being a permanent 
       "What separates a genuinely encrypted notepad from a lock icon, plus the features worth checking before you trust one with private notes.",
     category: "Buyer Guide",
     publishedAt: "2026-07-16",
-    updatedAt: "2026-07-16",
+    updatedAt: "2026-10-10",
     readingTime: "4 min read",
     content: `## Not all encrypted notepads encrypt
 
@@ -596,7 +596,7 @@ That distinction is the single most important thing to verify. Look for a clear 
 
 Before committing to any free encrypted notepad, check five things: client-side encryption, no mandatory account, offline access, markdown support for structured writing, and multi-device sync that still keeps the server blind.
 
-[ProtectedShare's encrypted notepad](/notepad) checks all five: it works offline-first in your browser, encrypts locally, requires zero registration, renders markdown, and syncs encrypted vaults across devices. Because it runs alongside secret sharing and .env tools, you can draft privately and share securely without switching products.`,
+[ProtectedShare's encrypted notepad](/notepad) checks these boxes: in local mode the encrypted vault stays in your browser with no registration at all, it renders markdown, and it can export a note as a self-decrypting HTML file that opens offline. If you want multi-device sync, you pick a username and password; the server stores only the encrypted vault and a hash of the username. Because it runs alongside secret sharing and .env tools, you can draft privately and share securely without switching products.`,
   },
   {
     slug: "anonymous-chat-room-no-signup-how-it-works",
@@ -605,7 +605,7 @@ Before committing to any free encrypted notepad, check five things: client-side 
       "How signup-free encrypted chat rooms operate, where the keys live, and what makes a temporary chat genuinely private.",
     category: "Privacy",
     publishedAt: "2026-07-23",
-    updatedAt: "2026-07-23",
+    updatedAt: "2026-10-10",
     readingTime: "4 min read",
     content: `## Why no-signup chat exists
 
@@ -615,9 +615,9 @@ No-signup chat rooms solve this by making identity optional. You open a URL, sha
 
 ## Where the encryption happens
 
-The important detail is who can read the messages. In a well-built anonymous chat, encryption happens in the browser using a key derived from the room address itself. Messages reach the server only as encrypted blobs that relay to other participants.
+The important detail is who can read the messages. In a well-built anonymous chat, encryption happens in the browser using a key carried in the invite link, after the \`#\`, which browsers do not send to the server. Messages reach the server only as encrypted blobs that relay to other participants.
 
-Because the key never leaves the participants' browsers, even the operator cannot follow the conversation. Combine that with ephemeral storage, where messages disappear rather than accumulate, and the chat room becomes a space that is private by architecture instead of by promise.`,
+Because the key never leaves the participants' browsers, the operator cannot read the conversation. It can still see that a room exists, when messages arrive and how many people are present, so a good service says so plainly. Combine that with ephemeral storage, where messages are deleted once everyone leaves rather than accumulating, and the chat room becomes a space that is private by architecture instead of by promise.`,
   },
   {
     slug: "password-manager-vs-one-time-secret-link",

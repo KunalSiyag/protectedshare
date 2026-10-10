@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps } from "react";
 
-const HEAVY_TOOL_PREFIXES = ["/notes", "/secrets", "/notepad", "/chat"] as const;
+const HEAVY_TOOL_PREFIXES = ["/notes", "/secrets", "/notepad", "/chat", "/files", "/request", "/tools/encrypt-text"] as const;
 
 function isHeavyToolHref(href: ComponentProps<typeof Link>["href"]): boolean {
   const path = typeof href === "string" ? href : href.pathname ?? "";

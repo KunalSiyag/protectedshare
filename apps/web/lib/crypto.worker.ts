@@ -1,4 +1,15 @@
-import { decrypt, derivePasswordProof, encrypt, type EncryptedPayload } from "@protectedshare/crypto";
+import {
+  decrypt,
+  deriveAuthToken,
+  derivePasswordProof,
+  encrypt,
+  openText,
+  sealText,
+  type EncryptedPayload,
+  type KdfMode,
+  type SealedV2,
+  type SecretInput,
+} from "@protectedshare/crypto";
 
 type SealRequest = { id: number; op: "seal"; plaintext: string; password: string };
 type ProofRequest = { id: number; op: "proof"; password: string };
@@ -10,7 +21,10 @@ type DecryptRequest = {
   iv: string;
   salt: string;
 };
-type RequestMessage = SealRequest | ProofRequest | DecryptRequest;
+type SealV2Request = { id: number; op: "sealV2"; plaintext: string; secret: SecretInput };
+type OpenV2Request = { id: number; op: "openV2"; payload: SealedV2; secret: SecretInput };
+type AuthV2Request = { id: number; op: "authV2"; secret: SecretInput; salt: string; kdf: KdfMode };
+type RequestMessage = SealRequest | ProofRequest | DecryptRequest | SealV2Request | OpenV2Request | AuthV2Request;
 
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<RequestMessage>) => void) | null;
@@ -24,6 +38,24 @@ scope.onmessage = async (event) => {
       const payload: EncryptedPayload = await encrypt(message.plaintext, message.password);
       const passwordProof = await derivePasswordProof(message.password);
       scope.postMessage({ id: message.id, ok: true, payload, passwordProof });
+      return;
+    }
+
+    if (message.op === "sealV2") {
+      const sealed = await sealText(message.plaintext, message.secret);
+      scope.postMessage({ id: message.id, ok: true, sealed });
+      return;
+    }
+
+    if (message.op === "openV2") {
+      const plaintext = await openText(message.payload, message.secret);
+      scope.postMessage({ id: message.id, ok: true, plaintext });
+      return;
+    }
+
+    if (message.op === "authV2") {
+      const authToken = await deriveAuthToken(message.secret, message.salt, message.kdf);
+      scope.postMessage({ id: message.id, ok: true, authToken });
       return;
     }
 

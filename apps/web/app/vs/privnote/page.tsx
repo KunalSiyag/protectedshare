@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Breadcrumb } from "../../../components/breadcrumb";
+import ComparisonPage, { PS, type ComparisonRow, type Faq } from "../comparison";
+
+const DESCRIPTION =
+  "Privnote vs ProtectedShare, compared honestly: browser-side AES-256-GCM encryption, self-destructing links, read limits, .env sharing, encrypted file drops, open source, no signup and no ads.";
 
 export const metadata: Metadata = {
   title: "Best Free Privnote Alternative (Zero-Knowledge)",
-  description:
-    "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
+  description: DESCRIPTION,
   keywords: [
     "Privnote alternative",
     "privnote alternatives",
@@ -23,197 +24,112 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
-    description: "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
+    description: DESCRIPTION,
     url: "https://protectedshare.me/vs/privnote",
   },
   twitter: {
     card: "summary_large_image",
     title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
-    description: "Why ProtectedShare is the best free alternative to Privnote. Zero-knowledge client-side AES-256-GCM encryption, self-destructing links, .env file sharing, and no signup or ads.",
+    description: DESCRIPTION,
   },
 };
 
+const rows: ComparisonRow[] = [
+  {
+    feature: "Encrypts in your browser before upload",
+    them: { status: "unknown", note: "Not covered in the sources we checked" },
+    us: PS.browserCrypto,
+  },
+  { feature: "Self-destructs after reading", them: { status: "yes" }, us: PS.burn },
+  { feature: "Expires after a set time", them: { status: "yes", note: "Optional, instead of on reading" }, us: PS.expiry },
+  { feature: "Allow a set number of reads", them: { status: "no", note: "One read, or a timer" }, us: PS.readCount },
+  { feature: "Separate password", them: { status: "yes", note: "Optional manual password" }, us: PS.separatePassword },
+  {
+    feature: "Know when it was read",
+    them: { status: "yes", note: "Email notice when the note is destroyed" },
+    us: PS.receipts,
+  },
+  { feature: "Encrypted file sharing", them: { status: "no" }, us: PS.files },
+  { feature: "Ask someone to send you a secret", them: { status: "no" }, us: PS.request },
+  { feature: "Open source and self-hostable", them: { status: "no", note: "No public source we could find" }, us: PS.openSource },
+  { feature: "Works without an account", them: { status: "yes" }, us: PS.noAccount },
+];
+
+const faqs: Faq[] = [
+  {
+    q: "What makes ProtectedShare a good Privnote alternative?",
+    a: "It covers the same one-time note, and adds what Privnote doesn't: a read count from 1 to 100 for credentials, encrypted file drops up to 25 MB, secret requests, and an open-source codebase you can self-host. Encryption runs in your browser with AES-256-GCM, and there are no ads.",
+  },
+  {
+    q: "Is Privnote end-to-end encrypted?",
+    a: "We don't make claims about how Privnote encrypts; check their own documentation. For ProtectedShare, your browser encrypts the note before upload and the key travels in the part of the link after #, which browsers don't send to servers. The server stores ciphertext and a hash it can check, never the key.",
+  },
+  {
+    q: "Does ProtectedShare log my IP address?",
+    a: "We don't write IP addresses into our database. Cloudflare, which hosts the API, sees IP addresses and keeps request logs like any web host. Shares are deleted when they're read out, revoked or expire. The privacy page lists everything that's stored.",
+  },
+];
+
 export default function PrivnoteComparisonPage() {
   return (
-    <main className="max-w-3xl mx-auto px-6 py-12 md:py-20 transition-colors duration-300">
-      <div className="mb-10 text-center">
-        <Breadcrumb items={[{ name: "Home", path: "/" }, { name: "Privnote alternative", path: "/vs/privnote" }]} />
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 leading-[1.15]">
-          The best free <span className="text-blue-600 dark:text-emerald-400">Privnote</span> alternative
-        </h1>
-        <p className="mt-4 text-base text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-xl mx-auto">
-          Compare Privnote and ProtectedShare side-by-side. Discover why modern developers choose zero-knowledge browser-based encryption without ads or accounts.
-        </p>
-      </div>
-
-      <div className="overflow-x-auto border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl bg-white/40 dark:bg-zinc-900/10 mb-12">
-        <table className="w-full text-xs text-left border-collapse">
-          <thead>
-            <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-900/40">
-              <th className="p-4 font-semibold text-zinc-700 dark:text-zinc-300">Feature</th>
-              <th className="p-4 font-semibold text-zinc-700 dark:text-zinc-300">Privnote</th>
-              <th className="p-4 font-semibold text-blue-600 dark:text-emerald-400">ProtectedShare</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
-              <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Encryption Method</td>
-              <td className="p-4 text-zinc-600 dark:text-zinc-400">Server-side decryption option / AES</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">AES-256-GCM browser-side (Zero-Knowledge)</td>
-            </tr>
-            <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
-              <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Advertising &amp; Trackers</td>
-              <td className="p-4 text-zinc-600 dark:text-zinc-400">❌ Yes (heavy display ads)</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ 100% Ad-Free &amp; No Cookies</td>
-            </tr>
-            <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
-              <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Environment File (.env) Sharing</td>
-              <td className="p-4 text-zinc-600 dark:text-zinc-400">❌ No</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ Yes (EnvShare built-in)</td>
-            </tr>
-            <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
-              <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Offline-first Notepad</td>
-              <td className="p-4 text-zinc-600 dark:text-zinc-400">❌ No</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ Yes (local browser-encrypted storage)</td>
-            </tr>
-            <tr className="border-b border-zinc-200/60 dark:border-zinc-800/60">
-              <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Configurable Read Limits</td>
-              <td className="p-4 text-zinc-600 dark:text-zinc-400">❌ 1 read only</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ 1 to 100 reads</td>
-            </tr>
-            <tr>
-              <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">Required Sign-Up</td>
-              <td className="p-4 text-zinc-600 dark:text-zinc-400">✅ No signup</td>
-              <td className="p-4 text-zinc-900 dark:text-zinc-100 font-medium">✅ No signup (fully anonymous)</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div className="space-y-8 text-left">
-        <div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-3">Why browser-side encryption matters</h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Most self-destructing link services like Privnote decrypt the content on their servers or store keys on their backend database. 
-            ProtectedShare uses a **Zero-Knowledge** architecture: all encryption and decryption happens inside your browser using JavaScript's Web Crypto API. The decryption key remains in the URL hash fragment (the part after the `#` symbol), which is never sent to the network or stored in our database. If our database is ever breached, your secrets remain mathematically impossible to read.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-3">No ads, no trackers, pure privacy</h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Unlike legacy tools that monetize via display ads and cookies, ProtectedShare is completely free, open-source, and does not run any analytics trackers or display ads. Your session is completely anonymous.
-          </p>
-        </div>
-
-        <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-50">Ready to share securely?</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Choose your tool and get started instantly.</p>
-          </div>
-          <div className="flex gap-3 shrink-0">
-            <Link
-              href="/notes"
-              className="px-4 py-2.5 rounded-lg bg-blue-600 dark:bg-white text-white dark:text-zinc-900 font-semibold text-xs hover:bg-blue-700 dark:hover:bg-zinc-100 transition-colors shadow-sm"
-            >
-              Secure Notes
-            </Link>
-            <Link
-              href="/secrets"
-              className="px-4 py-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors"
-            >
-              EnvShare
-            </Link>
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">Frequently Asked Questions</h2>
-          <div className="space-y-4 text-sm leading-relaxed">
-            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
-              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
-                What makes ProtectedShare a good Privnote alternative?
-                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </summary>
-              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
-                ProtectedShare provides client-side zero-knowledge encryption using the browser Web Crypto API. Unlike older tools like Privnote, which can run intrusive display ads and third-party trackers, ProtectedShare is 100% open-source, runs zero tracking scripts or cookies, and supports advanced developer features like EnvShare (.env configuration sharing).
-              </div>
-            </details>
-
-            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
-              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
-                Is Privnote really end-to-end encrypted?
-                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </summary>
-              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
-                While legacy services claim encryption, many perform decryption on their servers or require the key to be sent to their backends. ProtectedShare performs AES-256-GCM encryption client-side, storing the decryption key in the browser's URL hash (after the `#` symbol), ensuring that not even the hosting server can read your secret.
-              </div>
-            </details>
-
-            <details className="group border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white/40 dark:bg-zinc-900/10 overflow-hidden shadow-sm hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300">
-              <summary className="flex items-center justify-between cursor-pointer px-4 py-3.5 font-bold text-zinc-700 dark:text-zinc-300 select-none hover:bg-zinc-55/50 dark:hover:bg-zinc-900/25 transition-colors">
-                Does ProtectedShare store logs of my IP or secrets?
-                <svg className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </summary>
-              <div className="px-4 pb-4 pt-1 text-xs text-zinc-650 dark:text-zinc-400">
-                No, ProtectedShare operates a zero-tracking model. We do not store IP addresses or connection details, and our database records are set to immediately auto-destruct upon reading or expiration.
-              </div>
-            </details>
-          </div>
-        </div>
-
-        {/* JSON-LD: FAQPage Schema */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              mainEntity: [
-                {
-                  "@type": "Question",
-                  name: "What makes ProtectedShare a good Privnote alternative?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text: "ProtectedShare provides client-side zero-knowledge encryption using the browser Web Crypto API. Unlike older tools like Privnote, which can run intrusive display ads and third-party trackers, ProtectedShare is 100% open-source, runs zero tracking scripts or cookies, and supports advanced developer features like EnvShare (.env configuration sharing).",
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: "Is Privnote really end-to-end encrypted?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text: "While legacy services claim encryption, many perform decryption on their servers or require the key to be sent to their backends. ProtectedShare performs AES-256-GCM encryption client-side, storing the decryption key in the browser's URL hash (after the `#` symbol), ensuring that not even the hosting server can read your secret.",
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: "Does ProtectedShare store logs of my IP or secrets?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text: "No, ProtectedShare operates a zero-tracking model. We do not store IP addresses or connection details, and our database records are set to immediately auto-destruct upon reading or expiration.",
-                  },
-                },
-              ],
-            }),
-          }}
-        />
-
-        <div className="mt-12 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-500 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start font-mono">
-          <span className="text-zinc-700 dark:text-zinc-400 font-semibold">Other Comparisons:</span>
-          <Link href="/vs/onetimesecret" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs OneTimeSecret</Link>
-          <Link href="/vs/protectedtext" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs ProtectedText</Link>
-          <Link href="/vs/envshare" className="hover:underline text-blue-600 dark:text-emerald-400">ProtectedShare vs EnvShare</Link>
-          <Link href="/" className="hover:underline">Home</Link>
-        </div>
-      </div>
-    </main>
+    <ComparisonPage
+      slug="privnote"
+      competitor="Privnote"
+      title="ProtectedShare vs Privnote"
+      lead="Both send a note that disappears after it's read. ProtectedShare encrypts in your browser, lets you choose how many reads a secret gets, handles files, and is open source."
+      rows={rows}
+      sources={[
+        { label: "privnote.com", href: "https://privnote.com" },
+        {
+          label: "a public how-to guide",
+          href: "https://help.stalbansdiocese.org/how-can-i-securely-share-information-like-a-password-with-somebody-else",
+        },
+      ]}
+      differences={[
+        {
+          title: "You can check where encryption happens",
+          body: (
+            <>
+              <p>
+                ProtectedShare encrypts the note in your browser with AES-256-GCM. The key rides in the link after{" "}
+                <code>#k=</code>, which browsers don&apos;t send to the server, or you choose a password and send it
+                separately. The server keeps ciphertext and a hash it can check before releasing it.
+              </p>
+              <p>
+                Because the code is public, you don&apos;t have to take that on trust. The{" "}
+                <a href="/security" className="font-medium text-ink underline decoration-line-strong underline-offset-[3px]">
+                  security page
+                </a>{" "}
+                describes exactly what is sent.
+              </p>
+            </>
+          ),
+        },
+        {
+          title: "More than a one-time note",
+          body: (
+            <p>
+              Credentials often need a second look during setup, so EnvShare lets a secret survive 1 to 100 reads. File
+              drop encrypts files up to 25 MB with a download limit. Secret request flips the direction: you send someone
+              a link, and what they type comes back encrypted to a key only you hold.
+            </p>
+          ),
+        },
+        {
+          title: "No ads",
+          body: (
+            <p>
+              The hosted site shows no ads and the app sets no cookies. If Google Analytics is turned on for the site, the
+              privacy page says so.
+            </p>
+          ),
+        },
+      ]}
+      whenThem={[
+        "You want an email when the note is destroyed, without keeping anything on your own device.",
+        "The person you're sending to already knows Privnote and trusts it.",
+      ]}
+      faqs={faqs}
+    />
   );
 }

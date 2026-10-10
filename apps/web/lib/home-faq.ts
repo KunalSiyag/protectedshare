@@ -1,47 +1,52 @@
 export const HOME_FAQS = [
   {
-    question: "Is ProtectedShare really free?",
+    question: "Can ProtectedShare read what I send?",
     answer:
-      "Yes. Creating a note, an EnvShare secret, a notepad, or a chat room does not require an account. The public site does not show a price.",
+      "No. Notes, EnvShare secrets, files, requests and chat messages are encrypted in your browser with AES-256-GCM before anything is sent. The server stores ciphertext and a hash it uses to check that a reader holds the key. The key itself is in the part of the link after #, which browsers don't send to servers. Like every web app that encrypts in the browser, you are trusting the JavaScript the site serves; the code is open source so you can check it or run your own copy.",
   },
   {
-    question: "How does the encrypted chatroom work?",
+    question: "What is the #k= part of the link?",
     answer:
-      "A room has an id and a password. Messages are encrypted in the browser with AES-256-GCM before they are stored. People join with the room password.",
-  },
-  {
-    question: "What is the difference between Secure Notes and EnvShare?",
-    answer:
-      "Secure Notes can open from the link, with the password in the URL hash, or you can keep the password off the link and send it on another channel. EnvShare always puts the password in the hash. You choose how many times that link can be opened, from 1 to 100.",
-  },
-  {
-    question: "How is this different from EnvShare?",
-    answer:
-      "The EnvShare page shares a .env file or API key with browser-side AES-256-GCM, an expiry up to 30 days, and 1 to 100 reads. The same site also has secure notes, an encrypted notepad, and an anonymous chatroom.",
-  },
-  {
-    question: "Can the server read my secrets?",
-    answer:
-      "The server stores ciphertext, the IV, and the salt, plus a password proof it can check. It does not store the passphrase or the plaintext. Decryption runs in the recipient's browser.",
-  },
-  {
-    question: "Is this a good ProtectedText alternative?",
-    answer:
-      "ProtectedShare encrypts in the browser with AES-256-GCM, and it adds expiring notes, .env sharing, a notepad, and a chat room. You can open it without creating an account.",
-  },
-  {
-    question: "Is ProtectedShare a secret sharing website?",
-    answer:
-      "Yes. It is built for sharing a secret, a note, an API key, or a .env file through an encrypted link that expires, and an EnvShare link can also stop after a set number of reads.",
-  },
-  {
-    question: "How do I share API keys securely?",
-    answer:
-      "Open EnvShare, paste the keys or .env file, pick 1 hour, 1 day, 7 days, or a custom time up to 30 days, and set the read count from 1 to 100. The password stays in the link hash and is not sent to the server.",
+      "It's the 256-bit key that decrypts your share. Anyone with the full link can open it, so send it the way you'd send a key. If you'd rather the link alone not be enough, the Secure Note tool can use a separate password instead, or both.",
   },
   {
     question: "What happens after someone opens my link?",
     answer:
-      "A Secure Note stays until it expires, unless burn after reading is on, which deletes it on the first open. An EnvShare secret loses one read each time it is opened and is deleted when the count reaches zero or the expiry passes.",
+      "A burn-after-reading note is deleted from the database on the read that opens it. An EnvShare secret loses one read each time and is deleted at zero. A file drop uses one download as soon as a download starts; the server counts it, and cancelling doesn't give it back. When the last download finishes, the drop is deleted. Anything left is deleted at its expiry, which is at most 30 days; a cleanup job runs every 30 minutes and expired links are refused before then.",
+  },
+  {
+    question: "Can a link preview in Slack or iMessage burn my note?",
+    answer:
+      "Previews fetch the page without the part after #, so they don't have the key and can't produce the token the server asks for before it hands over a note. The note page also waits for the recipient to choose to open it.",
+  },
+  {
+    question: "Can I tell whether my link was opened?",
+    answer:
+      "Yes, from the browser that created it. Links you make are listed in My links, kept only in that browser. Each one holds a manage token that lets you see the status, the read count and when it was first and last opened, or revoke it; the token is sent only for those two things. For a file drop, opened means a download started. The server keeps that receipt, with no content, until 30 days after the link expires.",
+  },
+  {
+    question: "How do I share API keys or a .env file safely?",
+    answer:
+      "Open EnvShare, paste the keys or the whole file, pick an expiry up to 30 days and how many times it can be read, from 1 to 100. Send the link. When the last read happens, the row is deleted.",
+  },
+  {
+    question: "How big a file can I send?",
+    answer:
+      "Up to 25 MB per drop, across one or more files. Files are encrypted in 1 MiB chunks in your browser. File names and types are encrypted too; the server only sees the total encrypted size and the number of chunks.",
+  },
+  {
+    question: "Is it free? Do I need an account?",
+    answer:
+      "It's free and there are no accounts. There is no paid plan on the hosted site. Organizations that want a separate deployment can ask about a dedicated instance.",
+  },
+  {
+    question: "Can I host it myself?",
+    answer:
+      "Yes. The code is MIT licensed on GitHub. The API runs on Cloudflare Workers with a D1 database, and the web app runs on any Node host or from the Docker image ghcr.io/kunalsiyag/protectedshare-web.",
+  },
+  {
+    question: "How is this different from Privnote or OneTimeSecret?",
+    answer:
+      "The same job, one-time secrets that expire, done with the key in the link fragment so our server never receives it. It also covers .env files with read limits, file drops, secret requests, an encrypted chat room and a notepad. The comparison pages go through the differences one by one.",
   },
 ] as const;

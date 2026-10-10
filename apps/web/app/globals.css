@@ -1,21 +1,270 @@
+/* Sealed design system. Tokens below; components in packages/ui and apps/web/components. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/*
+ * "Sealed" design tokens.
+ * Colors are RGB channel triplets so Tailwind opacity modifiers work: bg-ink/5, ring-seal/40.
+ * Light is the default. `.dark` (on <html> or any ancestor) switches to dark; `.light` forces light
+ * inside a dark ancestor. Seal (vermilion) is reserved for: the brand mark, sealed/encrypted state
+ * chips, burn markers, the active nav/step indicator and the focus ring.
+ */
+:root,
+.light {
   color-scheme: light;
+  --bg: 246 247 247;
+  --surface: 255 255 255;
+  --surface-2: 238 240 240;
+  --line: 223 227 227;
+  --line-strong: 198 205 205;
+  --ink: 10 15 15;
+  --ink-2: 62 71 71;
+  --ink-3: 108 119 119;
+  --on-ink: 255 255 255;
+  --seal: 232 71 15;
+  --ok: 17 128 76;
+  --warn: 161 92 0;
+  --danger: 196 43 28;
+  --soft-a: 0.1;
+  --danger-soft-a: 0.08;
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -8px rgb(0 0 0 / 0.12);
+  --shadow-header: 0 1px 0 rgb(0 0 0 / 0.02), 0 6px 16px -10px rgb(0 0 0 / 0.12);
 }
 
-:root.dark {
+.dark {
   color-scheme: dark;
+  --bg: 11 13 13;
+  --surface: 18 21 21;
+  --surface-2: 25 29 29;
+  --line: 37 42 42;
+  --line-strong: 52 59 59;
+  --ink: 242 244 244;
+  --ink-2: 179 188 188;
+  --ink-3: 125 136 136;
+  --on-ink: 10 15 15;
+  --seal: 255 107 54;
+  --ok: 60 203 127;
+  --warn: 240 176 72;
+  --danger: 255 122 107;
+  --soft-a: 0.14;
+  --danger-soft-a: 0.12;
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.6);
+  --shadow-header: 0 1px 0 rgb(0 0 0 / 0.2), 0 8px 20px -12px rgb(0 0 0 / 0.6);
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: #09090b;
-  color: #f4f4f5;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+/* Elements that set their own tokens also need their own text color so inheritance follows. */
+.light,
+.dark {
+  color: rgb(var(--ink-2));
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: rgb(var(--bg));
+    color: rgb(var(--ink-2));
+    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-feature-settings: "ss01" 0, "cv11" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: rgb(var(--ink));
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: rgb(var(--ink) / 0.14);
+    color: rgb(var(--ink));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--seal) / 0.55);
+    outline-offset: 2px;
+  }
+
+  /* Tailwind ring utilities replace the outline on components that opt in. */
+  .focus-ring:focus-visible {
+    outline: none;
+  }
+
+  [id] {
+    scroll-margin-top: 80px;
+  }
+
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    opacity: 0.55;
+    cursor: pointer;
+  }
+
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+}
+
+@layer components {
+  /* 12px uppercase label above headings and field groups. Sans, not mono. */
+  .eyebrow {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--ink-3));
+  }
+
+  .display {
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1.02;
+    text-wrap: balance;
+    color: rgb(var(--ink));
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hairline divider that disappears into the canvas at both ends. */
+  .rule {
+    height: 1px;
+    background: rgb(var(--line));
+  }
+}
+
+@layer utilities {
+  .ease-seal {
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Motion primitives. Every one is disabled by prefers-reduced-motion below. */
+@keyframes ps-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ps-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ps-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ps-sheet {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* The seal lands: slightly oversized, then pressed flat. */
+@keyframes ps-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.35) rotate(-14deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.94) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes ps-ring {
+  from {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@keyframes ps-flash {
+  from {
+    background-color: rgb(var(--seal) / 0.12);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.animate-fade-in {
+  animation: ps-fade-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-rise {
+  animation: ps-rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-drop {
+  animation: ps-drop 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: top center;
+}
+
+.animate-sheet {
+  animation: ps-sheet 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-stamp {
+  animation: ps-stamp 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-ring {
+  animation: ps-ring 700ms cubic-bezier(0.2, 0.8, 0.2, 1) 180ms both;
+}
+
+.animate-flash {
+  animation: ps-flash 600ms ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -23,10 +272,21 @@ body {
     scroll-behavior: auto;
   }
 
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+
   .animate-pulse,
   .animate-ping,
   .animate-bounce,
+  .animate-spin,
+  .animate-ring,
   .animate-in {
-    animation: none;
+    animation: none !important;
   }
 }

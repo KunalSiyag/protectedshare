@@ -1,54 +1,55 @@
+import { cn } from "@protectedshare/ui";
 import { checkPasswordStrength } from "../lib/password";
-import { Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 
-export function PasswordStrengthIndicator({ password }: { password: string }) {
+const TONE_TEXT = {
+  danger: "text-danger",
+  warn: "text-warn",
+  ok: "text-ok",
+} as const;
+
+/**
+ * Four-segment strength meter with a label and up to two tips.
+ * Color is never the only signal: the label says it in words.
+ */
+export function PasswordStrengthIndicator({
+  password,
+  className,
+  id,
+}: {
+  password: string;
+  className?: string;
+  /** Lets an input point at this with aria-describedby. */
+  id?: string;
+}) {
   if (!password) return null;
 
-  const { score, label, color, suggestions } = checkPasswordStrength(password);
+  const { score, label, tone, color, entropyBits, suggestions } = checkPasswordStrength(password);
+  const filled = Math.max(1, score);
 
   return (
-    <div className="mt-2 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-      <div className="flex items-center justify-between text-[11px] font-semibold">
-        <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-          {score >= 3 ? (
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-          ) : score >= 2 ? (
-            <Shield className="h-3.5 w-3.5 text-yellow-500" />
-          ) : (
-            <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
-          )}
-          <span>Password Strength:</span>
-        </span>
-        <span
-          className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-mono tracking-wider text-white ${color}`}
-        >
-          {label}
-        </span>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="grid grid-cols-4 gap-1 h-1.5 w-full bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden">
-        {[1, 2, 3, 4].map((step) => {
-          const active = score >= step;
-          return (
-            <div
+    <div id={id} className={cn("flex flex-col gap-1.5", className)}>
+      <div className="flex items-center gap-3">
+        <div aria-hidden="true" className="grid flex-1 grid-cols-4 gap-1">
+          {[1, 2, 3, 4].map((step) => (
+            <span
               key={step}
-              className={`h-full rounded-full transition-all duration-300 ${
-                active ? color : "bg-zinc-200 dark:bg-zinc-800"
-              }`}
+              className={cn(
+                "h-1 rounded-full transition-colors duration-200 ease-seal",
+                step <= filled ? color : "bg-line"
+              )}
             />
-          );
-        })}
-      </div>
-
-      {/* Suggestions */}
-      {suggestions.length > 0 && (
-        <ul className="text-[10px] text-zinc-500 dark:text-zinc-500 space-y-0.5 list-disc pl-3.5 leading-normal">
-          {suggestions.map((s, idx) => (
-            <li key={idx}>{s}</li>
           ))}
-        </ul>
-      )}
+        </div>
+        <p className="shrink-0 text-meta text-ink-3" aria-live="polite">
+          <span className={cn("font-medium", TONE_TEXT[tone])}>{label}</span>
+          <span className="tabular"> · ~{entropyBits} bits</span>
+        </p>
+      </div>
+      {suggestions.length > 0 && score < 3 ? (
+        <p className="text-meta text-ink-3">{suggestions.join(" ")}</p>
+      ) : null}
     </div>
   );
 }
+
+export default PasswordStrengthIndicator;

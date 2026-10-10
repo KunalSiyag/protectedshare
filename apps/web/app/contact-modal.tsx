@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
-import { Loader2, CheckCircle2, AlertCircle, X, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CircleCheck, X } from "lucide-react";
+import { Button, Field, Input, Textarea } from "@protectedshare/ui";
 import { apiUrl } from "../lib/api";
 import { describeRequestFailure, readApiError } from "../lib/feedback";
 import ModalDialog from "../components/modal-dialog";
+import AppLink from "../components/app-link";
 
 type ContactModalProps = {
   isOpen: boolean;
   onClose: () => void;
 };
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
   const [name, setName] = useState("");
@@ -18,35 +21,39 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
   const [company, setCompany] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
-  // Reset state on close
   useEffect(() => {
     if (!isOpen) {
       setName("");
       setEmail("");
       setCompany("");
       setMessage("");
-      setSuccess(false);
+      setSentTo(null);
       setError(null);
+      setEmailError(null);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim() || !message.trim()) return;
+  const canSubmit = Boolean(name.trim() && email.trim() && message.trim());
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canSubmit) return;
 
     const trimmedEmail = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError("Enter a valid email address so we can reply.");
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      setEmailError("Enter a valid email so we can reply.");
       return;
     }
 
     setLoading(true);
     setError(null);
+    setEmailError(null);
 
     try {
       const res = await fetch(apiUrl("/api/inquiries"), {
@@ -64,7 +71,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
         throw new Error(await readApiError(res, "Could not send your message. Try again in a moment."));
       }
 
-      setSuccess(true);
+      setSentTo(trimmedEmail);
     } catch (caughtError: unknown) {
       setError(describeRequestFailure(caughtError, "Could not send your message. Try again in a moment."));
     } finally {
@@ -75,139 +82,116 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
   return (
     <ModalDialog
       titleId="contact-dialog-title"
-      descriptionId={success ? undefined : "contact-dialog-description"}
-      focusToken={success ? "success" : "form"}
+      descriptionId="contact-dialog-description"
+      focusToken={sentTo ? "success" : "form"}
       onClose={onClose}
-      panelClassName="relative w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101]"
+      panelClassName="relative w-full max-w-[520px] max-h-[calc(100dvh-2rem)] animate-rise overflow-y-auto rounded-panel border border-line bg-surface shadow-float"
     >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-          aria-label="Close dialog"
-        >
-          <X className="h-4 w-4" />
-        </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="focus-ring absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-control text-ink-3 transition-colors duration-150 hover:bg-ink/[0.05] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seal/45"
+        aria-label="Close"
+      >
+        <X aria-hidden="true" className="size-4" />
+      </button>
 
-        {!success ? (
-          <>
-            <CardHeader className="pb-4 border-b border-zinc-100 dark:border-zinc-900">
-              <div className="flex items-center gap-2 text-blue-600 dark:text-emerald-500 mb-1">
-                <Sparkles className="h-5 w-5" />
-                <span className="text-xs uppercase font-mono tracking-wider font-bold">Isolated Clusters</span>
-              </div>
-              <CardTitle id="contact-dialog-title" className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
-                Let&apos;s Build a Custom Deal
-              </CardTitle>
-              <p id="contact-dialog-description" className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                Describe your requirements for isolated cloud hardware, on-premises nodes, custom branding, or high-volume API access keys.
-              </p>
-            </CardHeader>
-
-            <CardContent className="pt-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label htmlFor="inquiry-name" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Name *</label>
-                    <Input
-                      id="inquiry-name"
-                      name="name"
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Jane Doe"
-                      autoComplete="name"
-                      className="h-10 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="inquiry-email" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Email *</label>
-                    <Input
-                      id="inquiry-email"
-                      name="email"
-                      type="email"
-                      required
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="jane@company.com"
-                      className="h-10 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="inquiry-company" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Company (Optional)</label>
-                  <Input
-                    id="inquiry-company"
-                    name="company"
-                    type="text"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    placeholder="Acme Corp"
-                    autoComplete="organization"
-                    className="h-10 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="inquiry-message" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Requirements / Message *</label>
-                  <Textarea
-                    id="inquiry-message"
-                    name="message"
-                    required
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Enter what custom dedicated capabilities or license packages your team requires..."
-                    rows={4}
-                    className="border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 resize-none text-base"
-                  />
-                </div>
-
-                {error ? (
-                  <div role="alert" className="flex items-start gap-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 p-3 rounded-lg">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span className="break-words">{error}</span>
-                  </div>
-                ) : null}
-
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    disabled={loading || !name.trim() || !email.trim() || !message.trim()}
-                    className="w-full h-11 text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Sending your message…
-                      </>
-                    ) : (
-                      "Submit Business Proposal"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </>
-        ) : (
-          <CardContent className="py-12 flex flex-col items-center justify-center text-center px-6">
-            <div className="p-3 rounded-full bg-blue-50 dark:bg-emerald-500/10 text-blue-600 dark:text-emerald-500 mb-4">
-              <CheckCircle2 className="h-10 w-10" />
-            </div>
-            <h3 id="contact-dialog-title" className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Proposal Logged Successfully</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed">
-              Your inquiry has been stored directly in our secure database. Our administrators will analyze your specifications and reach out shortly.
+      {!sentTo ? (
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="border-b border-line px-5 pb-4 pt-5 pr-12">
+            <p className="eyebrow">Contact</p>
+            <h2 id="contact-dialog-title" className="mt-2 text-[20px] font-semibold leading-7 tracking-[-0.02em] text-ink">
+              Write to us
+            </h2>
+            <p id="contact-dialog-description" className="mt-1.5 text-small text-ink-3">
+              Questions, bug reports, or a dedicated instance for your team. We reply by email.
             </p>
-            <Button
-              onClick={onClose}
-              className="mt-6 w-32 h-10 border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800/80 rounded-lg text-xs"
-            >
-              Close Window
+          </div>
+
+          <div className="flex flex-col gap-4 px-5 py-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Name" htmlFor="inquiry-name">
+                <Input
+                  name="name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  autoComplete="name"
+                />
+              </Field>
+              <Field label="Email" htmlFor="inquiry-email" error={emailError}>
+                <Input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  invalid={Boolean(emailError)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (emailError) setEmailError(null);
+                  }}
+                />
+              </Field>
+            </div>
+
+            <Field label="Company" htmlFor="inquiry-company" optional>
+              <Input
+                name="company"
+                type="text"
+                value={company}
+                onChange={(event) => setCompany(event.target.value)}
+                autoComplete="organization"
+              />
+            </Field>
+
+            <Field label="Message" htmlFor="inquiry-message" hint="Don't paste secrets here. This form is not encrypted end to end.">
+              <Textarea
+                name="message"
+                required
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                rows={5}
+                className="resize-y"
+              />
+            </Field>
+
+            {error ? (
+              <p role="alert" className="rounded-field bg-danger-soft px-3 py-2.5 text-small text-danger">
+                {error}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 rounded-b-panel border-t border-line bg-surface-2/40 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-meta text-ink-3">
+              We store what you send here to reply.{" "}
+              <AppLink href="/privacy#contact" className="underline decoration-line-strong underline-offset-2 hover:text-ink" onClick={onClose}>
+                Privacy
+              </AppLink>
+            </p>
+            <Button type="submit" size="sm" loading={loading} disabled={!canSubmit}>
+              Send message
             </Button>
-          </CardContent>
-        )}
+          </div>
+        </form>
+      ) : (
+        <div className="flex flex-col items-center px-6 py-10 text-center" role="status">
+          <span className="flex size-10 items-center justify-center rounded-full bg-ok-soft text-ok">
+            <CircleCheck aria-hidden="true" className="size-5" strokeWidth={1.75} />
+          </span>
+          <h2 id="contact-dialog-title" className="mt-4 text-[17px] font-semibold tracking-[-0.01em] text-ink">
+            Message sent
+          </h2>
+          <p id="contact-dialog-description" className="mt-1.5 max-w-[36ch] text-small text-ink-3">
+            We&apos;ll reply to <span className="font-medium text-ink-2">{sentTo}</span>.
+          </p>
+          <Button variant="secondary" size="sm" className="mt-6" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      )}
     </ModalDialog>
   );
 }

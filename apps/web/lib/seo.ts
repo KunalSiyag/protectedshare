@@ -4,7 +4,7 @@ export const SITE_URL = "https://protectedshare.me";
 export const SITE_NAME = "ProtectedShare";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.jpg`;
 export const DEFAULT_DESCRIPTION =
-  "Encrypt notes, .env files, and one-time secrets in the browser. Share a link, set an expiry up to 30 days, or limit EnvShare to 1–100 reads. No account required.";
+  "Encrypt passwords, .env files, notes and files in your browser, then share a link. Our server never sees the plaintext or the key. Burn after reading, read limits, no account.";
 
 export function pageMetadata({
   title,
@@ -61,7 +61,7 @@ export function organizationJsonLd() {
       url: `${SITE_URL}/logo.svg`,
     },
     description:
-      "Open-source web app for handing off an encrypted note, .env file, or one-time secret without an account.",
+      "Open-source web app for handing off an encrypted note, .env file, file, or one-time secret without an account.",
     sameAs: ["https://github.com/KunalSiyag/protectedshare"],
     contactPoint: {
       "@type": "ContactPoint",
@@ -97,21 +97,24 @@ export function webApplicationJsonLd() {
     applicationCategory: "SecurityApplication",
     operatingSystem: "Any",
     browserRequirements: "Requires a browser with Web Crypto.",
+    isAccessibleForFree: true,
     offers: {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
     },
     featureList: [
-      "AES-256-GCM encryption in the browser",
-      "Secure notes that open from the link or with a separate password",
-      "EnvShare for .env files and API keys",
-      "Read limits from 1 to 100",
+      "AES-256-GCM encryption in the browser; the key travels in the link fragment",
+      "Secure notes with burn after reading, a link key, a separate password, or both",
+      "EnvShare for .env files and API keys with 1 to 100 reads",
+      "Encrypted file drops up to 25 MB with a download limit",
+      "Secret requests encrypted to the requester's public key (ECDH P-256)",
+      "Encrypted chat rooms with disappearing messages and safety words",
+      "Read receipts and revoke from the browser that created the link",
       "Expiry presets or a custom time up to 30 days",
-      "Optional burn after reading for notes",
-      "Offline-first encrypted notepad",
-      "Anonymous encrypted chatroom",
-      "Open source and self-hostable",
+      "Encrypted notepad with optional ciphertext sync",
+      "Offline password generator and text encryption",
+      "Open source (MIT) and self-hostable on Cloudflare Workers and D1",
     ],
   };
 }

@@ -7,6 +7,6 @@ export const contentType = "image/png";
 export default function Image() {
   return makeOgImage(
     "ProtectedText Alternative",
-    "Stronger AES-256-GCM encryption, self-destructing notes, and a modern interface. Free forever."
+    "AES-256-GCM in the browser, self-destructing notes, and an encrypted notepad. Open source."
   );
 }

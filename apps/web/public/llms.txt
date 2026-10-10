@@ -1,20 +1,33 @@
 # ProtectedShare
 
-> Encrypt a note, a .env file, or a one-time secret in the browser, then share a link. No account required.
+> Encrypt a password, a .env file, a note or files in the browser, then share a link. The decryption key travels in the link fragment (#k=…), which browsers never send to a server. No account required. Free; open source under MIT.
 
 The public site is https://protectedshare.me. The source is https://github.com/KunalSiyag/protectedshare (MIT). Contact: admin@protectedshare.me.
 
 ## Tools
 
-- [Secure Notes](https://protectedshare.me/notes): AES-256-GCM in the browser. The link can open the note, or the password can be copied separately. Expiry is 1 hour, 1 day, 7 days, or a custom time up to 30 days. Burn after reading is optional.
-- [EnvShare](https://protectedshare.me/secrets): share a .env file or API key. The password stays in the URL hash. Choose 1 to 100 reads. Same expiry window as notes.
-- [Encrypted Notepad](https://protectedshare.me/notepad): markdown vault. Local mode stays in the browser. Cloud mode uploads ciphertext.
-- [Anonymous Chatroom](https://protectedshare.me/chat): room id plus password. Messages are ciphertext.
-- [Self-host](https://protectedshare.me/self-host): Next.js web app plus a Cloudflare Worker and D1.
+- [Secure note](https://protectedshare.me/notes): encrypted text. The key goes in the link, or the note uses a separate password, or both. Burn after reading is optional. Expiry 1 hour, 1 day, 7 days, or a custom time up to 30 days.
+- [EnvShare](https://protectedshare.me/secrets): share a .env file or API keys. 1 to 100 reads, expiry up to 30 days. Deleted on the last read.
+- [File drop](https://protectedshare.me/files): encrypted files, up to 25 MB per drop, 1 to 100 downloads, expiry up to 30 days. File names are encrypted too.
+- [Secret request](https://protectedshare.me/request): ask someone to send you a secret. Their reply is encrypted to your public key (ECDH P-256); only your inbox link can open it. One reply.
+- [Chat](https://protectedshare.me/chat): encrypted rooms with disappearing messages and safety words. Messages are purged when everyone leaves.
+- [Notepad](https://protectedshare.me/notepad): encrypted markdown notes, local only or with ciphertext sync. Offline HTML export.
+- [Password generator](https://protectedshare.me/tools/password-generator): passwords and passphrases generated in the browser.
+- [Encrypt text](https://protectedshare.me/tools/encrypt-text): password-encrypt text into a block you can paste anywhere and open offline.
+- [My links](https://protectedshare.me/links): links created in this browser, with read receipts and revoke. Stored only in the browser.
 
-## What the server stores
+## How it works
 
-Ciphertext, IV, and salt, plus a password proof used to authorize a read. The proof is not the decryption key. The URL hash is not sent to the server.
+- AES-256-GCM in the browser. Keys come from HKDF-SHA256 over 32 random bytes (link key) or PBKDF2-SHA256 at 600,000 iterations (password), with a 16-byte random salt per item.
+- The server stores ciphertext, IV, salt, and SHA-256 of a read token derived from the key. It never receives the key, the password or the plaintext.
+- Expired rows are purged every 30 minutes; reads past expiry are refused.
+- Limits of the model: you trust the JavaScript the site serves; anyone with the full link can open the share; Cloudflare (the host) sees IP addresses and request metadata.
+
+Full detail: [Security model](https://protectedshare.me/security).
+
+## Pricing
+
+Free to use at protectedshare.me. Free to self-host (Cloudflare Workers + D1 for the API; the web app on any Node host or the Docker image ghcr.io/kunalsiyag/protectedshare-web). Organizations can ask about a dedicated instance; no list price. See [Pricing](https://protectedshare.me/pricing) and [Self-host](https://protectedshare.me/self-host).
 
 ## Comparisons
 

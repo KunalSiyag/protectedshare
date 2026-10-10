@@ -1,398 +1,517 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { generateRandomPassword } from "@protectedshare/crypto";
-import type { CreateSecretRequest, CreateSecretResponse } from "@protectedshare/contracts";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@protectedshare/ui";
-import { Loader2, Copy, Check, ShieldCheck, Lock, Clock, FileCode2, RefreshCw } from "lucide-react";
-import { apiUrl } from "../../lib/api";
-import { sealForShare } from "../../lib/crypto-task";
-import { copyText, describeRequestFailure, readApiError } from "../../lib/feedback";
+import { useId, useMemo, useRef, useState } from "react";
+import { FileUp, ScanSearch } from "lucide-react";
+import type { CreateSecretV2Request } from "@protectedshare/contracts";
 import {
-  EXPIRY_PRESETS,
-  type ExpiryChoice,
-  formatShareDeadline,
-  resolveExpiresAt,
-  toDatetimeLocal,
-  withPasswordHash,
-} from "../../lib/share-window";
+  Badge,
+  Button,
+  Field,
+  Input,
+  Kbd,
+  Panel,
+  PanelBody,
+  PanelFooter,
+  Segmented,
+  StatusChip,
+  Switch,
+  Textarea,
+  cn,
+} from "@protectedshare/ui";
+import AppLink from "../../components/app-link";
+import ExpiryPicker, { useExpiry } from "../../components/expiry-picker";
+import ServerView from "../../components/server-view";
+import ShareResult from "../../components/share-result";
+import ToolLayout, { ToolNotes } from "../../components/tool-layout";
+import { useToast } from "../../components/toast";
+import { sealTextTask } from "../../lib/crypto-task";
+import { addLink } from "../../lib/my-links";
+import { resolveExpiresAt, withFragmentParams } from "../../lib/share-window";
+import PasswordField from "../notes/_shared/password-field";
+import {
+  ESTIMATED_AUTH_HASH,
+  createManageToken,
+  createShare,
+  describeError,
+  estimatedPayload,
+  toEpochSeconds,
+} from "../notes/_shared/share-client";
+import { useDraftSecrets, useLiveSeal } from "../notes/_shared/use-live-seal";
+import { useModKey } from "../notes/_shared/use-mod-key";
+import { countEnvVars, detectSecretTypes } from "./detect";
 
-const READS_OPTIONS = [
-  { label: "1 read", value: 1 },
-  { label: "3 reads", value: 3 },
-  { label: "5 reads", value: 5 },
-  { label: "10 reads", value: 10 },
+/** The manage token is kept in this browser, but it is sent when you check a receipt or revoke. */
+const MANAGE_TOKEN_LABEL = "Manage token (sent only to check or revoke)";
+
+const MAX_CHARS = 200_000;
+const MAX_FILE_BYTES = 256 * 1024;
+
+type ReadChoice = "1" | "2" | "3" | "5" | "10" | "custom";
+const READ_OPTIONS: { value: ReadChoice; label: string }[] = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "5", label: "5" },
+  { value: "10", label: "10" },
+  { value: "custom", label: "Custom" },
 ];
 
-function countEnvVars(text: string): number {
-  return text
-    .split("\n")
-    .filter((line) => {
-      const trimmed = line.trim();
-      return trimmed.length > 0 && !trimmed.startsWith("#") && trimmed.includes("=");
-    }).length;
+const PLACEHOLDER = `DATABASE_URL=postgres://app:…@db.internal:5432/prod
+STRIPE_SECRET_KEY=sk_live_…
+NEXT_PUBLIC_APP_URL=https://example.com`;
+
+type Result = {
+  url: string;
+  password?: string;
+  expiresAt: number;
+  reads: number;
+  saved: boolean;
+  body: CreateSecretV2Request;
+  key: string;
+  manageToken: string;
+};
+
+function readsLabel(reads: number): string {
+  return reads === 1 ? "Deleted after 1 read" : `Deleted after ${reads} reads`;
 }
 
-const PLACEHOLDER = `DATABASE_URL=postgres://user:pass@host:5432/db
-STRIPE_SECRET_KEY=sk_live_...
-NEXT_PUBLIC_APP_URL=https://yourapp.com
-API_SECRET=your-secret-here`;
-
 export default function SecretsClient() {
-  const [content, setContent]     = useState("");
-  const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>("86400");
-  const [customExpiry, setCustomExpiry] = useState(() => toDatetimeLocal(Date.now() + 24 * 60 * 60 * 1000));
-  const [readIndex, setReadIndex] = useState(0);
-  const [customReads, setCustomReads] = useState(false);
-  const [readCount, setReadCount] = useState("25");
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [shareUrl, setShareUrl]   = useState<string | null>(null);
-  const [shareReads, setShareReads] = useState(1);
-  const [shareDeadline, setShareDeadline] = useState<string | null>(null);
-  const [copied, setCopied]       = useState(false);
+  const uid = useId();
+  const textId = `${uid}-text`;
+  const { toast } = useToast();
+  const modKey = useModKey();
+  const draft = useDraftSecrets();
+  const expiry = useExpiry("86400");
 
-  const varCount = useMemo(() => countEnvVars(content), [content]);
-  const lineCount = useMemo(() => content.split("\n").filter((l) => l.trim()).length, [content]);
+  const [text, setText] = useState("");
+  const [readChoice, setReadChoice] = useState<ReadChoice>("1");
+  const [customReads, setCustomReads] = useState("25");
+  const [withPassword, setWithPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [label, setLabel] = useState("");
+  const [textError, setTextError] = useState<string | undefined>();
+  const [readsError, setReadsError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [fileNote, setFileNote] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!content.trim()) return;
+  const detected = useMemo(() => detectSecretTypes(text), [text]);
+  const varCount = useMemo(() => countEnvVars(text), [text]);
 
-    const expiry = resolveExpiresAt(expiryChoice, customExpiry);
-    if ("error" in expiry) {
-      setError(expiry.error);
+  const reads = readChoice === "custom" ? Number(customReads) : Number(readChoice);
+  const readsValid = Number.isInteger(reads) && reads >= 1 && reads <= 100;
+
+  const secret = { key: draft.key, password: withPassword && password ? password : undefined };
+  const kdf = secret.password ? "key+password" : "key";
+  const preview = useLiveSeal(text, secret);
+
+  const previewExpiry = resolveExpiresAt(expiry.choice, expiry.custom);
+  const outgoing = text
+    ? {
+        payload: preview.sealed?.payload ?? estimatedPayload(text, kdf),
+        authHash: preview.sealed?.authHash ?? (secret.password ? ESTIMATED_AUTH_HASH : "‹sealing…›"),
+        manageTokenHash: draft.manage?.hash ?? "‹creating…›",
+        expiresAt: "expiresAt" in previewExpiry ? toEpochSeconds(previewExpiry.expiresAt) : "‹pick a date›",
+        maxReads: readsValid ? reads : "‹1 to 100›",
+      }
+    : null;
+
+  const localOnly = [
+    { label: "Your secrets", value: text },
+    { label: "Link key (after #)", value: draft.key },
+    ...(secret.password ? [{ label: "Password", value: password }] : []),
+    { label: MANAGE_TOKEN_LABEL, value: draft.manage?.token ?? "" },
+    ...(label.trim() ? [{ label: "Label", value: label.trim() }] : []),
+  ];
+
+  const serverNote = !text ? (
+    "Paste something. This panel shows the exact request body, sealed in this browser."
+  ) : !secret.password ? (
+    "Live: sealed with this draft's key as you type. Creating the link seals it once more with a fresh salt and IV."
+  ) : preview.state === "sealed" ? (
+    "Sealed preview with your key and password. Creating the link seals it once more with a fresh salt and IV."
+  ) : (
+    <>
+      Shape and sizes only. The password takes 600,000 PBKDF2 rounds to stretch, so we don&apos;t run it on every keystroke.{" "}
+      <button
+        type="button"
+        onClick={() => void preview.sealNow()}
+        disabled={preview.state === "sealing"}
+        className="font-medium text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink disabled:text-ink-3 disabled:no-underline"
+      >
+        {preview.state === "sealing" ? "Sealing…" : "Seal a preview now"}
+      </button>
+    </>
+  );
+
+  const loadFile = (file: File | undefined) => {
+    if (!file) return;
+    setFileNote(null);
+    if (file.size > MAX_FILE_BYTES) {
+      setTextError(`That file is ${(file.size / 1024).toFixed(0)} KB. EnvShare takes files up to 256 KB.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = typeof reader.result === "string" ? reader.result : "";
+      if (content.includes("\u0000")) {
+        setTextError("That looks like a binary file. EnvShare is for text: .env files, keys, tokens.");
+        return;
+      }
+      setText(content);
+      setTextError(undefined);
+      setFileNote(`Loaded ${file.name} (${(file.size / 1024).toFixed(1)} KB) from your device. It hasn't been sent anywhere.`);
+      textRef.current?.focus();
+    };
+    reader.onerror = () => setTextError("Couldn't read that file. Try pasting its contents instead.");
+    reader.readAsText(file);
+  };
+
+  const submit = async () => {
+    if (submitting) return;
+    setSubmitError(null);
+    let invalid = false;
+    if (!text.trim()) {
+      setTextError("Paste a secret or open a .env file first.");
+      invalid = true;
+    } else if (text.length > MAX_CHARS) {
+      setTextError(`EnvShare takes up to ${MAX_CHARS.toLocaleString()} characters.`);
+      invalid = true;
+    }
+    if (!readsValid) {
+      setReadsError("Choose a whole number from 1 to 100.");
+      invalid = true;
+    }
+    if (withPassword && password.length < 4) {
+      setPasswordError("Use at least 4 characters, or turn the password off.");
+      invalid = true;
+    }
+    const resolved = expiry.resolve();
+    if ("error" in resolved || invalid) {
+      if (!text.trim()) textRef.current?.focus();
       return;
     }
 
-    const reads = customReads ? Number.parseInt(readCount, 10) : READS_OPTIONS[readIndex].value;
-    if (!Number.isInteger(reads) || reads < 1 || reads > 100) {
-      setError("Reads have to be a whole number from 1 to 100.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setShareUrl(null);
-    setShareDeadline(null);
-
+    setSubmitting(true);
     try {
-      const encryptionPassword = generateRandomPassword(32);
-      const sealed = await sealForShare(content, encryptionPassword);
-
-      const payload: CreateSecretRequest = {
+      const manage = draft.manage ?? (await createManageToken());
+      const sealed = await sealTextTask(text, secret);
+      const body: CreateSecretV2Request = {
         payload: sealed.payload,
-        passwordProof: sealed.passwordProof,
-        expiresAt: expiry.expiresAt,
-        isBurnAfterRead: true,
+        authHash: sealed.authHash,
+        manageTokenHash: manage.hash,
+        expiresAt: toEpochSeconds(resolved.expiresAt),
         maxReads: reads,
       };
-
-      const res = await fetch(apiUrl("/api/secrets"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const id = await createShare("secret", body);
+      const url = withFragmentParams(`${window.location.origin}/secrets/${id}`, { k: draft.key });
+      const saved = addLink({
+        kind: "secret",
+        id,
+        url,
+        manageToken: manage.token,
+        label: label.trim(),
+        createdAt: Date.now(),
+        expiresAt: resolved.expiresAt,
+        maxReads: reads,
       });
-
-      if (!res.ok) {
-        throw new Error(await readApiError(res, "Could not save this secret. Try again in a moment."));
-      }
-
-      const data: CreateSecretResponse = await res.json();
-      setShareReads(reads);
-      setShareDeadline(formatShareDeadline(expiry.expiresAt));
-      setShareUrl(withPasswordHash(`${window.location.origin}/secrets/${data.id}`, encryptionPassword));
-    } catch (err: unknown) {
-      setError(describeRequestFailure(err, "Could not save this secret. Try again in a moment."));
+      setResult({
+        url,
+        password: secret.password,
+        expiresAt: resolved.expiresAt,
+        reads,
+        saved,
+        body,
+        key: draft.key,
+        manageToken: manage.token,
+      });
+      setText("");
+      setFileNote(null);
+    } catch (error) {
+      const message = describeError(error, "Couldn't create the link. Nothing was stored. Try again.");
+      setSubmitError(message);
+      toast({ title: "Couldn't create the link", description: message, tone: "danger" });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleCopy = async () => {
-    if (!shareUrl) return;
-    try {
-      await copyText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err: unknown) {
-      setError(describeRequestFailure(err, "Could not copy. Select the link and copy it manually."));
-    }
+  const reset = () => {
+    setResult(null);
+    setPassword("");
+    setLabel("");
+    setTextError(undefined);
+    setPasswordError(undefined);
+    draft.reset();
+    window.setTimeout(() => textRef.current?.focus(), 0);
   };
 
-  const handleReset = () => {
-    setShareUrl(null);
-    setContent("");
-    setError(null);
-  };
+  const overLimit = text.length > MAX_CHARS;
 
   return (
-    <main className="min-h-full px-4 sm:px-6 py-10 max-w-2xl mx-auto flex flex-col justify-center transition-colors duration-300">
-
-      {/* ─── Page Header ─── */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-emerald-500/10 border border-blue-200/60 dark:border-emerald-500/20">
-            <FileCode2 className="h-4.5 w-4.5 text-blue-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <span className="text-xs font-mono font-bold uppercase tracking-widest text-blue-600 dark:text-emerald-400">EnvShare</span>
-          </div>
-        </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
-          Share <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-emerald-400 dark:to-teal-500">.env Files</span> Securely
-        </h1>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-lg">
-          Paste API keys, database strings, or entire <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">.env</code> files.
-          Encrypted in your browser with AES-256. The link opens the secret, then it is deleted after the reads you allow.
-        </p>
-      </div>
-
-      {!shareUrl ? (
-        <form onSubmit={handleSubmit} className="space-y-4">
-
-          {/* ─── Editor Card ─── */}
-          <div className="relative rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-sm overflow-hidden">
-            {/* Editor title bar */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/80 dark:bg-zinc-900/60">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-green-400/80" />
-              </div>
-              <span className="text-xs font-mono text-zinc-400 dark:text-zinc-600">.env</span>
-              <div className="text-xs text-zinc-400 dark:text-zinc-600 font-mono">
-                {content.trim()
-                  ? varCount > 0
-                    ? <span className="text-blue-500 dark:text-emerald-500 font-semibold">{varCount} variable{varCount !== 1 ? "s" : ""} detected</span>
-                    : <span>{lineCount} line{lineCount !== 1 ? "s" : ""}</span>
-                  : "empty"}
-              </div>
-            </div>
-
-            {/* Textarea */}
-            <label htmlFor="secret-content" className="sr-only">Secret or .env contents</label>
-            <textarea
-              id="secret-content"
-              name="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={PLACEHOLDER}
-              rows={10}
-              required
-              spellCheck={false}
-              autoCapitalize="none"
-              autoCorrect="off"
-              autoComplete="off"
-              className="w-full bg-transparent font-mono text-base text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 resize-none px-4 py-4 focus:outline-none leading-relaxed"
+    <ToolLayout
+      eyebrow="Share"
+      title="EnvShare"
+      description="Send a .env file, an API key or a token. It's sealed in this browser and deleted after the reads you allow."
+      meta={
+        <>
+          <StatusChip tone="seal">Encrypted in your browser</StatusChip>
+          <StatusChip>1 to 100 reads</StatusChip>
+          <AppLink href="/security" className="ml-1 text-small font-medium text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-ink">
+            How it works
+          </AppLink>
+        </>
+      }
+      aside={
+        <>
+          {result ? (
+            <ServerView
+              title="What left this browser"
+              outgoing={result.body}
+              endpoint="POST /api/secrets · sent once"
+              localOnly={[
+                { label: "Link key (after #)", value: result.key },
+                ...(result.password ? [{ label: "Password", value: result.password }] : []),
+                { label: MANAGE_TOKEN_LABEL, value: result.manageToken },
+              ]}
+              note="This is everything the server got. It counts reads and deletes the row after the last one. It can't decrypt anything."
             />
-          </div>
-
-          {/* ─── TTL Picker ─── */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 shrink-0">
-              <Clock className="h-3.5 w-3.5" />
-              Expires after
-            </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Expires after">
-              {EXPIRY_PRESETS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={expiryChoice === opt.value}
-                  onClick={() => setExpiryChoice(opt.value)}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                    expiryChoice === opt.value
-                      ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
-                      : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-              <button
-                type="button"
-                aria-pressed={expiryChoice === "custom"}
-                onClick={() => setExpiryChoice("custom")}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                  expiryChoice === "custom"
-                    ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
-                    : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
-                }`}
-              >
-                Custom
-              </button>
-            </div>
-            {expiryChoice === "custom" ? (
-              <input
-                type="datetime-local"
-                required
-                value={customExpiry}
-                min={toDatetimeLocal(Date.now() + 5 * 60 * 1000)}
-                max={toDatetimeLocal(Date.now() + 30 * 24 * 60 * 60 * 1000)}
-                onChange={(event) => setCustomExpiry(event.target.value)}
-                aria-label="Custom expiration date and time"
-                className="h-11 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-base text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500 dark:focus:border-emerald-500"
-              />
-            ) : null}
-          </div>
-
-          {/* ─── Reads Picker ─── */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 shrink-0">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Burns after
-            </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Burns after">
-              {READS_OPTIONS.map((opt, i) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={!customReads && readIndex === i}
-                  onClick={() => {
-                    setCustomReads(false);
-                    setReadIndex(i);
-                  }}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                    !customReads && readIndex === i
-                      ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
-                      : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-              <button
-                type="button"
-                aria-pressed={customReads}
-                onClick={() => setCustomReads(true)}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                  customReads
-                    ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
-                    : "border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
-                }`}
-              >
-                Custom
-              </button>
-            </div>
-            {customReads ? (
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={100}
-                required
-                value={readCount}
-                onChange={(event) => setReadCount(event.target.value)}
-                aria-label="Number of reads before the secret is deleted"
-                className="h-11 w-24 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-base text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500 dark:focus:border-emerald-500"
-              />
-            ) : null}
-          </div>
-
-          {/* ─── Security badge ─── */}
-          <div className="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-600">
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-emerald-500" />
-            <span>AES-256-GCM · Key stays in the link · Deletes after {customReads ? `${readCount || "0"} reads` : READS_OPTIONS[readIndex].label} · 30 days maximum</span>
-          </div>
-
-          {error && (
-            <p role="alert" className="text-sm text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-3 break-words">
-              {error}
-            </p>
+          ) : (
+            <ServerView outgoing={outgoing} endpoint="POST /api/secrets" localOnly={localOnly} note={serverNote} />
           )}
-          <p role="status" className="sr-only">{loading ? "Encrypting secret." : ""}</p>
-
-          <Button
-            type="submit"
-            disabled={loading || !content.trim()}
-            aria-busy={loading}
-            className="w-full h-11 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            {loading
-              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Encrypting & uploading…</>
-              : <><Lock className="h-4 w-4 mr-2" /> Encrypt & Generate Link</>
-            }
-          </Button>
-        </form>
-
+          <ToolNotes
+            items={[
+              "Each open uses one read. After the last one, the row is deleted from the database.",
+              "The reader clicks Open before a read is used, so link previews don't eat reads.",
+              "Rotate credentials that matter after you share them. A link is a copy.",
+            ]}
+          />
+        </>
+      }
+    >
+      {result ? (
+        <ShareResult
+          url={result.url}
+          password={result.password}
+          passwordHint="Send this another way, like a call or a different app. The link alone won't open it."
+          expiresAt={result.expiresAt}
+          burnLabel={readsLabel(result.reads)}
+          savedToLinks={result.saved}
+          onReset={reset}
+          resetLabel="Share another"
+        />
       ) : (
-        /* ─── Success State ─── */
-        <Card className="border-blue-500/20 dark:border-emerald-500/20 bg-white dark:bg-zinc-950/60 shadow-xl">
-          <CardHeader className="pb-4 border-b border-zinc-100 dark:border-zinc-800">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-emerald-500/10 text-blue-600 dark:text-emerald-400">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                  Encrypted link is ready
-                </CardTitle>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Expires {shareDeadline} · {shareReads === 1 ? "1 read" : `${shareReads} reads`}
+        <Panel>
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                void submit();
+              }
+            }}
+          >
+            <PanelBody className="flex flex-col gap-6 p-5 sm:p-6">
+              <Field
+                label="Secrets"
+                htmlFor={textId}
+                error={textError}
+                labelAction={
+                  <>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      className="sr-only"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      onChange={(event) => {
+                        loadFile(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                    />
+                    <Button type="button" variant="ghost" size="sm" className="-my-1.5 -mr-2 h-8 px-2" onClick={() => fileRef.current?.click()}>
+                      <FileUp aria-hidden="true" />
+                      Open .env file
+                    </Button>
+                  </>
+                }
+              >
+                <div id={`${textId}-wrap`} className="flex flex-col gap-1.5">
+                  <Textarea
+                    ref={textRef}
+                    id={textId}
+                    mono
+                    value={text}
+                    onChange={(event) => {
+                      setText(event.target.value);
+                      setTextError(undefined);
+                    }}
+                    onDragOver={(event) => {
+                      if (event.dataTransfer.types.includes("Files")) {
+                        event.preventDefault();
+                        setDragging(true);
+                      }
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(event) => {
+                      if (event.dataTransfer.files.length) {
+                        event.preventDefault();
+                        setDragging(false);
+                        loadFile(event.dataTransfer.files[0]);
+                      }
+                    }}
+                    placeholder={PLACEHOLDER}
+                    rows={10}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    invalid={Boolean(textError)}
+                    aria-describedby={`${textId}-count${textError ? ` ${textId}-error` : ""}`}
+                    className={cn("min-h-[240px] whitespace-pre text-[13px] leading-[1.7]", dragging && "border-ink-3 ring-[3px] ring-seal/20")}
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-between gap-3 text-meta text-ink-3">
+                    <span>{varCount > 0 ? `${varCount} ${varCount === 1 ? "variable" : "variables"}` : "Paste, or drop a file here"}</span>
+                    <span id={`${textId}-count`} className={cn("tabular", overLimit && "font-medium text-danger")}>
+                      {text.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+                      <span className="sr-only"> characters</span>
+                    </span>
+                  </div>
+                  {fileNote ? <p className="text-meta text-ink-3">{fileNote}</p> : null}
+                  {detected.length > 0 ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5" aria-live="polite">
+                      <span className="mr-0.5 flex items-center gap-1.5 text-meta text-ink-3">
+                        <ScanSearch aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+                        Looks like:
+                      </span>
+                      {detected.map((name) => (
+                        <Badge key={name}>{name}</Badge>
+                      ))}
+                      <span className="text-meta text-ink-3">· checked in this browser, never sent</span>
+                    </div>
+                  ) : null}
+                </div>
+              </Field>
+
+              <div className="flex flex-col gap-1.5">
+                <span id={`${uid}-reads`} className="text-small font-medium text-ink">
+                  Read limit
+                </span>
+                <Segmented
+                  value={readChoice}
+                  onChange={(next) => {
+                    setReadChoice(next);
+                    setReadsError(undefined);
+                  }}
+                  options={READ_OPTIONS}
+                  fullWidth
+                  aria-labelledby={`${uid}-reads`}
+                  aria-describedby={`${uid}-reads-help`}
+                />
+                {readChoice === "custom" ? (
+                  <div className="mt-1 flex animate-fade-in items-center gap-2">
+                    <label htmlFor={`${uid}-custom-reads`} className="sr-only">
+                      Number of reads
+                    </label>
+                    <Input
+                      id={`${uid}-custom-reads`}
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={100}
+                      value={customReads}
+                      onChange={(event) => {
+                        setCustomReads(event.target.value);
+                        setReadsError(undefined);
+                      }}
+                      invalid={Boolean(readsError) || !readsValid}
+                      className="tabular w-28"
+                    />
+                    <span className="text-small text-ink-3">reads, up to 100</span>
+                  </div>
+                ) : null}
+                <p id={`${uid}-reads-help`} className={cn("text-small", readsError ? "text-danger" : "text-ink-3")} role={readsError ? "alert" : undefined}>
+                  {readsError ??
+                    (readsValid
+                      ? reads === 1
+                        ? "Opens once, then it's deleted from the server."
+                        : `Opens ${reads} times, then it's deleted. Good for a small team.`
+                      : "Choose a whole number from 1 to 100.")}
                 </p>
               </div>
-            </div>
-          </CardHeader>
 
-          <CardContent className="pt-5 space-y-5">
-            <p role="status" className="sr-only">{copied ? "Encrypted link copied." : ""}</p>
-            {error ? (
-              <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p>
-            ) : null}
-            {/* Warning */}
-            <p className="text-xs bg-amber-50 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-lg px-4 py-3 text-amber-700 dark:text-amber-400 leading-relaxed">
-              {shareReads === 1
-                ? "This link works once. Opening it deletes the secret. Anyone with the full link can open it."
-                : `This link works ${shareReads} times, then it is deleted. Anyone with the full link can open it.`}
-            </p>
-
-            {/* URL row */}
-            <div className="flex items-stretch gap-2">
-              <div className="flex-1 min-w-0 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black/30 px-3 py-2.5 font-mono text-xs text-zinc-600 dark:text-zinc-400 overflow-hidden overflow-ellipsis whitespace-nowrap">
-                {shareUrl}
+              <div className="flex flex-col gap-3">
+                <Switch
+                  checked={withPassword}
+                  onCheckedChange={(next) => {
+                    setWithPassword(next);
+                    setPasswordError(undefined);
+                  }}
+                  label="Also require a password"
+                  description="The link carries the key. A password sent another way means a leaked link alone opens nothing."
+                />
+                {withPassword ? (
+                  <div className="animate-fade-in">
+                    <PasswordField
+                      id={`${uid}-password`}
+                      label="Password they'll also need"
+                      value={password}
+                      onChange={(next) => {
+                        setPassword(next);
+                        setPasswordError(undefined);
+                      }}
+                      error={passwordError}
+                    />
+                  </div>
+                ) : null}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCopy}
-                className="shrink-0 h-auto px-4 border-zinc-200 dark:border-zinc-700 font-semibold text-xs"
-              >
-                {copied
-                  ? <><Check className="h-3.5 w-3.5 mr-1.5 text-green-500" />Copied!</>
-                  : <><Copy className="h-3.5 w-3.5 mr-1.5" />Copy Link</>
-                }
+
+              <div className="grid gap-6 border-t border-line pt-6 md:grid-cols-2 md:gap-5">
+                <ExpiryPicker {...expiry.pickerProps} id={`${uid}-expiry`} />
+                <Field
+                  label="Label for My links"
+                  htmlFor={`${uid}-label`}
+                  optional
+                  hint="Saved only in this browser, never sent."
+                >
+                  <Input
+                    value={label}
+                    onChange={(event) => setLabel(event.target.value)}
+                    maxLength={40}
+                    placeholder="Staging keys for Priya"
+                    autoComplete="off"
+                  />
+                </Field>
+              </div>
+
+              {submitError ? (
+                <p role="alert" className="rounded-field border border-danger/25 bg-danger-soft px-3 py-2.5 text-small text-danger">
+                  {submitError}
+                </p>
+              ) : null}
+            </PanelBody>
+            <PanelFooter className="px-5 sm:px-6">
+              <span className="hidden items-center gap-1.5 text-small text-ink-3 sm:flex">
+                <Kbd>{modKey}</Kbd>
+                <Kbd>Enter</Kbd>
+                <span className="ml-0.5">to seal</span>
+              </span>
+              <Button type="submit" loading={submitting} disabled={overLimit} className="w-full sm:w-auto">
+                Seal and create link
               </Button>
-            </div>
-
-            {/* Share another */}
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleReset}
-              className="w-full h-10 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 transition-all"
-            >
-              <RefreshCw className="h-3.5 w-3.5 mr-2" />
-              Share another secret
-            </Button>
-          </CardContent>
-        </Card>
+            </PanelFooter>
+          </form>
+        </Panel>
       )}
-
-      {/* Internal SEO Links */}
-      <div className="mt-8 text-center text-xs text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
-        <p>Looking for a different tool?</p>
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-          <a href="/notes" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Secure Notes</a>
-          <a href="/notepad" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Encrypted Notepad</a>
-          <a href="/chat" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Anonymous Chatroom</a>
-        </div>
-        <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
-          <a href="/vs/envshare" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">EnvShare alternative</a>
-          <a href="/vs/protectedtext" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">ProtectedText alternative</a>
-          <a href="/blog" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Developer security guides</a>
-        </div>
-      </div>
-    </main>
+    </ToolLayout>
   );
 }

@@ -1,30 +1,34 @@
 import * as React from "react";
 import { cn } from "./utils";
 
+/**
+ * Legacy card API, now thin aliases over the Panel look. New code should use
+ * Panel / PanelHeader / PanelBody / PanelFooter.
+ */
 export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/50 text-zinc-900 dark:text-zinc-100 shadow hover:shadow-[0_8px_30px_rgba(59,130,246,0.03)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.03)] hover:border-blue-500/30 dark:hover:border-emerald-500/20 transition-all duration-300", className)} {...props} />
+    <div
+      ref={ref}
+      className={cn("rounded-panel border border-line bg-surface text-ink shadow-[0_1px_2px_rgb(0_0_0/0.03)]", className)}
+      {...props}
+    />
   )
 );
 Card.displayName = "Card";
 
 export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
-  )
+  ({ className, ...props }, ref) => <div ref={ref} className={cn("flex flex-col gap-1.5 p-6", className)} {...props} />
 );
 CardHeader.displayName = "CardHeader";
 
-export const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
+export const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn("font-semibold leading-none tracking-tight", className)} {...props} />
+    <h3 ref={ref} className={cn("font-semibold leading-none tracking-[-0.015em] text-ink", className)} {...props} />
   )
 );
 CardTitle.displayName = "CardTitle";
 
 export const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
-  )
+  ({ className, ...props }, ref) => <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
 );
 CardContent.displayName = "CardContent";
