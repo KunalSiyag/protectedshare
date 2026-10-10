@@ -7,6 +7,6 @@ export const contentType = "image/png";
 export default function Image() {
   return makeOgImage(
     "EnvShare Alternative",
-    "Actively maintained .env sharing with configurable TTL, read limits, and URL-hash keys."
+    ".env sharing with read limits and URL-fragment keys, plus notes, files and requests."
   );
 }

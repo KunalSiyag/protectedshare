@@ -1,331 +1,424 @@
 "use client";
 
-import { useState } from "react";
-import { generateRandomPassword } from "@protectedshare/crypto";
-import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/contracts";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
-import { Loader2, Copy, Check, ShieldCheck, Lock, Sparkles, Key } from "lucide-react";
-import { apiUrl } from "../../lib/api";
-import { sealForShare } from "../../lib/crypto-task";
-import { copyText, describeRequestFailure, readApiError } from "../../lib/feedback";
-import { PasswordStrengthIndicator } from "../../components/password-helper";
+import { useEffect, useId, useRef, useState } from "react";
+import { FileText, Flame, KeyRound, Link2, LockKeyhole } from "lucide-react";
+import type { CreateNoteV2Request } from "@protectedshare/contracts";
 import {
-  EXPIRY_PRESETS,
-  type ExpiryChoice,
-  formatShareDeadline,
-  resolveExpiresAt,
-  toDatetimeLocal,
-  withPasswordHash,
-} from "../../lib/share-window";
+  Button,
+  Field,
+  Input,
+  Kbd,
+  Panel,
+  PanelBody,
+  PanelFooter,
+  Segmented,
+  StatusChip,
+  Switch,
+  Textarea,
+  cn,
+} from "@protectedshare/ui";
+import AppLink from "../../components/app-link";
+import ExpiryPicker, { useExpiry } from "../../components/expiry-picker";
+import ServerView from "../../components/server-view";
+import ShareResult from "../../components/share-result";
+import ToolLayout, { ToolNotes } from "../../components/tool-layout";
+import { useToast } from "../../components/toast";
+import { sealTextTask } from "../../lib/crypto-task";
+import { addLink } from "../../lib/my-links";
+import { resolveExpiresAt, withFragmentParams } from "../../lib/share-window";
+import PasswordField from "./_shared/password-field";
+import {
+  ESTIMATED_AUTH_HASH,
+  createManageToken,
+  createShare,
+  describeError,
+  estimatedPayload,
+  toEpochSeconds,
+} from "./_shared/share-client";
+import { useDraftSecrets, useLiveSeal } from "./_shared/use-live-seal";
+import { useModKey } from "./_shared/use-mod-key";
 
-type Delivery = "link" | "password";
+/** The manage token is kept in this browser, but it is sent when you check a receipt or revoke. */
+const MANAGE_TOKEN_LABEL = "Manage token (sent only to check or revoke)";
+
+type Mode = "key" | "key+password" | "password";
+
+const MAX_CHARS = 50_000;
+
+function ModeLabel({ icon, short, long }: { icon: React.ReactNode; short: string; long: string }) {
+  return (
+    <>
+      <span className="hidden sm:inline-flex">{icon}</span>
+      <span className="sm:hidden">{short}</span>
+      <span className="hidden sm:inline">{long}</span>
+    </>
+  );
+}
+
+const MODES: { value: Mode; label: React.ReactNode }[] = [
+  { value: "key", label: <ModeLabel icon={<Link2 aria-hidden="true" />} short="Link" long="Link opens it" /> },
+  { value: "key+password", label: <ModeLabel icon={<KeyRound aria-hidden="true" />} short="Link + password" long="Link + password" /> },
+  { value: "password", label: <ModeLabel icon={<LockKeyhole aria-hidden="true" />} short="Password" long="Password only" /> },
+];
+
+const MODE_HELP: Record<Mode, string> = {
+  key: "The key rides in the link after the #. Anyone with the whole link can open the note.",
+  "key+password":
+    "Strongest. The link carries a key and they also type a password you send another way. A leaked link alone opens nothing.",
+  password: "The link has no key. They type a password you send separately. Pick a long one: it's all that protects the note.",
+};
+
+type Result = {
+  url: string;
+  mode: Mode;
+  body: CreateNoteV2Request;
+  key?: string;
+  manageToken: string;
+  password?: string;
+  expiresAt: number;
+  burn: boolean;
+  saved: boolean;
+};
 
 export default function NotesClient() {
-  const [content, setContent] = useState("");
+  const uid = useId();
+  const textId = `${uid}-text`;
+  const { toast } = useToast();
+  const modKey = useModKey();
+  const draft = useDraftSecrets();
+  const expiry = useExpiry("86400");
+
+  const [text, setText] = useState("");
+  const [mode, setMode] = useState<Mode>("key");
   const [password, setPassword] = useState("");
-  const [delivery, setDelivery] = useState<Delivery>("link");
-  const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>("86400");
-  const [customExpiry, setCustomExpiry] = useState(() => toDatetimeLocal(Date.now() + 2 * 24 * 60 * 60 * 1000));
-  const [isBurnAfterRead, setIsBurnAfterRead] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [sharePassword, setSharePassword] = useState<string | null>(null);
-  const [shareDelivery, setShareDelivery] = useState<Delivery>("link");
-  const [shareDeadline, setShareDeadline] = useState<string | null>(null);
-  const [copiedField, setCopiedField] = useState<"url" | "password" | null>(null);
+  const [burn, setBurn] = useState(true);
+  const [label, setLabel] = useState("");
+  const [textError, setTextError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!content.trim()) return;
+  const usesKey = mode !== "password";
+  const usesPassword = mode !== "key";
+  const secret = { key: usesKey ? draft.key : undefined, password: usesPassword && password ? password : undefined };
+  const preview = useLiveSeal(text, secret);
 
-    const expiry = resolveExpiresAt(expiryChoice, customExpiry);
-    if ("error" in expiry) {
-      setError(expiry.error);
+  // Preview expiry without surfacing validation errors while the user is still choosing.
+  const previewExpiry = resolveExpiresAt(expiry.choice, expiry.custom);
+  const outgoing: CreateNoteV2Request | Record<string, unknown> | null = text
+    ? {
+        payload: preview.sealed?.payload ?? estimatedPayload(text, mode),
+        authHash: preview.sealed?.authHash ?? (usesPassword ? ESTIMATED_AUTH_HASH : "‹sealing…›"),
+        manageTokenHash: draft.manage?.hash ?? "‹creating…›",
+        expiresAt: "expiresAt" in previewExpiry ? toEpochSeconds(previewExpiry.expiresAt) : "‹pick a date›",
+        isBurnAfterRead: burn,
+      }
+    : null;
+
+  const localOnly = [
+    { label: "Your note", value: text },
+    ...(usesKey ? [{ label: "Link key (after #)", value: draft.key }] : []),
+    ...(usesPassword ? [{ label: "Password", value: password }] : []),
+    { label: MANAGE_TOKEN_LABEL, value: draft.manage?.token ?? "" },
+    ...(label.trim() ? [{ label: "Label", value: label.trim() }] : []),
+  ];
+
+  const serverNote = !text ? (
+    "Start typing. This panel shows the exact request body, sealed in this browser."
+  ) : !usesPassword ? (
+    "Live: sealed with this draft's key as you type. Creating the link seals it once more with a fresh salt and IV."
+  ) : preview.state === "sealed" ? (
+    "Sealed preview with your password. Creating the link seals it once more with a fresh salt and IV."
+  ) : (
+    <>
+      Shape and sizes only. A password takes 600,000 PBKDF2 rounds to stretch, so we don&apos;t run it on every keystroke.{" "}
+      <button
+        type="button"
+        onClick={() => void preview.sealNow()}
+        disabled={!password || preview.state === "sealing"}
+        className="font-medium text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink disabled:text-ink-3 disabled:no-underline"
+      >
+        {preview.state === "sealing" ? "Sealing…" : password ? "Seal a preview now" : "Add a password to preview"}
+      </button>
+    </>
+  );
+
+  const submit = async () => {
+    if (submitting) return;
+    setSubmitError(null);
+    let invalid = false;
+    if (!text.trim()) {
+      setTextError("Write something to seal first.");
+      invalid = true;
+    } else if (text.length > MAX_CHARS) {
+      setTextError(`Notes can be up to ${MAX_CHARS.toLocaleString()} characters.`);
+      invalid = true;
+    }
+    if (usesPassword) {
+      const min = mode === "password" ? 8 : 4;
+      if (password.length < min) {
+        setPasswordError(
+          mode === "password"
+            ? "Use at least 8 characters. It's the only thing protecting this note."
+            : "Use at least 4 characters."
+        );
+        invalid = true;
+      }
+    }
+    const resolved = expiry.resolve();
+    if ("error" in resolved || invalid) {
+      if (!text.trim() || text.length > MAX_CHARS) textRef.current?.focus();
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setShareUrl(null);
-    setSharePassword(null);
-    setShareDeadline(null);
-
+    setSubmitting(true);
     try {
-      const encryptionPassword = password.trim() || generateRandomPassword(16);
-      const sealed = await sealForShare(content, encryptionPassword);
-
-      const payload: CreateNoteRequest = {
+      const manage = draft.manage ?? (await createManageToken());
+      const sealed = await sealTextTask(text, secret);
+      const body: CreateNoteV2Request = {
         payload: sealed.payload,
-        passwordProof: sealed.passwordProof,
-        expiresAt: expiry.expiresAt,
-        isBurnAfterRead
+        authHash: sealed.authHash,
+        manageTokenHash: manage.hash,
+        expiresAt: toEpochSeconds(resolved.expiresAt),
+        isBurnAfterRead: burn,
       };
-
-      const res = await fetch(apiUrl("/api/notes"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      const id = await createShare("note", body);
+      const base = `${window.location.origin}/notes/${id}`;
+      const url = secret.key ? withFragmentParams(base, { k: secret.key }) : base;
+      const saved = addLink({
+        kind: "note",
+        id,
+        url,
+        manageToken: manage.token,
+        label: label.trim(),
+        createdAt: Date.now(),
+        expiresAt: resolved.expiresAt,
+        maxReads: burn ? 1 : undefined,
       });
-
-      if (!res.ok) {
-        throw new Error(await readApiError(res, "Could not save this note. Try again in a moment."));
-      }
-
-      const data: CreateNoteResponse = await res.json();
-      const baseUrl = `${window.location.origin}/notes/${data.id}`;
-      setShareUrl(delivery === "link" ? withPasswordHash(baseUrl, encryptionPassword) : baseUrl);
-      setSharePassword(encryptionPassword);
-      setShareDelivery(delivery);
-      setShareDeadline(formatShareDeadline(expiry.expiresAt));
-    } catch (caughtError: unknown) {
-      setError(describeRequestFailure(caughtError, "Could not save this note. Try again in a moment."));
+      setResult({ url, mode, body, key: secret.key, manageToken: manage.token, password: secret.password, expiresAt: resolved.expiresAt, burn, saved });
+      setText("");
+    } catch (error) {
+      const message = describeError(error, "Couldn't create the link. Nothing was stored. Try again.");
+      setSubmitError(message);
+      toast({ title: "Couldn't create the link", description: message, tone: "danger" });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleCopy = async (value: string, field: "url" | "password") => {
-    try {
-      await copyText(value);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch (caughtError: unknown) {
-      setError(describeRequestFailure(caughtError, "Could not copy. Select the text and copy it manually."));
-    }
+  const reset = () => {
+    setResult(null);
+    setPassword("");
+    setLabel("");
+    setTextError(undefined);
+    setPasswordError(undefined);
+    draft.reset();
+    window.setTimeout(() => textRef.current?.focus(), 0);
   };
+
+  useEffect(() => {
+    if (textError && text.trim() && text.length <= MAX_CHARS) setTextError(undefined);
+  }, [text, textError]);
+
+  const overLimit = text.length > MAX_CHARS;
 
   return (
-    <main className="h-full px-6 py-8 md:py-12 max-w-3xl mx-auto flex flex-col transition-colors duration-300">
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
-          Create <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-emerald-400 dark:to-teal-500">Secure Note</span>
-        </h1>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          Browser-side AES-256 encryption. Plaintext stays on this device. A link can open the note by itself, or you can keep the password separate.
-        </p>
-      </div>
-
-      {!shareUrl ? (
-        <Card className="border-zinc-200 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-950/20 backdrop-blur-sm shadow-md transition-all duration-300">
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label htmlFor="note-content" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Note Content (Markdown supported)</label>
-                <Textarea
-                  id="note-content"
-                  name="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Type your secure note here..."
-                  className="min-h-[220px] font-mono text-base leading-relaxed border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">How the recipient opens it</p>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="How the recipient opens this note">
-                  <button
-                    type="button"
-                    aria-pressed={delivery === "link"}
-                    onClick={() => setDelivery("link")}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                      delivery === "link"
-                        ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
-                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
-                    }`}
-                  >
-                    Open from the link
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={delivery === "password"}
-                    onClick={() => setDelivery("password")}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                      delivery === "password"
-                        ? "bg-zinc-950 text-white border-zinc-950 dark:bg-zinc-50 dark:text-zinc-950 dark:border-zinc-50 shadow-sm"
-                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/70 dark:bg-zinc-900/40"
-                    }`}
-                  >
-                    Separate password
-                  </button>
-                </div>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  {delivery === "link"
-                    ? "Anyone with the full link can read the note. The password stays in the link and is not sent to the server."
-                    : "Send the link and the password through different channels. The link alone cannot open the note."}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label htmlFor="note-password" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Password</label>
-                  <div className="relative">
-                    <Input
-                      id="note-password"
-                      name="password"
-                      type="text"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Leave blank to generate one"
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="font-mono h-11 text-base pr-12 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 transition-all rounded-lg w-full"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setPassword(generateRandomPassword(16))}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 p-2 rounded transition-colors"
-                      aria-label="Generate secure password"
-                    >
-                      <Key className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <PasswordStrengthIndicator password={password} />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="note-expires" className="text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Expiration</label>
-                  <select
-                    id="note-expires"
-                    name="expiresIn"
-                    value={expiryChoice}
-                    onChange={(e) => setExpiryChoice(e.target.value as ExpiryChoice)}
-                    className="flex h-11 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 px-3 py-2 text-base shadow-sm transition-all focus:border-blue-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-emerald-500/10 text-zinc-900 dark:text-zinc-100 outline-none cursor-pointer"
-                  >
-                    {EXPIRY_PRESETS.map((preset) => (
-                      <option key={preset.value} value={preset.value}>{preset.label}</option>
-                    ))}
-                    <option value="custom">Custom date and time</option>
-                  </select>
-                  {expiryChoice === "custom" ? (
-                    <input
-                      id="note-expires-custom"
-                      name="customExpiry"
-                      type="datetime-local"
-                      required
-                      value={customExpiry}
-                      min={toDatetimeLocal(Date.now() + 5 * 60 * 1000)}
-                      max={toDatetimeLocal(Date.now() + 30 * 24 * 60 * 60 * 1000)}
-                      onChange={(e) => setCustomExpiry(e.target.value)}
-                      aria-label="Custom expiration date and time"
-                      className="flex h-11 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 px-3 py-2 text-base shadow-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500 dark:focus:border-emerald-500"
-                    />
-                  ) : null}
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">A link can live for at most 30 days.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-900/10">
-                <input
-                  type="checkbox"
-                  id="burn"
-                  name="burn"
-                  checked={isBurnAfterRead}
-                  onChange={(e) => setIsBurnAfterRead(e.target.checked)}
-                  className="mt-0.5 shrink-0 h-4 w-4 rounded border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-blue-600 dark:text-emerald-500 focus:ring-blue-500 dark:focus:ring-emerald-500 focus:ring-offset-white dark:focus:ring-offset-zinc-950 cursor-pointer"
-                />
-                <div className="space-y-1">
-                  <label htmlFor="burn" className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer">
-                    Burn after reading
-                  </label>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
-                    Deletes the note from the database after the first successful open.
-                  </p>
-                </div>
-              </div>
-
-              {error ? <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p> : null}
-              <p role="status" className="sr-only">{loading ? "Encrypting note." : ""}</p>
-
-              <Button type="submit" disabled={loading || !content.trim()} aria-busy={loading} className="w-full h-11 text-sm font-semibold rounded-lg shadow-sm hover:shadow-lg transition-all duration-300">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                {loading ? "Encrypting note…" : "Encrypt & Create Link"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+    <ToolLayout
+      eyebrow="Share"
+      title="Secure note"
+      description="Write it, seal it in this browser, send the link. By default it burns after one read."
+      meta={
+        <>
+          <StatusChip tone="seal">Encrypted in your browser</StatusChip>
+          <StatusChip>No account</StatusChip>
+          <AppLink href="/security" className="ml-1 text-small font-medium text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-ink">
+            How it works
+          </AppLink>
+        </>
+      }
+      aside={
+        <>
+          {result ? (
+            <ServerView
+              title="What left this browser"
+              outgoing={result.body}
+              endpoint="POST /api/notes · sent once"
+              localOnly={[
+                ...(result.key ? [{ label: "Link key (after #)", value: result.key }] : []),
+                ...(result.password ? [{ label: "Password", value: result.password }] : []),
+                { label: MANAGE_TOKEN_LABEL, value: result.manageToken },
+              ]}
+              note="This is everything the server got. It can check a reader's token against authHash, but it can't decrypt the note."
+            />
+          ) : (
+            <ServerView outgoing={outgoing} endpoint="POST /api/notes" localOnly={localOnly} note={serverNote} />
+          )}
+          <ToolNotes
+            items={[
+              "A burned note is deleted from the database when it's opened, not hidden.",
+              "Link previews in chat apps can't burn it: the reader has to click Open first.",
+              "Markdown renders for the reader. Images never load and raw HTML is dropped.",
+              <>
+                The server keeps ciphertext, a salt, an IV and a hash it can check.{" "}
+                <AppLink href="/security" className="font-medium text-ink underline decoration-line-strong underline-offset-4">
+                  Security model
+                </AppLink>
+              </>,
+            ]}
+          />
+        </>
+      }
+    >
+      {result ? (
+        <ShareResult
+          url={result.url}
+          password={result.password}
+          passwordHint={
+            result.mode === "key+password"
+              ? "Send this another way, like a call or a different app. The link alone won't open the note."
+              : undefined
+          }
+          expiresAt={result.expiresAt}
+          burnLabel={result.burn ? "Burns after first read" : undefined}
+          savedToLinks={result.saved}
+          onReset={reset}
+          resetLabel="Write another note"
+        />
       ) : (
-        <Card className="border-blue-500/20 dark:border-emerald-500/20 bg-blue-500/[0.02] dark:bg-emerald-500/[0.01] shadow-lg backdrop-blur-sm">
-          <CardContent className="pt-6 space-y-6">
-            <p role="status" className="sr-only">
-              {copiedField === "url" ? "Share link copied." : copiedField === "password" ? "Password copied." : ""}
-            </p>
-            {error ? <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p> : null}
-            <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800/80 pb-5">
-              <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-emerald-500/10 text-blue-600 dark:text-emerald-500">
-                <ShieldCheck className="h-6 w-6" />
-              </div>
-              <div>
-                <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Note Created &amp; Encrypted</CardTitle>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Expires {shareDeadline}.{isBurnAfterRead ? " Deleted after the first open." : ""}
+        <Panel>
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                void submit();
+              }
+            }}
+          >
+            <PanelBody className="flex flex-col gap-6 p-5 sm:p-6">
+              <Field label="Note" htmlFor={textId} error={textError}>
+                <div id={`${textId}-wrap`} className="flex flex-col gap-1.5">
+                  <Textarea
+                    ref={textRef}
+                    id={textId}
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                    placeholder={"The Wi‑Fi password is…\n\nMarkdown works: **bold**, `code`, lists."}
+                    rows={9}
+                    invalid={Boolean(textError)}
+                    aria-describedby={`${textId}-count${textError ? ` ${textId}-error` : ""}`}
+                    className="min-h-[220px] text-[15px] leading-[1.6]"
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-between gap-3 text-meta text-ink-3">
+                    <span className="flex items-center gap-1.5">
+                      <FileText aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+                      Markdown supported
+                    </span>
+                    <span id={`${textId}-count`} className={cn("tabular", overLimit && "font-medium text-danger")}>
+                      {text.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+                      <span className="sr-only"> characters</span>
+                    </span>
+                  </div>
+                </div>
+              </Field>
+
+              <div className="flex flex-col gap-2">
+                <span id={`${uid}-mode`} className="text-small font-medium text-ink">
+                  How they open it
+                </span>
+                <Segmented
+                  value={mode}
+                  onChange={(next) => {
+                    setMode(next);
+                    setPasswordError(undefined);
+                  }}
+                  options={MODES}
+                  fullWidth
+                  aria-labelledby={`${uid}-mode`}
+                  aria-describedby={`${uid}-mode-help`}
+                />
+                <p id={`${uid}-mode-help`} className="text-small text-ink-3">
+                  {MODE_HELP[mode]}
                 </p>
+                {usesPassword ? (
+                  <div className="mt-2 animate-fade-in">
+                    <PasswordField
+                      id={`${uid}-password`}
+                      label={mode === "key+password" ? "Password they'll also need" : "Password"}
+                      value={password}
+                      onChange={(next) => {
+                        setPassword(next);
+                        setPasswordError(undefined);
+                      }}
+                      error={passwordError}
+                      meter={mode === "password" || password.length > 0}
+                    />
+                  </div>
+                ) : null}
               </div>
-            </div>
 
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed bg-zinc-50 dark:bg-zinc-900/20 p-3 rounded-lg border border-zinc-200/50 dark:border-zinc-800/50">
-              {shareDelivery === "link"
-                ? "This link opens the note. Anyone who has the full link can read it, so send it only to the person who should see it."
-                : "Send the link and the password through different channels. For example, send the link by email and the password in a separate message."}
-            </p>
-
-            <div className="space-y-2.5">
-              <label htmlFor="note-share-url" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Share Link</label>
-              <div className="flex items-center gap-2 min-w-0">
-                <Input id="note-share-url" readOnly value={shareUrl} className="font-mono min-w-0 text-base bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-11" />
-                <Button variant="outline" onClick={() => handleCopy(shareUrl, "url")} className="shrink-0 whitespace-nowrap h-11 px-3 border-zinc-200 dark:border-zinc-800">
-                  {copiedField === "url" ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
-                  {copiedField === "url" ? "Copied" : "Copy"}
-                </Button>
-              </div>
-            </div>
-
-            {shareDelivery === "password" && sharePassword ? (
-              <div className="space-y-2.5">
-                <label htmlFor="note-share-password" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Decryption Password</label>
-                <div className="flex items-center gap-2 min-w-0">
-                  <Input id="note-share-password" readOnly value={sharePassword} className="font-mono min-w-0 text-base bg-zinc-50/50 dark:bg-black/30 border-zinc-200 dark:border-zinc-800 h-11" />
-                  <Button variant="outline" onClick={() => handleCopy(sharePassword, "password")} className="shrink-0 whitespace-nowrap h-11 px-3 border-zinc-200 dark:border-zinc-800">
-                    {copiedField === "password" ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
-                    {copiedField === "password" ? "Copied" : "Copy"}
-                  </Button>
+              <div className="grid gap-6 border-t border-line pt-6 md:grid-cols-2 md:gap-5">
+                <ExpiryPicker {...expiry.pickerProps} id={`${uid}-expiry`} />
+                <div className="flex flex-col gap-1.5">
+                  <Switch
+                    checked={burn}
+                    onCheckedChange={setBurn}
+                    label={
+                      <span className="inline-flex items-center gap-1.5">
+                        Burn after reading
+                        {burn ? <Flame aria-hidden="true" className="size-3.5 text-seal" /> : null}
+                      </span>
+                    }
+                    description={
+                      burn
+                        ? "Deleted from the server the moment it's opened. They get one look."
+                        : "Stays readable by anyone with the link until it expires."
+                    }
+                  />
                 </div>
               </div>
-            ) : null}
 
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShareUrl(null);
-                setSharePassword(null);
-                setShareDeadline(null);
-                setContent("");
-                setPassword("");
-              }}
-              className="w-full mt-4 h-10 hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 text-zinc-700 dark:text-zinc-300"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Create another secure note
-            </Button>
-          </CardContent>
-        </Card>
+              <Field
+                label="Label for My links"
+                htmlFor={`${uid}-label`}
+                optional
+                hint="Helps you find it later. Saved only in this browser, never sent."
+              >
+                <Input
+                  value={label}
+                  onChange={(event) => setLabel(event.target.value)}
+                  maxLength={40}
+                  placeholder="Wi‑Fi for Sam"
+                  autoComplete="off"
+                />
+              </Field>
+
+              {submitError ? (
+                <p role="alert" className="rounded-field border border-danger/25 bg-danger-soft px-3 py-2.5 text-small text-danger">
+                  {submitError}
+                </p>
+              ) : null}
+            </PanelBody>
+            <PanelFooter className="px-5 sm:px-6">
+              <span className="hidden items-center gap-1.5 text-small text-ink-3 sm:flex">
+                <Kbd>{modKey}</Kbd>
+                <Kbd>Enter</Kbd>
+                <span className="ml-0.5">to seal</span>
+              </span>
+              <Button type="submit" size="md" loading={submitting} disabled={overLimit} className="w-full sm:w-auto">
+                Seal and create link
+              </Button>
+            </PanelFooter>
+          </form>
+        </Panel>
       )}
-
-      <div className="mt-8 text-center text-xs text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
-        <p>Looking for a different tool?</p>
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-          <a href="/secrets" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">EnvShare (Dev Keys)</a>
-          <a href="/notepad" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Encrypted Notepad</a>
-          <a href="/chat" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Anonymous Chatroom</a>
-        </div>
-        <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
-          <a href="/vs/protectedtext" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">ProtectedText alternative</a>
-          <a href="/vs/privnote" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Privnote alternative</a>
-          <a href="/blog" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Security blog</a>
-        </div>
-      </div>
-    </main>
+    </ToolLayout>
   );
 }

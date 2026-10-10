@@ -1,60 +1,73 @@
 import type { EncryptedPayload } from "@protectedshare/crypto";
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export function generateSelfDecryptingHtml(
   encryptedTitle: EncryptedPayload,
   encryptedBody: EncryptedPayload,
-  noteTitlePlaceholder = "Encrypted Note"
+  noteTitlePlaceholder = "Encrypted note"
 ): string {
   const titlePayloadJson = JSON.stringify(encryptedTitle);
   const bodyPayloadJson = JSON.stringify(encryptedBody);
 
   return `<!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${noteTitlePlaceholder} - Decrypt</title>
+  <title>${escapeHtml(noteTitlePlaceholder)} - Decrypt</title>
+  <script>
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark");
+  </script>
   <style>
     :root {
-      --bg-color: #f4f4f5;
-      --card-bg: #ffffff;
-      --card-border: #e4e4e7;
-      --text-color: #18181b;
-      --text-muted: #71717a;
-      --primary-color: #2563eb;
-      --primary-hover: #1d4ed8;
-      --error-bg: #fef2f2;
-      --error-text: #ef4444;
-      --error-border: #fee2e2;
-      --input-bg: #ffffff;
-      --input-border: #d4d4d8;
-      --input-focus: #2563eb;
-      --code-bg: #f4f4f5;
-      --code-border: #e4e4e7;
-      --accent-glow: rgba(37, 99, 235, 0.05);
-      --success-color: #16a34a;
+      color-scheme: light;
+      --bg-color: #F6F7F7;
+      --card-bg: #FFFFFF;
+      --card-border: #DFE3E3;
+      --text-color: #0A0F0F;
+      --text-muted: #6C7777;
+      --primary-color: #0A0F0F;
+      --primary-hover: #262C2C;
+      --on-primary: #FFFFFF;
+      --seal: #E8470F;
+      --error-bg: rgba(196, 43, 28, 0.08);
+      --error-text: #C42B1C;
+      --error-border: rgba(196, 43, 28, 0.2);
+      --input-bg: #FFFFFF;
+      --input-border: #C6CDCD;
+      --input-focus: #6C7777;
+      --focus-ring: rgba(232, 71, 15, 0.2);
+      --code-bg: #EEF0F0;
+      --code-border: #DFE3E3;
+      --success-color: #11804C;
     }
-    
+
     html.dark {
-      --bg-color: #09090b;
-      --card-bg: #09090b;
-      --card-border: #27272a;
-      --text-color: #f4f4f5;
-      --text-muted: #a1a1aa;
-      --primary-color: #10b981;
-      --primary-hover: #059669;
-      --error-bg: rgba(127, 29, 29, 0.15);
-      --error-text: #f87171;
-      --error-border: rgba(127, 29, 29, 0.3);
-      --input-bg: #09090b;
-      --input-border: #27272a;
-      --input-focus: #10b981;
-      --code-bg: #18181b;
-      --code-border: #27272a;
-      --accent-glow: rgba(16, 185, 129, 0.05);
-      --success-color: #34d399;
+      color-scheme: dark;
+      --bg-color: #0B0D0D;
+      --card-bg: #121515;
+      --card-border: #252A2A;
+      --text-color: #F2F4F4;
+      --text-muted: #7D8888;
+      --primary-color: #F2F4F4;
+      --primary-hover: #D5DADA;
+      --on-primary: #0A0F0F;
+      --seal: #FF6B36;
+      --error-bg: rgba(255, 122, 107, 0.12);
+      --error-text: #FF7A6B;
+      --error-border: rgba(255, 122, 107, 0.25);
+      --input-bg: #121515;
+      --input-border: #343B3B;
+      --input-focus: #7D8888;
+      --focus-ring: rgba(255, 107, 54, 0.25);
+      --code-bg: #191D1D;
+      --code-border: #252A2A;
+      --success-color: #3CCB7F;
     }
-    
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -65,6 +78,7 @@ export function generateSelfDecryptingHtml(
       background-color: var(--bg-color);
       color: var(--text-color);
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -76,18 +90,6 @@ export function generateSelfDecryptingHtml(
       padding: 2rem 1rem;
     }
     
-    body::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 450px;
-      height: 450px;
-      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-    
     .container {
       width: 100%;
       max-width: 650px;
@@ -97,14 +99,14 @@ export function generateSelfDecryptingHtml(
     .card {
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 2.2rem;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border-radius: 14px;
+      padding: 2rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px -8px rgba(0, 0, 0, 0.12);
       transition: all 0.3s ease;
     }
     
     html.dark .card {
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.6);
     }
     
     .header {
@@ -116,21 +118,20 @@ export function generateSelfDecryptingHtml(
     }
     
     .icon-wrapper {
-      width: 56px;
-      height: 56px;
-      border-radius: 12px;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
       background-color: var(--code-bg);
-      border: 1px solid var(--card-border);
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: 1rem;
-      color: var(--primary-color);
+      color: var(--seal);
     }
     
     h1 {
-      font-size: 1.4rem;
-      font-weight: 800;
+      font-size: 1.375rem;
+      font-weight: 600;
       letter-spacing: -0.02em;
       margin-bottom: 0.5rem;
     }
@@ -147,11 +148,9 @@ export function generateSelfDecryptingHtml(
     
     .form-group label {
       display: block;
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-color);
       margin-bottom: 0.5rem;
     }
     
@@ -164,8 +163,8 @@ export function generateSelfDecryptingHtml(
     input[type="password"], input[type="text"] {
       width: 100%;
       height: 44px;
-      padding: 0.5rem 2.5rem 0.5rem 1rem;
-      border-radius: 8px;
+      padding: 0.5rem 2.5rem 0.5rem 0.875rem;
+      border-radius: 10px;
       border: 1px solid var(--input-border);
       background-color: var(--input-bg);
       color: var(--text-color);
@@ -177,7 +176,7 @@ export function generateSelfDecryptingHtml(
     
     input:focus {
       border-color: var(--input-focus);
-      box-shadow: 0 0 0 2px var(--accent-glow);
+      box-shadow: 0 0 0 3px var(--focus-ring);
     }
     
     .toggle-visibility {
@@ -202,9 +201,9 @@ export function generateSelfDecryptingHtml(
       width: 100%;
       height: 44px;
       background-color: var(--primary-color);
-      color: #ffffff;
+      color: var(--on-primary);
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
@@ -215,17 +214,8 @@ export function generateSelfDecryptingHtml(
       transition: all 0.2s;
     }
     
-    html.light button.btn-primary {
-      color: #ffffff;
-    }
-    
-    html.dark button.btn-primary {
-      color: #09090b;
-    }
-    
     button.btn-primary:hover {
       background-color: var(--primary-hover);
-      transform: translateY(-1px);
     }
     
     button.btn-primary:disabled {
@@ -241,7 +231,7 @@ export function generateSelfDecryptingHtml(
       padding: 0.75rem 1rem;
       background-color: var(--error-bg);
       border: 1px solid var(--error-border);
-      border-radius: 8px;
+      border-radius: 10px;
       color: var(--error-text);
       font-size: 0.85rem;
       margin-bottom: 1.5rem;
@@ -282,7 +272,8 @@ export function generateSelfDecryptingHtml(
     
     .viewer-title {
       font-size: 1.25rem;
-      font-weight: 800;
+      font-weight: 600;
+      letter-spacing: -0.02em;
       color: var(--text-color);
       flex: 1;
       min-width: 200px;
@@ -297,9 +288,9 @@ export function generateSelfDecryptingHtml(
     .btn-action {
       background: none;
       border: 1px solid var(--card-border);
-      border-radius: 6px;
+      border-radius: 8px;
       padding: 6px 10px;
-      font-size: 0.75rem;
+      font-size: 0.8125rem;
       font-weight: 500;
       color: var(--text-muted);
       cursor: pointer;
@@ -311,7 +302,7 @@ export function generateSelfDecryptingHtml(
     
     .btn-action:hover {
       color: var(--text-color);
-      border-color: var(--primary-color);
+      border-color: var(--input-border);
       background-color: var(--code-bg);
     }
     
@@ -350,7 +341,8 @@ export function generateSelfDecryptingHtml(
     }
     
     .prose h1, .prose h2, .prose h3 {
-      font-weight: 800;
+      font-weight: 600;
+      letter-spacing: -0.015em;
       margin-top: 1.5rem;
       margin-bottom: 0.8rem;
       color: var(--text-color);
@@ -364,31 +356,31 @@ export function generateSelfDecryptingHtml(
     .prose li { margin-bottom: 0.4rem; }
     
     .prose blockquote {
-      border-left: 4px solid var(--primary-color);
+      border-left: 2px solid var(--input-border);
       padding-left: 1rem;
       color: var(--text-muted);
-      font-style: italic;
       margin: 1rem 0;
     }
     
     .prose a {
-      color: var(--primary-color);
-      text-decoration: none;
+      color: var(--text-color);
+      text-decoration: underline;
+      text-decoration-color: var(--input-border);
+      text-underline-offset: 3px;
     }
     .prose a:hover {
-      text-decoration: underline;
+      text-decoration-color: var(--text-color);
     }
     
     .footer-credits {
       text-align: center;
       margin-top: 2.2rem;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
     
     .footer-credits a {
-      color: var(--primary-color);
+      color: var(--text-color);
       text-decoration: none;
     }
     
@@ -426,7 +418,7 @@ export function generateSelfDecryptingHtml(
       }
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
 
@@ -437,25 +429,25 @@ export function generateSelfDecryptingHtml(
       <div id="auth-view">
         <div class="header">
           <div class="icon-wrapper">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
           </div>
-          <h1>ProtectedShare Secure Archive</h1>
-          <p class="subtitle">This archive is encrypted with client-side AES-256-GCM. Enter the decryption password to unlock the note contents offline.</p>
+          <h1>Encrypted note</h1>
+          <p class="subtitle">Encrypted with AES-256-GCM. Enter the password to open it. Decryption happens in this browser.</p>
         </div>
         
         <div id="error-banner" class="error-banner" role="alert"></div>
         
         <form onsubmit="handleDecrypt(event)">
           <div class="form-group">
-            <label for="decrypt-password">Decryption Password</label>
+            <label for="decrypt-password">Password</label>
             <div class="input-wrapper">
               <input 
                 id="decrypt-password" 
                 type="password" 
-                placeholder="Enter password..." 
+                
                 required 
                 autofocus
               />
@@ -475,7 +467,7 @@ export function generateSelfDecryptingHtml(
           </div>
           
           <button id="btn-decrypt" type="submit" class="btn-primary">
-            Unlock Archive 🔓
+            Open note
           </button>
         </form>
       </div>
@@ -501,7 +493,7 @@ export function generateSelfDecryptingHtml(
               Print
             </button>
             <button id="btn-theme" class="btn-action" onclick="toggleTheme()">
-              Light Mode ☀️
+              Theme
             </button>
           </div>
         </div>
@@ -512,7 +504,7 @@ export function generateSelfDecryptingHtml(
     </div>
     
     <div class="footer-credits">
-      Secured offline via <a href="https://protectedshare.me" target="_blank" rel="noopener noreferrer">ProtectedShare</a> zero-knowledge app
+      Exported from <a href="https://protectedshare.me" target="_blank" rel="noopener noreferrer">ProtectedShare</a> Notepad
     </div>
   </div>
 
@@ -583,7 +575,7 @@ export function generateSelfDecryptingHtml(
       }
       
       button.disabled = true;
-      button.innerHTML = "Decrypting note...";
+      button.innerHTML = "Opening…";
       errorBanner.style.display = "none";
       
       try {
@@ -601,8 +593,8 @@ export function generateSelfDecryptingHtml(
       } catch (err) {
         console.error(err);
         button.disabled = false;
-        button.innerHTML = "Unlock Archive 🔓";
-        showError("Incorrect password. Please verify the credentials.");
+        button.innerHTML = "Open note";
+        showError("That password doesn't open this note.");
         
         card.classList.add("shake");
         setTimeout(() => card.classList.remove("shake"), 400);
@@ -618,6 +610,26 @@ export function generateSelfDecryptingHtml(
     function renderContent(text) {
       const bodyEl = document.getElementById("decrypted-body");
       if (window.marked && typeof window.marked.parse === "function") {
+        // Raw HTML in the note is shown as text, and only http(s)/mailto links survive.
+        const esc = (value) => String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeUrl = (href) => /^(https?:|mailto:)/i.test(String(href || "").trim()) ? String(href).trim() : "";
+        window.marked.use({
+          renderer: {
+            html(html) { return esc(html); },
+            link(href, title, text) {
+              const url = safeUrl(href);
+              if (!url) return text;
+              return '<a href="' + esc(url) + '" rel="noopener noreferrer nofollow" target="_blank"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + text + "</a>";
+            },
+            image(href, title, text) {
+              return esc(text || "");
+            }
+          }
+        });
         bodyEl.innerHTML = window.marked.parse(text);
       } else {
         const escaped = text
@@ -632,7 +644,7 @@ export function generateSelfDecryptingHtml(
       navigator.clipboard.writeText(decryptedBodyText);
       const btn = document.getElementById("btn-copy");
       const originalText = btn.innerHTML;
-      btn.innerHTML = 'Copied! <span style="color: var(--success-color)">✓</span>';
+      btn.innerHTML = '<span style="color: var(--success-color)">Copied</span>';
       setTimeout(() => btn.innerHTML = originalText, 1500);
     }
 
@@ -643,13 +655,8 @@ export function generateSelfDecryptingHtml(
     function toggleTheme() {
       const html = document.documentElement;
       const toggleBtn = document.getElementById("btn-theme");
-      if (html.classList.contains("dark")) {
-        html.classList.remove("dark");
-        toggleBtn.innerHTML = "Dark Mode 🌙";
-      } else {
-        html.classList.add("dark");
-        toggleBtn.innerHTML = "Light Mode ☀️";
-      }
+      html.classList.toggle("dark");
+      toggleBtn.innerHTML = "Theme";
     }
 
     function togglePasswordVisibility() {

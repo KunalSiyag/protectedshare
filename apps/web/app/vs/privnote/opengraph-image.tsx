@@ -7,6 +7,6 @@ export const contentType = "image/png";
 export default function Image() {
   return makeOgImage(
     "Privnote Alternative",
-    "One-time self-destructing secret links with true zero-tracking. No ads, no accounts."
+    "One-time links, encrypted in your browser. No ads, no accounts."
   );
 }

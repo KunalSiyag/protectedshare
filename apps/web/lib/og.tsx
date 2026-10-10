@@ -1,13 +1,22 @@
 import { ImageResponse } from "next/og";
+import { KEYHOLE_PATH, SEAL_PATH } from "../components/seal-mark";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
-export function makeOgImage(title: string, subtitle?: string) {
-  const words = title.split(" ");
+/** Sealed palette, light. OG images are always light so they read the same everywhere. */
+const BG = "#F6F7F7";
+const SURFACE = "#FFFFFF";
+const LINE = "#DFE3E3";
+const INK = "#0A0F0F";
+const INK_2 = "#3E4747";
+const INK_3 = "#6C7777";
+const SEAL = "#E8470F";
+
+function wrap(title: string, max = 26): string {
   const lines: string[] = [];
   let current = "";
-  for (const word of words) {
-    if ((current + " " + word).trim().length > 22) {
+  for (const word of title.split(" ")) {
+    if ((current + " " + word).trim().length > max && current) {
       lines.push(current.trim());
       current = word;
     } else {
@@ -15,8 +24,10 @@ export function makeOgImage(title: string, subtitle?: string) {
     }
   }
   if (current.trim()) lines.push(current.trim());
-  const headline = lines.slice(0, 3).join("\n");
+  return lines.slice(0, 3).join("\n");
+}
 
+export function makeOgImage(title: string, subtitle?: string) {
   return new ImageResponse(
     (
       <div
@@ -26,79 +37,69 @@ export function makeOgImage(title: string, subtitle?: string) {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          padding: "72px 80px",
-          background: "#09090b",
-          color: "#fafafa",
+          padding: "64px 80px 56px",
+          background: BG,
+          color: INK,
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <svg width="52" height="52" viewBox="0 0 24 24">
+            <path d={SEAL_PATH} fill={SEAL} />
+            <circle cx="12" cy="12" r="7.6" fill="none" stroke="#ffffff" strokeOpacity="0.38" strokeWidth="0.6" />
+            <path d={KEYHOLE_PATH} fill="#ffffff" />
+          </svg>
+          <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: -0.8, display: "flex" }}>ProtectedShare</div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <div
             style={{
-              width: 64,
-              height: 64,
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "#10b981",
-              borderRadius: 16,
+              fontSize: 72,
+              fontWeight: 700,
+              lineHeight: 1.06,
+              letterSpacing: -2.6,
+              whiteSpace: "pre-wrap",
+              color: INK,
             }}
           >
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="#09090b">
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z"
-              />
-            </svg>
+            {wrap(title)}
           </div>
-          <div style={{ fontSize: 34, fontWeight: 700, display: "flex" }}>
-            ProtectedShare
-          </div>
+          {subtitle ? (
+            <div style={{ display: "flex", fontSize: 30, lineHeight: 1.35, color: INK_2, maxWidth: 940 }}>{subtitle}</div>
+          ) : null}
         </div>
 
         <div
           style={{
             display: "flex",
-            fontSize: 76,
-            fontWeight: 800,
-            lineHeight: 1.15,
-            letterSpacing: -2,
-            whiteSpace: "pre-wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingTop: 26,
+            borderTop: `1px solid ${LINE}`,
+            fontSize: 22,
+            color: INK_3,
           }}
         >
-          {headline}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {subtitle ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
                 display: "flex",
-                fontSize: 32,
-                color: "#a1a1aa",
-                lineHeight: 1.4,
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: `1px solid ${LINE}`,
+                background: SURFACE,
+                color: INK,
+                fontFamily: "monospace",
+                fontSize: 20,
               }}
             >
-              {subtitle}
+              #k=…
             </div>
-          ) : null}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              fontSize: 26,
-              color: "#10b981",
-              fontWeight: 600,
-            }}
-          >
-            <span>AES-256 zero-knowledge encryption</span>
-            <span style={{ color: "#52525b" }}>•</span>
-            <span>No signup</span>
-            <span style={{ color: "#52525b" }}>•</span>
-            <span>protectedshare.me</span>
+            <span>Everything after # never reaches a server.</span>
           </div>
+          <span style={{ color: INK_2 }}>protectedshare.me</span>
         </div>
       </div>
     ),

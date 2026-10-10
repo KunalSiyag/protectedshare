@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import type { Components } from "react-markdown";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { buttonVariants } from "@protectedshare/ui";
 import { BLOG_POSTS, getBlogPost, getBlogSlugs } from "../../../lib/blog";
 import JsonLd from "../../../components/json-ld";
-import {
-  DEFAULT_OG_IMAGE,
-  SITE_NAME,
-  SITE_URL,
-  breadcrumbJsonLd,
-} from "../../../lib/seo";
+import AppLink from "../../../components/app-link";
+import { Breadcrumb } from "../../../components/breadcrumb";
+import { MetaDot } from "../../../components/marketing";
+import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "../../../lib/seo";
+import Markdown, { extractHeadings } from "../markdown";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -21,45 +20,19 @@ function formatDate(dateString: string): string {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   }).format(new Date(dateString));
 }
 
-const markdownComponents: Components = {
-  h2: ({ children }) => (
-    <h2 className="mt-10 text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
-      {children}
-    </h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="mt-8 text-xl font-semibold tracking-tight text-zinc-950 dark:text-white">
-      {children}
-    </h3>
-  ),
-  p: ({ children }) => (
-    <p className="mt-4 text-base leading-8 text-zinc-600 dark:text-zinc-400">
-      {children}
-    </p>
-  ),
-  ul: ({ children }) => (
-    <ul className="mt-4 list-disc space-y-2 pl-6 text-base leading-8 text-zinc-600 dark:text-zinc-400">
-      {children}
-    </ul>
-  ),
-  li: ({ children }) => <li>{children}</li>,
-  strong: ({ children }) => (
-    <strong className="font-semibold text-zinc-900 dark:text-zinc-100">
-      {children}
-    </strong>
-  ),
-  a: ({ children, href }) => (
-    <a
-      href={href}
-      className="font-medium text-blue-600 dark:text-emerald-400 hover:underline"
-    >
-      {children}
-    </a>
-  ),
-};
+const COMPARISONS = [
+  { href: "/vs/privnote", label: "vs Privnote" },
+  { href: "/vs/onetimesecret", label: "vs OneTimeSecret" },
+  { href: "/vs/envshare", label: "vs EnvShare" },
+  { href: "/vs/protectedtext", label: "vs ProtectedText" },
+] as const;
+
+/** A table of contents only earns its place on longer posts. */
+const TOC_MIN_HEADINGS = 3;
 
 export async function generateStaticParams() {
   return getBlogSlugs().map((slug) => ({ slug }));
@@ -107,167 +80,195 @@ export default async function BlogPostPage({ params }: PageProps) {
   const previousPost = currentIndex > 0 ? BLOG_POSTS[currentIndex - 1] : undefined;
   const nextPost = currentIndex < BLOG_POSTS.length - 1 ? BLOG_POSTS[currentIndex + 1] : undefined;
   const primaryTopic = post.title.split(" ")[0]?.toLowerCase() ?? "";
-  const relatedPosts = BLOG_POSTS
-    .filter((item) => item.slug !== post.slug)
+  const relatedPosts = BLOG_POSTS.filter((item) => item.slug !== post.slug)
     .map((item) => ({
       item,
-      score: (item.category === post.category ? 3 : 0) +
+      score:
+        (item.category === post.category ? 3 : 0) +
         (primaryTopic && item.title.toLowerCase().includes(primaryTopic) ? 1 : 0),
     }))
     .sort((left, right) => right.score - left.score)
     .slice(0, 3)
     .map(({ item }) => item);
 
+  const headings = extractHeadings(post.content);
+  const showToc = headings.length >= TOC_MIN_HEADINGS;
+  const updated = post.updatedAt !== post.publishedAt;
+
   return (
-    <main className="max-w-4xl mx-auto px-6 py-12 md:py-20">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BlogPosting",
-            headline: post.title,
-            description: post.description,
-            image: DEFAULT_OG_IMAGE,
-            datePublished: post.publishedAt,
-            dateModified: post.updatedAt,
-            author: {
-              "@type": "Organization",
-              name: "ProtectedShare Team",
+    <main className="w-full">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          headline: post.title,
+          description: post.description,
+          image: DEFAULT_OG_IMAGE,
+          datePublished: post.publishedAt,
+          dateModified: post.updatedAt,
+          author: {
+            "@type": "Organization",
+            name: "ProtectedShare Team",
+          },
+          publisher: {
+            "@type": "Organization",
+            name: SITE_NAME,
+            url: SITE_URL,
+            logo: {
+              "@type": "ImageObject",
+              url: `${SITE_URL}/logo.svg`,
             },
-            publisher: {
-              "@type": "Organization",
-              name: SITE_NAME,
-              url: SITE_URL,
-              logo: {
-                "@type": "ImageObject",
-                url: `${SITE_URL}/logo.svg`,
-              },
-            },
-            articleSection: post.category,
-            inLanguage: "en-US",
-            mainEntityOfPage: {
-              "@type": "WebPage",
-              "@id": `https://protectedshare.me/blog/${post.slug}`,
-            },
-          }),
+          },
+          articleSection: post.category,
+          inLanguage: "en-US",
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": `https://protectedshare.me/blog/${post.slug}`,
+          },
         }}
       />
-      <JsonLd
-        data={breadcrumbJsonLd([
-          { name: "Home", path: "/" },
-          { name: "Blog", path: "/blog" },
-          { name: post.title, path: `/blog/${post.slug}` },
-        ])}
-      />
 
-      <div className="flex items-center gap-3 text-xs font-mono uppercase tracking-[0.24em] text-blue-600 dark:text-emerald-400">
-        <Link href="/blog" className="hover:underline">
-          Blog
-        </Link>
-        <span className="text-zinc-400 dark:text-zinc-600">/</span>
-        <span>{post.category}</span>
-      </div>
+      <div className="mx-auto max-w-[680px] lg:max-w-none">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_680px_minmax(0,1fr)] lg:gap-10">
+          <div className="hidden lg:block" />
+          <div className="min-w-0">
+            <Breadcrumb
+              items={[
+                { name: "Home", path: "/" },
+                { name: "Blog", path: "/blog" },
+                { name: post.title, path: `/blog/${post.slug}` },
+              ]}
+              className="[&_li:last-child]:hidden"
+            />
 
-      <h1 className="mt-4 text-4xl md:text-5xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
-        {post.title}
-      </h1>
-      <p className="mt-5 text-lg leading-8 text-zinc-600 dark:text-zinc-400 max-w-3xl">
-        {post.description}
-      </p>
+            <header>
+              <p className="eyebrow">{post.category}</p>
+              <h1 className="mt-3 text-[32px] font-semibold leading-[36px] tracking-[-0.035em] text-ink sm:text-h1">
+                {post.title}
+              </h1>
+              <p className="mt-4 text-[17px] leading-[27px] text-ink-2 sm:text-lead">{post.description}</p>
+              <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-ink-3">
+                <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
+                <MetaDot />
+                <span>{post.readingTime}</span>
+                {updated ? (
+                  <>
+                    <MetaDot />
+                    <span>
+                      Updated <time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            </header>
 
-      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-500 dark:text-zinc-500">
-        <span>{formatDate(post.publishedAt)}</span>
-        <span>•</span>
-        <span>{post.readingTime}</span>
-        <span>•</span>
-        <span>Updated {formatDate(post.updatedAt)}</span>
-      </div>
+            <hr className="mt-8 border-line" />
 
-      <article className="mt-10">
-        <ReactMarkdown components={markdownComponents}>{post.content}</ReactMarkdown>
-      </article>
+            <article className="mt-8">
+              <Markdown>{post.content}</Markdown>
+            </article>
 
-      <div className="mt-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
-        <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
-          Related guides
-        </h2>
-        <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
-          More pages that match the same search intent or security workflow.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          {relatedPosts.map((relatedPost) => (
-            <Link
-              key={relatedPost.slug}
-              href={`/blog/${relatedPost.slug}`}
-              className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors"
+            <aside
+              aria-label="Try it"
+              className="mt-12 flex flex-col gap-4 border-y border-line py-6 sm:flex-row sm:items-center sm:justify-between"
             >
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                {relatedPost.category}
-              </p>
-              <p className="mt-2 font-semibold text-zinc-950 dark:text-white">
-                {relatedPost.title}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
-                {relatedPost.description}
-              </p>
-            </Link>
-          ))}
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link href="/vs/protectedtext" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-            ProtectedText alternative
-          </Link>
-          <Link href="/vs/privnote" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-            Privnote alternative
-          </Link>
-          <Link href="/vs/envshare" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-            EnvShare alternative
-          </Link>
-          <Link href="/vs/onetimesecret" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-            OneTimeSecret alternative
-          </Link>
-          <Link href="/chat" className="rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-emerald-400 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors">
-            Anonymous encrypted chatroom
-          </Link>
-        </div>
-      </div>
+              <div>
+                <p className="text-[15px] font-semibold text-ink">Put it into practice</p>
+                <p className="mt-0.5 text-small text-ink-3">Encrypted in your browser. No account.</p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <AppLink href="/notes" className={buttonVariants({ variant: "primary", size: "sm" })}>
+                  New secure note
+                </AppLink>
+                <AppLink href="/secrets" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                  Share a .env
+                </AppLink>
+              </div>
+            </aside>
+          </div>
 
-      <div className="mt-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
-        <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
-          Continue reading
-        </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {previousPost ? (
-            <Link
-              href={`/blog/${previousPost.slug}`}
-              className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors"
-            >
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Previous</p>
-              <p className="mt-2 font-semibold text-zinc-950 dark:text-white">
-                {previousPost.title}
-              </p>
-            </Link>
+          {showToc ? (
+            <nav aria-label="In this article" className="hidden lg:block">
+              <div className="sticky top-[84px] pt-[150px]">
+                <p className="eyebrow !text-[11px]">In this article</p>
+                <ul className="mt-3 flex flex-col gap-2 border-l border-line">
+                  {headings.map((heading) => (
+                    <li key={heading.id}>
+                      <a
+                        href={`#${heading.id}`}
+                        className="-ml-px block border-l border-transparent pl-3 text-small text-ink-3 transition-colors hover:border-ink-3 hover:text-ink"
+                      >
+                        {heading.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </nav>
           ) : (
-            <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
-              You are at the first post.
-            </div>
+            <div className="hidden lg:block" />
           )}
-          {nextPost ? (
-            <Link
-              href={`/blog/${nextPost.slug}`}
-              className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 hover:border-blue-300 dark:hover:border-emerald-500/60 transition-colors"
-            >
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Next</p>
-              <p className="mt-2 font-semibold text-zinc-950 dark:text-white">
-                {nextPost.title}
-              </p>
-            </Link>
-          ) : (
-            <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-500">
-              That is the latest post.
-            </div>
-          )}
+        </div>
+
+        <div className="mx-auto mt-14 max-w-[680px]">
+          <section aria-labelledby="related-heading">
+            <h2 id="related-heading" className="eyebrow">
+              Related guides
+            </h2>
+            <ul className="mt-3 divide-y divide-line border-y border-line">
+              {relatedPosts.map((related) => (
+                <li key={related.slug}>
+                  <Link href={`/blog/${related.slug}`} className="group block py-4">
+                    <span className="block text-[15px] font-semibold leading-[22px] tracking-[-0.01em] text-ink group-hover:underline group-hover:decoration-line-strong group-hover:underline-offset-[3px]">
+                      {related.title}
+                    </span>
+                    <span className="mt-1 block text-small text-ink-3">{related.description}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <nav aria-label="More posts" className="mt-10 grid gap-3 sm:grid-cols-2">
+            {previousPost ? (
+              <Link
+                href={`/blog/${previousPost.slug}`}
+                className="group flex flex-col gap-1 rounded-field border border-line px-4 py-3.5 transition-colors duration-150 hover:border-line-strong hover:bg-surface"
+              >
+                <span className="flex items-center gap-1.5 text-meta text-ink-3">
+                  <ArrowLeft aria-hidden="true" className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+                  Previous
+                </span>
+                <span className="text-small font-medium text-ink">{previousPost.title}</span>
+              </Link>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+            {nextPost ? (
+              <Link
+                href={`/blog/${nextPost.slug}`}
+                className="group flex flex-col items-end gap-1 rounded-field border border-line px-4 py-3.5 text-right transition-colors duration-150 hover:border-line-strong hover:bg-surface"
+              >
+                <span className="flex items-center gap-1.5 text-meta text-ink-3">
+                  Next
+                  <ArrowRight aria-hidden="true" className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </span>
+                <span className="text-small font-medium text-ink">{nextPost.title}</span>
+              </Link>
+            ) : null}
+          </nav>
+
+          <p className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-2 text-small text-ink-3">
+            <span className="font-medium text-ink-2">Compare</span>
+            {COMPARISONS.map((item) => (
+              <Link key={item.href} href={item.href} className="transition-colors hover:text-ink">
+                {item.label}
+              </Link>
+            ))}
+            <AppLink href="/chat" className="transition-colors hover:text-ink">
+              Encrypted chat
+            </AppLink>
+          </p>
         </div>
       </div>
     </main>

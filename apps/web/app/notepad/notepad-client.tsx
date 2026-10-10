@@ -1,15 +1,41 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import Link from "next/link";
 import { decrypt, derivePasswordProof, encrypt, generateRandomPassword } from "@protectedshare/crypto";
 import type { CreateNoteRequest, CreateNoteResponse } from "@protectedshare/contracts";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@protectedshare/ui";
-import { Plus, LogOut, Save, Trash2, Copy, Download, Link2, Check, AlertTriangle, X, FileText, Cloud, Loader2, Key, Eye, EyeOff, Columns, Edit2, Palette, Lock } from "lucide-react";
-import { PasswordStrengthIndicator } from "../../components/password-helper";
+import { Button, Input, Kbd, Segmented, StatusChip, cn } from "@protectedshare/ui";
+import {
+  Cloud,
+  Columns2,
+  Download,
+  Eye,
+  EyeOff,
+  FileCode2,
+  FileText,
+  HardDrive,
+  KeyRound,
+  Link2,
+  LockKeyhole,
+  PanelLeft,
+  PenLine,
+  Plus,
+  Save,
+  Trash2,
+  TriangleAlert,
+  Type,
+  X,
+} from "lucide-react";
 import ModalDialog from "../../components/modal-dialog";
+import ConfirmDialog from "../../components/confirm-dialog";
+import CopyField from "../../components/copy-field";
+import EmptyState from "../../components/empty-state";
+import { useToast } from "../../components/toast";
 import ReactMarkdown from "react-markdown";
 import { generateSelfDecryptingHtml } from "../../lib/self-decrypting-html";
 import { copyText, describeRequestFailure } from "../../lib/feedback";
+import { StrengthMeter } from "../tools/_components/strength-meter";
+import { estimateTypedBits, strengthFromBits } from "../tools/_lib/strength";
 
 import {
   createWorkspace,
@@ -28,101 +54,6 @@ import {
   type WorkspaceNote
 } from "../../lib/workspace";
 import { apiUrl } from "../../lib/api";
-
-type ThemeConfig = {
-  accentBg: string;
-  accentHover: string;
-  accentText: string;
-  badgeBg: string;
-  badgeText: string;
-  borderActive: string;
-  borderHover: string;
-  bgGlow: string;
-  name: string;
-  colorDot: string;
-  focusBorder: string;
-};
-
-const themes: Record<string, ThemeConfig> = {
-  zinc: {
-    name: "Zinc",
-    colorDot: "bg-zinc-500",
-    accentBg: "bg-blue-600 dark:bg-emerald-500",
-    accentHover: "hover:bg-blue-700 dark:hover:bg-emerald-600",
-    accentText: "text-blue-600 dark:text-emerald-400",
-    badgeBg: "bg-blue-50 dark:bg-emerald-500/10",
-    badgeText: "text-blue-600 dark:text-emerald-400",
-    borderActive: "border-b-blue-500 dark:border-b-emerald-500",
-    borderHover: "hover:border-blue-400 dark:hover:border-emerald-500",
-    bgGlow: "bg-blue-500 dark:bg-emerald-500",
-    focusBorder: "focus:border-blue-500 dark:focus:border-emerald-500",
-  },
-  blue: {
-    name: "Blue",
-    colorDot: "bg-blue-500",
-    accentBg: "bg-blue-600 dark:bg-blue-500",
-    accentHover: "hover:bg-blue-700 dark:hover:bg-blue-600",
-    accentText: "text-blue-600 dark:text-blue-400",
-    badgeBg: "bg-blue-50 dark:bg-blue-500/10",
-    badgeText: "text-blue-600 dark:text-blue-400",
-    borderActive: "border-b-blue-500 dark:border-b-blue-500",
-    borderHover: "hover:border-blue-400 dark:hover:border-blue-500",
-    bgGlow: "bg-blue-500 dark:bg-blue-500",
-    focusBorder: "focus:border-blue-500 dark:focus:border-blue-500",
-  },
-  emerald: {
-    name: "Emerald",
-    colorDot: "bg-emerald-500",
-    accentBg: "bg-emerald-600 dark:bg-emerald-500",
-    accentHover: "hover:bg-emerald-700 dark:hover:bg-emerald-600",
-    accentText: "text-emerald-600 dark:text-emerald-400",
-    badgeBg: "bg-emerald-50 dark:bg-emerald-500/10",
-    badgeText: "text-emerald-600 dark:text-emerald-400",
-    borderActive: "border-b-emerald-500 dark:border-b-emerald-500",
-    borderHover: "hover:border-emerald-400 dark:hover:border-emerald-500",
-    bgGlow: "bg-emerald-500 dark:bg-emerald-500",
-    focusBorder: "focus:border-emerald-500 dark:focus:border-emerald-500",
-  },
-  violet: {
-    name: "Violet",
-    colorDot: "bg-violet-500",
-    accentBg: "bg-violet-600 dark:bg-violet-500",
-    accentHover: "hover:bg-violet-700 dark:hover:bg-violet-600",
-    accentText: "text-violet-600 dark:text-violet-400",
-    badgeBg: "bg-violet-50 dark:bg-violet-500/10",
-    badgeText: "text-violet-600 dark:text-violet-400",
-    borderActive: "border-b-violet-500 dark:border-b-violet-500",
-    borderHover: "hover:border-violet-400 dark:hover:border-violet-500",
-    bgGlow: "bg-violet-500 dark:bg-violet-500",
-    focusBorder: "focus:border-violet-500 dark:focus:border-violet-500",
-  },
-  rose: {
-    name: "Rose",
-    colorDot: "bg-rose-500",
-    accentBg: "bg-rose-600 dark:bg-rose-500",
-    accentHover: "hover:bg-rose-700 dark:hover:bg-rose-600",
-    accentText: "text-rose-600 dark:text-rose-400",
-    badgeBg: "bg-rose-50 dark:bg-rose-500/10",
-    badgeText: "text-rose-600 dark:text-rose-400",
-    borderActive: "border-b-rose-500 dark:border-b-rose-500",
-    borderHover: "hover:border-rose-400 dark:hover:border-rose-500",
-    bgGlow: "bg-rose-500 dark:bg-rose-500",
-    focusBorder: "focus:border-rose-500 dark:focus:border-rose-500",
-  },
-  amber: {
-    name: "Amber",
-    colorDot: "bg-amber-500",
-    accentBg: "bg-amber-600 dark:bg-amber-500",
-    accentHover: "hover:bg-amber-700 dark:hover:bg-amber-600",
-    accentText: "text-amber-600 dark:text-amber-400",
-    badgeBg: "bg-amber-50 dark:bg-amber-500/10",
-    badgeText: "text-amber-600 dark:text-amber-400",
-    borderActive: "border-b-amber-500 dark:border-b-amber-500",
-    borderHover: "hover:border-amber-400 dark:hover:border-amber-500",
-    bgGlow: "bg-amber-500 dark:bg-amber-500",
-    focusBorder: "focus:border-amber-500 dark:focus:border-amber-500",
-  }
-};
 
 type SessionState = {
   username: string;
@@ -166,8 +97,10 @@ export default function NotepadClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSyncPassword, setShowSyncPassword] = useState(false);
 
-  // Cool Features States
-  const [themeColor, setThemeColor] = useState("zinc");
+  // Editor preferences
+  const [editorFont, setEditorFont] = useState<"mono" | "sans">("mono");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { toast } = useToast();
   const [editorMode, setEditorMode] = useState<"edit" | "preview" | "split">("edit");
   
   // HTML Self-Decrypting Export States
@@ -177,15 +110,16 @@ export default function NotepadClient() {
   const [showExportPassword, setShowExportPassword] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExportingHtml, setIsExportingHtml] = useState(false);
-  const [showThemeDropdown, setShowThemeDropdown] = useState(false);
   const [clientId] = useState(() => createNoteId());
   const [activeOtherUsersCount, setActiveOtherUsersCount] = useState(0);
 
-  // Initialize theme from localstorage
+  // Initialize editor font from localstorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedTheme = localStorage.getItem("protectedshare.notepad.theme") || "zinc";
-      setThemeColor(savedTheme);
+    try {
+      const savedFont = localStorage.getItem("protectedshare.notepad.font");
+      if (savedFont === "sans" || savedFont === "mono") setEditorFont(savedFont);
+    } catch {
+      // Storage blocked: keep the default.
     }
   }, []);
 
@@ -225,10 +159,13 @@ export default function NotepadClient() {
     return () => clearInterval(interval);
   }, [session, clientId]);
 
-  const handleThemeChange = (color: string) => {
-    setThemeColor(color);
-    localStorage.setItem("protectedshare.notepad.theme", color);
-    setShowThemeDropdown(false);
+  const handleFontChange = (font: "mono" | "sans") => {
+    setEditorFont(font);
+    try {
+      localStorage.setItem("protectedshare.notepad.font", font);
+    } catch {
+      // Storage blocked: the choice lasts for this visit.
+    }
   };
 
 
@@ -395,7 +332,11 @@ export default function NotepadClient() {
             (a, b) => b.updatedAt - a.updatedAt
           );
 
-          alert("Conflict detected: This notepad has been updated on another device. Your changes have been automatically merged to prevent data loss.");
+          toast({
+            title: "Merged with another device",
+            description: "This notepad changed somewhere else. Both sets of changes were kept.",
+            duration: 8000,
+          });
 
           try {
             const finalUpdatedAt = await saveWorkspaceNotes(
@@ -411,15 +352,15 @@ export default function NotepadClient() {
             });
           } catch (saveErr: unknown) {
             const message = saveErr instanceof Error ? saveErr.message : "Failed to save merged notes.";
-            alert(message);
+            toast({ title: "Couldn't save", description: message, tone: "danger" });
           }
         } else {
           const message = err instanceof Error ? err.message : "Failed to save notes.";
-          alert(message);
+          toast({ title: "Couldn't save", description: message, tone: "danger" });
         }
       }
     }
-  }, [session]);
+  }, [session, toast]);
 
   const handleCreateNote = async () => {
     if (!session) return;
@@ -436,15 +377,7 @@ export default function NotepadClient() {
     const nextNotes = [note, ...session.notes];
     await persistNotes(nextNotes);
     setSelectedNoteId(note.id);
-  };
-
-  const handleCloseTab = async (noteId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    // Closing a tab doesn't delete the note, just deselects it if active
-    if (selectedNoteId === noteId) {
-      const remaining = session?.notes.filter((n) => n.id !== noteId) ?? [];
-      setSelectedNoteId(remaining[0]?.id ?? null);
-    }
+    setSidebarOpen(false);
   };
 
   const handleDeleteNote = async () => {
@@ -514,11 +447,8 @@ export default function NotepadClient() {
       const encryptedBody = await encrypt(noteBody, exportPassword);
 
       // Generate the self-decrypting HTML content
-      const htmlContent = generateSelfDecryptingHtml(
-        encryptedTitle,
-        encryptedBody,
-        noteTitle
-      );
+      // The file's <title> stays generic: the real title is encrypted inside it.
+      const htmlContent = generateSelfDecryptingHtml(encryptedTitle, encryptedBody);
 
       const fileSafeTitle = noteTitle
         .toLowerCase()
@@ -755,739 +685,629 @@ export default function NotepadClient() {
   // ── Auth screen ──
   if (!session) {
     return (
-      <main className="h-full mx-auto max-w-md px-6 py-12 flex flex-col justify-center">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-zinc-900 dark:text-zinc-100">Notepad</CardTitle>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Private notes stored encrypted in your browser. Pick a username &amp; password to get started.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={authMode === "signin" ? "default" : "outline"}
-                  aria-pressed={authMode === "signin"}
-                  onClick={() => { setAuthMode("signin"); setPassword(""); setShowPassword(false); }}
-                >
-                  Sign In
-                </Button>
-                <Button
-                  type="button"
-                  variant={authMode === "create" ? "default" : "outline"}
-                  aria-pressed={authMode === "create"}
-                  onClick={() => { setAuthMode("create"); setPassword(""); setShowPassword(false); }}
-                >
-                  Create
-                </Button>
-              </div>
+      <main className="mx-auto flex w-full max-w-[440px] flex-col py-4 sm:py-10">
+        <p className="eyebrow mb-3">Keep</p>
+        <h1 className="text-[32px] font-semibold leading-[36px] tracking-[-0.035em] text-ink sm:text-h1">Notepad</h1>
+        <p className="mt-3 text-[16px] leading-[25px] text-ink-2">
+          Private markdown notes, encrypted in your browser. Keep them on this device, or sync the ciphertext to open them anywhere.
+        </p>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Storage Target</label>
-                <div className="grid grid-cols-2 gap-2" role="group" aria-label="Storage target">
-                  <button
-                    type="button"
-                    aria-pressed={storageMode === "local"}
-                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
-                      storageMode === "local"
-                        ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-sm"
-                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-white/70 dark:bg-zinc-900/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-                    }`}
-                    onClick={() => setStorageMode("local")}
-                  >
-                    Local browser
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={storageMode === "cloud"}
-                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
-                      storageMode === "cloud"
-                        ? `${themes[themeColor].accentBg} text-white dark:text-zinc-900 border-transparent shadow-sm`
-                        : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-white/70 dark:bg-zinc-900/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-                    }`}
-                    onClick={() => setStorageMode("cloud")}
-                  >
-                    Cloud sync
-                  </button>
-                </div>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-550 leading-relaxed font-mono">
-                  {storageMode === "local"
-                    ? "* Offline local storage. Encrypted directly inside your browser."
-                    : "* Edge-synced. Access securely on mobile or laptop via username."}
-                </p>
-              </div>
+        <div className="mt-8 rounded-panel border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.03)]">
+          <form onSubmit={handleAuth} className="flex flex-col gap-5 p-5 sm:p-6">
+            <Segmented
+              aria-label="Open or create a notepad"
+              fullWidth
+              value={authMode}
+              onChange={(mode) => {
+                setAuthMode(mode);
+                setPassword("");
+                setShowPassword(false);
+              }}
+              options={[
+                { value: "signin", label: "Open existing" },
+                { value: "create", label: "Create new" },
+              ]}
+            />
 
-              <div className="space-y-1.5">
-                <label htmlFor="notepad-username" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Username</label>
-                <Input
-                  id="notepad-username"
-                  name="username"
-                  type="text"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="Username"
-                  autoComplete="username"
-                  required
-                  className="h-11 text-base"
+            <div className="flex flex-col gap-2">
+              <span id="notepad-storage-label" className="text-small font-medium text-ink">
+                Where it lives
+              </span>
+              <div role="group" aria-labelledby="notepad-storage-label" className="grid grid-cols-2 gap-2">
+                <StorageOption
+                  active={storageMode === "local"}
+                  onClick={() => setStorageMode("local")}
+                  icon={<HardDrive aria-hidden="true" />}
+                  title="This browser"
+                  body="Stays on this device"
+                />
+                <StorageOption
+                  active={storageMode === "cloud"}
+                  onClick={() => setStorageMode("cloud")}
+                  icon={<Cloud aria-hidden="true" />}
+                  title="Cloud sync"
+                  body="Ciphertext on our server"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="notepad-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Password</label>
-                <div className="relative">
-                  <Input
-                    id="notepad-password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Password"
-                    autoComplete={authMode === "create" ? "new-password" : "current-password"}
-                    required
-                    className={`font-mono h-11 text-base pr-20 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
-                  />
-                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    {authMode === "create" && (
-                      <button
-                        type="button"
-                        onClick={() => setPassword(generateRandomPassword(16))}
-                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
-                        aria-label="Generate secure password"
-                      >
-                        <Key className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              {authMode === "create" && <PasswordStrengthIndicator password={password} />}
-              {error ? <p role="alert" className="text-sm text-red-700 dark:text-red-300 break-words">{error}</p> : null}
-              <Button type="submit" disabled={authBusy || !username.trim() || !password.trim()} aria-busy={authBusy} className="w-full h-11">
-                {authBusy ? "Opening notepad…" : authMode === "create" ? "Create Notepad" : "Open Notepad"}
-              </Button>
-            </form>
-            <div className="relative flex py-4 items-center">
-              <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800"></div>
-              <span className="flex-shrink mx-4 text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider">or</span>
-              <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800"></div>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-blue-500/30 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/10 h-11"
-              onClick={handleStartScratchpad}
-            >
-              Start Writing (No Signup)
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="notepad-username" className="text-small font-medium text-ink">
+                Username
+              </label>
+              <Input
+                id="notepad-username"
+                name="username"
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex min-h-5 items-end justify-between gap-3">
+                <label htmlFor="notepad-password" className="text-small font-medium text-ink">
+                  Password
+                </label>
+                {authMode === "create" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPassword(generateRandomPassword(16));
+                      setShowPassword(true);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-[6px] px-1 text-small font-medium text-ink-2 outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45"
+                  >
+                    <KeyRound aria-hidden="true" className="size-3.5" />
+                    Generate
+                  </button>
+                ) : null}
+              </div>
+              <RevealInput
+                id="notepad-password"
+                name="password"
+                value={password}
+                onChange={setPassword}
+                show={showPassword}
+                onToggle={() => setShowPassword(!showPassword)}
+                autoComplete={authMode === "create" ? "new-password" : "current-password"}
+              />
+              {authMode === "create" ? (
+                <p className="text-small text-ink-3">There&apos;s no reset. Forget it and the notes stay locked.</p>
+              ) : null}
+              {authMode === "create" && password ? <PasswordMeter password={password} /> : null}
+            </div>
+
+            {error ? (
+              <p role="alert" className="break-words rounded-field bg-danger-soft px-3.5 py-3 text-small text-danger">
+                {error}
+              </p>
+            ) : null}
+
+            <Button type="submit" size="lg" loading={authBusy} disabled={!username.trim() || !password.trim()} className="w-full">
+              <LockKeyhole aria-hidden="true" />
+              {authMode === "create" ? "Create notepad" : "Open notepad"}
             </Button>
-          </CardContent>
-        </Card>
+          </form>
+
+          <div className="flex flex-col gap-3 rounded-b-panel border-t border-line bg-surface-2/40 p-5 sm:px-6">
+            <Button type="button" variant="secondary" className="w-full" onClick={handleStartScratchpad}>
+              <PenLine aria-hidden="true" />
+              Start writing, no account
+            </Button>
+            <p className="text-center text-small text-ink-3">A scratchpad encrypted with a random key kept in this browser.</p>
+          </div>
+        </div>
+
+        <nav aria-label="Other tools" className="mt-10 border-t border-line pt-6">
+          <p className="eyebrow !text-[11px]">Looking for something else?</p>
+          <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-small">
+            {[
+              { href: "/notes", label: "Secure note" },
+              { href: "/secrets", label: "EnvShare" },
+              { href: "/chat", label: "Encrypted chat" },
+              { href: "/tools/encrypt-text", label: "Encrypt text" },
+            ].map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </main>
     );
   }
 
-  // ── Main WordPad-style layout ──
+  // ── Workspace ──
   const hasNote = !!selectedNote;
+  const isGuest = session.username === "guest";
+  const workspaceName = isGuest ? "Scratchpad" : `@${session.username}`;
+  const dirty = !!selectedNote && ((editTitle.trim() || "Untitled note") !== selectedNote.title || editBody !== selectedNote.body);
+  const wordCount = editBody.trim() ? editBody.trim().split(/\s+/).length : 0;
+  const bodyFont = editorFont === "mono" ? "font-mono text-[14.5px] leading-[1.75]" : "font-sans text-[16px] leading-[1.75]";
+
+  const openExport = () => {
+    setExportPassword(session.password === "guest" ? "" : session.password);
+    setExportConfirmPassword(session.password === "guest" ? "" : session.password);
+    setExportError(null);
+    setShowExportHtmlModal(true);
+  };
+
+  const closeExport = () => {
+    setShowExportHtmlModal(false);
+    setExportPassword("");
+    setExportConfirmPassword("");
+    setExportError(null);
+  };
+
+  const closeSync = () => {
+    setShowSyncModal(false);
+    setSyncError(null);
+  };
+
+  const sidebar = (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-start justify-between gap-2 border-b border-line px-4 py-3.5">
+        <div className="min-w-0">
+          <p className="truncate text-ui font-semibold tracking-[-0.01em] text-ink">{workspaceName}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {session.storageMode === "local" ? (
+              <StatusChip icon={<HardDrive aria-hidden="true" />} className="h-5 px-2">
+                This browser
+              </StatusChip>
+            ) : (
+              <StatusChip tone="ok" icon={<Cloud aria-hidden="true" />} className="h-5 px-2">
+                Cloud sync
+              </StatusChip>
+            )}
+            {session.storageMode === "cloud" && activeOtherUsersCount > 0 ? (
+              <StatusChip
+                tone="ok"
+                pulse
+                className="h-5 px-2"
+                title={`${activeOtherUsersCount} other device(s) active on this notepad`}
+              >
+                {activeOtherUsersCount} active
+              </StatusChip>
+            ) : null}
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close notes list"
+          className="md:hidden"
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-4">
+        <h2 className="eyebrow !text-[11px]">
+          Notes <span className="tabular ml-1 font-normal normal-case tracking-normal">{session.notes.length}</span>
+        </h2>
+        <Button variant="ghost" size="icon-sm" onClick={handleCreateNote} aria-label="New note" title="New note">
+          <Plus aria-hidden="true" />
+        </Button>
+      </div>
+
+      <nav aria-label="Notes" className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        {session.notes.length === 0 ? (
+          <p className="px-2 py-3 text-small text-ink-3">No notes yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {session.notes.map((note) => {
+              const isActive = note.id === selectedNoteId;
+              const preview = note.body.replace(/[#>*_`[\]-]/g, " ").replace(/\s+/g, " ").trim();
+              return (
+                <li key={note.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedNoteId(note.id);
+                      setSidebarOpen(false);
+                    }}
+                    aria-current={isActive ? "true" : undefined}
+                    className={cn(
+                      "flex w-full flex-col gap-0.5 rounded-control px-2.5 py-2 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-seal/45",
+                      isActive ? "bg-ink/[0.06]" : "hover:bg-ink/[0.035]"
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className={cn("min-w-0 flex-1 truncate text-small", isActive ? "font-semibold text-ink" : "font-medium text-ink-2")}>
+                        {note.title || "Untitled note"}
+                      </span>
+                      <span className="tabular shrink-0 text-[11px] text-ink-3">{timeAgo(note.updatedAt)}</span>
+                    </span>
+                    <span className="truncate text-meta text-ink-3">{preview || "Empty"}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </nav>
+
+      <div className="flex flex-col gap-2 border-t border-line p-3">
+        {session.storageMode === "local" ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={isGuest ? () => setShowSyncModal(true) : handleSyncToCloud}
+            aria-label={isGuest ? "Sync scratchpad to cloud" : "Sync local notes to cloud"}
+          >
+            <Cloud aria-hidden="true" />
+            Go online
+          </Button>
+        ) : null}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1 justify-start"
+            onClick={() => {
+              setSidebarOpen(false);
+              setSession(null);
+              setSelectedNoteId(null);
+              setPassword("");
+            }}
+            aria-label={isGuest ? "Sign In / Load Account" : "Sign Out"}
+          >
+            <LockKeyhole aria-hidden="true" />
+            {isGuest ? "Open another notepad" : "Lock notepad"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-danger hover:bg-danger-soft hover:text-danger"
+            onClick={() => setShowDeleteConfirm(true)}
+            aria-label={isGuest ? "Delete Scratchpad" : "Delete Notebook"}
+            title={isGuest ? "Delete scratchpad" : "Delete notebook"}
+          >
+            <Trash2 aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <main className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
-      {/* ═══ Toolbar ═══ */}
-      <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-sm">
-        <div className="flex items-center gap-1 px-3 py-1.5 overflow-visible flex-wrap sm:flex-nowrap">
-          {/* File actions */}
-          <ToolbarButton
-            icon={<Plus className="h-4 w-4" />}
-            label="New"
-            onClick={handleCreateNote}
+    <main className="relative flex h-[calc(100dvh-92px)] min-h-[480px] overflow-hidden rounded-panel border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.03)]">
+      {/* ═══ Sidebar ═══ */}
+      <aside className="hidden w-[264px] shrink-0 border-r border-line bg-surface-2/40 md:block">{sidebar}</aside>
+      {sidebarOpen ? (
+        <div className="absolute inset-0 z-30 md:hidden">
+          <button
+            type="button"
+            aria-label="Close notes list"
+            tabIndex={-1}
+            className="absolute inset-0 animate-fade-in bg-black/30 dark:bg-black/60"
+            onClick={() => setSidebarOpen(false)}
           />
+          <aside className="absolute inset-y-0 left-0 w-[284px] max-w-[85%] animate-fade-in border-r border-line bg-surface shadow-float">
+            {sidebar}
+          </aside>
+        </div>
+      ) : null}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* ═══ Toolbar ═══ */}
+        <div className="flex h-[52px] shrink-0 items-center gap-1 border-b border-line px-2 sm:px-3">
+          <Button variant="ghost" size="icon-sm" className="md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Show notes">
+            <PanelLeft aria-hidden="true" />
+          </Button>
+          <ToolbarButton icon={<Save />} label="Save" onClick={handleSaveNote} disabled={!hasNote} shortcut="Ctrl+S" showLabel />
           <ToolbarDivider />
+          <ToolbarButton icon={<Download />} label="Export .md" onClick={handleDownloadOffline} disabled={!hasNote} />
+          <ToolbarButton icon={<FileCode2 />} label="Export Secure HTML" onClick={openExport} disabled={!hasNote} />
+          <ToolbarButton icon={<Link2 />} label="Share" onClick={handleShareOnline} disabled={!hasNote} />
+          <ToolbarButton icon={<Trash2 />} label="Delete" onClick={handleDeleteNote} disabled={!hasNote} danger />
 
-          {/* Edit actions - only active when a note is selected */}
-          <ToolbarButton
-            icon={<Save className="h-4 w-4" />}
-            label="Save"
-            onClick={handleSaveNote}
-            disabled={!hasNote}
-            shortcut="Ctrl+S"
-          />
-          <ToolbarButton
-            icon={<Trash2 className="h-4 w-4" />}
-            label="Delete"
-            onClick={handleDeleteNote}
-            disabled={!hasNote}
-            danger
-          />
-          <ToolbarDivider />
+          <div className="ml-auto flex items-center gap-1">
+            {hasNote ? (
+              <Segmented
+                aria-label="Editor mode"
+                size="sm"
+                value={editorMode}
+                onChange={setEditorMode}
+                options={[
+                  { value: "edit", label: <span className="sr-only lg:not-sr-only">Write</span>, icon: <PenLine aria-hidden="true" /> },
+                  { value: "split", label: <span className="sr-only lg:not-sr-only">Split</span>, icon: <Columns2 aria-hidden="true" /> },
+                  { value: "preview", label: <span className="sr-only lg:not-sr-only">Preview</span>, icon: <Eye aria-hidden="true" /> },
+                ]}
+              />
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => handleFontChange(editorFont === "mono" ? "sans" : "mono")}
+              aria-label={editorFont === "mono" ? "Use a proportional font" : "Use a monospace font"}
+              title={editorFont === "mono" ? "Proportional font" : "Monospace font"}
+            >
+              <Type aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
 
-          {/* Export actions */}
-          <ToolbarButton
-            icon={<Download className="h-4 w-4" />}
-            label="Export .md"
-            onClick={handleDownloadOffline}
-            disabled={!hasNote}
-          />
-          <ToolbarButton
-            icon={<Lock className="h-4 w-4 text-amber-500 dark:text-amber-400" />}
-            label="Export Secure HTML"
-            onClick={() => {
-              setExportPassword(session.password === "guest" ? "" : session.password);
-              setExportConfirmPassword(session.password === "guest" ? "" : session.password);
-              setExportError(null);
-              setShowExportHtmlModal(true);
-            }}
-            disabled={!hasNote}
-          />
-          <ToolbarButton
-            icon={<Link2 className="h-4 w-4" />}
-            label="Share"
-            onClick={handleShareOnline}
-            disabled={!hasNote}
-          />
-          <ToolbarDivider />
-
-          {/* Markdown preview toggle buttons */}
-          {hasNote && (
-            <>
-              <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-zinc-200 dark:border-zinc-800/60 shrink-0" role="group" aria-label="Editor mode">
-                <button
-                  type="button"
-                  onClick={() => setEditorMode("edit")}
-                  aria-pressed={editorMode === "edit"}
-                  aria-label="Write"
-                  className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded transition-colors ${
-                    editorMode === "edit"
-                      ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-                  }`}
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                  <span className="hidden md:inline">Write</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditorMode("split")}
-                  aria-pressed={editorMode === "split"}
-                  aria-label="Split"
-                  className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded transition-colors ${
-                    editorMode === "split"
-                      ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-                  }`}
-                >
-                  <Columns className="h-3.5 w-3.5" />
-                  <span className="hidden md:inline">Split</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditorMode("preview")}
-                  aria-pressed={editorMode === "preview"}
-                  aria-label="Preview"
-                  className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded transition-colors ${
-                    editorMode === "preview"
-                      ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-                  }`}
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  <span className="hidden md:inline">Preview</span>
-                </button>
-              </div>
-              <ToolbarDivider />
-            </>
-          )}
-
-          {/* Status indicator */}
-          {status ? (
-            <span className={`text-xs font-medium ${themes[themeColor].accentText} px-2 py-1 rounded ${themes[themeColor].badgeBg} whitespace-nowrap animate-in fade-in`}>
-              {status}
-            </span>
-          ) : null}
-
-          {/* Right side: user info + actions */}
-          <div className="ml-auto flex items-center gap-2 shrink-0">
-            {session.storageMode === "local" ? (
-              <button
-                type="button"
-                onClick={session.username === "guest" ? () => setShowSyncModal(true) : handleSyncToCloud}
-                className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold rounded-md ${themes[themeColor].accentBg} ${themes[themeColor].accentHover} text-white dark:text-zinc-950 transition-colors shadow-md`}
-                aria-label={session.username === "guest" ? "Sync scratchpad to cloud" : "Sync local notes to cloud"}
-              >
-                <Cloud className="h-3 w-3 shrink-0" />
-                <span className="hidden md:inline">Go Online</span>
-              </button>
-            ) : (
-              <>
-                {activeOtherUsersCount > 0 && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 animate-in fade-in" title={`${activeOtherUsersCount} other device(s) active on this notepad`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    <span>{activeOtherUsersCount} active</span>
-                  </span>
-                )}
-                <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 bg-zinc-200/50 dark:bg-zinc-800/40 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800/80">
-                  <span className={`w-1.5 h-1.5 rounded-full ${themes[themeColor].bgGlow} animate-pulse`} />
-                  <span>cloud</span>
+        {/* ═══ Username Conflict Rename Banner ═══ */}
+        {showRenameModal ? (
+          <div className="shrink-0 border-b border-line bg-warn-soft px-4 py-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <p className="flex flex-1 items-start gap-2 text-small text-ink-2">
+                <TriangleAlert aria-hidden="true" className="mt-px size-4 shrink-0 text-warn" />
+                <span>
+                  <strong className="font-semibold text-ink">@{session.username}</strong> is taken on the server. Pick another username
+                  to sync these notes.
                 </span>
-              </>
-            )}
-            <span className="text-xs text-zinc-500 dark:text-zinc-500 font-mono hidden md:inline">
-              {session.username === "guest" ? "Scratchpad" : `@${session.username}`}
-            </span>
-            
-            {/* Theme selector */}
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowThemeDropdown(!showThemeDropdown)}
-                className="flex items-center gap-1 p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 rounded-md transition-colors"
-                aria-label="Change notepad theme"
-                aria-expanded={showThemeDropdown}
-                aria-haspopup="menu"
+              </p>
+              <form onSubmit={handleRenameAndSync} className="flex shrink-0 items-center gap-2">
+                <label htmlFor="rename-username" className="sr-only">
+                  New username
+                </label>
+                <Input
+                  id="rename-username"
+                  name="rename-username"
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="New username"
+                  autoComplete="username"
+                  className="h-9 w-full sm:w-48"
+                  mono
+                  required
+                />
+                <Button type="submit" size="sm" loading={isRenaming}>
+                  Rename and sync
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => {
+                    setShowRenameModal(false);
+                    setRenameError(null);
+                  }}
+                  aria-label="Dismiss rename"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </form>
+            </div>
+            {renameError ? (
+              <p role="alert" className="mt-1.5 break-words text-small text-danger">
+                {renameError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* ═══ Share link banner ═══ */}
+        {shareUrl && sharePassword ? (
+          <div className="shrink-0 border-b border-line bg-surface-2/50 px-4 py-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-small text-ink-2">
+                <span className="font-medium text-ink">Link created.</span> Send the link and the password through different channels. It
+                expires in 7 days.
+              </p>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  setShareUrl(null);
+                  setSharePassword(null);
+                }}
+                aria-label="Dismiss share link"
+                className="-mr-1 -mt-1"
               >
-                <Palette className="h-4 w-4" />
-              </button>
-              {showThemeDropdown && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowThemeDropdown(false)} 
-                  />
-                  <div className="absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <div className="px-2.5 py-1.5 text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-900 mb-1">
-                      Choose Theme
+                <X aria-hidden="true" />
+              </Button>
+            </div>
+            <div className="mt-3 grid gap-2.5 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+              <CopyField label="Link" value={shareUrl} copyLabel="Copy link" />
+              <CopyField label="Password" value={sharePassword} secret />
+            </div>
+          </div>
+        ) : null}
+
+        {/* ═══ Error banner ═══ */}
+        {error ? (
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line bg-danger-soft px-4 py-2">
+            <p role="alert" className="text-small text-danger">
+              {error}
+            </p>
+            <Button variant="ghost" size="icon-sm" onClick={() => setError(null)} aria-label="Dismiss error">
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+        ) : null}
+
+        {/* ═══ Editor area ═══ */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          {selectedNote ? (
+            <div className="flex min-h-0 flex-1 flex-col divide-y divide-line md:flex-row md:divide-x md:divide-y-0">
+              {(editorMode === "edit" || editorMode === "split") && (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className={cn("mx-auto flex min-h-0 w-full flex-1 flex-col", editorMode === "edit" && "max-w-[780px]")}>
+                    <div className="shrink-0 px-5 pt-6 sm:px-8 sm:pt-8">
+                      <input
+                        id="note-title"
+                        name="note-title"
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Untitled note"
+                        aria-label="Note title"
+                        className="w-full min-w-0 bg-transparent text-[24px] font-semibold leading-8 tracking-[-0.025em] text-ink outline-none placeholder:text-ink-3/70 sm:text-[28px] sm:leading-9"
+                      />
+                      <NoteMeta status={status} dirty={dirty} updatedAt={selectedNote.updatedAt} words={wordCount} />
                     </div>
-                    {Object.entries(themes).map(([key, t]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => handleThemeChange(key)}
-                        aria-pressed={themeColor === key}
-                        className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors ${
-                          themeColor === key 
-                            ? "text-zinc-900 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-900/60" 
-                            : "text-zinc-600 dark:text-zinc-400"
-                        }`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${t.colorDot}`} />
-                        <span>{t.name}</span>
-                        {themeColor === key && <span className="ml-auto text-[10px] text-zinc-500 dark:text-zinc-400" aria-hidden="true">✓</span>}
-                      </button>
-                    ))}
+                    <textarea
+                      id="note-body"
+                      name="note-body"
+                      value={editBody}
+                      onChange={(e) => setEditBody(e.target.value)}
+                      placeholder="Start writing. Markdown works."
+                      aria-label="Note body"
+                      spellCheck
+                      className={cn(
+                        "min-h-0 w-full flex-1 resize-none bg-transparent px-5 pb-10 pt-5 text-ink-2 outline-none placeholder:text-ink-3/70 sm:px-8",
+                        bodyFont
+                      )}
+                    />
                   </div>
-                </>
+                </div>
+              )}
+
+              {(editorMode === "preview" || editorMode === "split") && (
+                <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto", editorMode === "split" && "bg-surface-2/30")}>
+                  <article className="mx-auto w-full max-w-[720px] px-5 py-6 sm:px-8 sm:py-8">
+                    {editorMode === "preview" ? (
+                      <>
+                        <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.025em] text-ink">{editTitle.trim() || "Untitled note"}</h1>
+                        <NoteMeta status={status} dirty={dirty} updatedAt={selectedNote.updatedAt} words={wordCount} />
+                        <div className="mb-6 mt-5 border-t border-line" />
+                      </>
+                    ) : (
+                      <p className="eyebrow mb-4 !text-[11px]">Preview</p>
+                    )}
+                    <div className="text-[15.5px] leading-7 text-ink-2">
+                      <ReactMarkdown
+                        components={{
+                          h1: ({ node, ...props }) => <h1 className="mb-3 mt-8 text-[24px] font-semibold leading-8 tracking-[-0.02em] text-ink first:mt-0" {...props} />,
+                          h2: ({ node, ...props }) => <h2 className="mb-2.5 mt-7 text-[20px] font-semibold leading-7 tracking-[-0.015em] text-ink first:mt-0" {...props} />,
+                          h3: ({ node, ...props }) => <h3 className="mb-2 mt-6 text-[17px] font-semibold leading-6 text-ink first:mt-0" {...props} />,
+                          p: ({ node, ...props }) => <p className="mb-4 whitespace-pre-wrap" {...props} />,
+                          ul: ({ node, ...props }) => <ul className="mb-4 list-disc space-y-1 pl-5 marker:text-ink-3" {...props} />,
+                          ol: ({ node, ...props }) => <ol className="mb-4 list-decimal space-y-1 pl-5 marker:text-ink-3" {...props} />,
+                          li: ({ node, ...props }) => <li className="pl-0.5" {...props} />,
+                          blockquote: ({ node, ...props }) => <blockquote className="my-4 border-l-2 border-line-strong pl-4 text-ink-3" {...props} />,
+                          code: ({ node, ...props }) => <code className="rounded-[5px] bg-surface-2 px-1.5 py-0.5 font-mono text-[13px] text-ink" {...props} />,
+                          pre: ({ node, ...props }) => <pre className="my-4 overflow-x-auto rounded-field border border-line bg-surface-2/70 p-4 font-mono text-[13px] [&_code]:bg-transparent [&_code]:p-0" {...props} />,
+                          a: ({ node, ...props }) => <a className="font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink" target="_blank" rel="noopener noreferrer" {...props} />,
+                          hr: ({ node, ...props }) => <hr className="my-6 border-line" {...props} />,
+                        }}
+                      >
+                        {editBody || "*Nothing here yet. Start writing to see the preview.*"}
+                      </ReactMarkdown>
+                    </div>
+                  </article>
+                </div>
               )}
             </div>
-
-            <ToolbarButton
-              icon={<Trash2 className="h-3.5 w-3.5" />}
-              label={session.username === "guest" ? "Delete Scratchpad" : "Delete Notebook"}
-              onClick={() => setShowDeleteConfirm(true)}
-              danger
-              compact
-            />
-            <ToolbarButton
-              icon={<LogOut className="h-3.5 w-3.5" />}
-              label={session.username === "guest" ? "Sign In / Load Account" : "Sign Out"}
-              onClick={() => {
-                setSession(null);
-                setSelectedNoteId(null);
-                setPassword("");
-              }}
-              compact
-            />
-          </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center p-6">
+              <EmptyState
+                compact
+                icon={FileText}
+                title="No note open"
+                description="Pick one from the list, or start a new one."
+                action={
+                  <Button onClick={handleCreateNote} size="sm">
+                    <Plus aria-hidden="true" />
+                    New note
+                  </Button>
+                }
+              />
+            </div>
+          )}
         </div>
       </div>
 
       {/* ═══ Delete Notebook Confirmation ═══ */}
-      {showDeleteConfirm ? (
-        <div className="shrink-0 border-b border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/5 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-            <p role="alert" className="text-sm text-red-700 dark:text-red-400 flex-1">
-              Permanently delete <strong>@{session.username}</strong> and all notes?
-            </p>
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleDeleteNotebook}
-                className="px-3 py-1 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
-              >
-                Delete everything
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-3 py-1 text-xs font-medium rounded-md border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ═══ Username Conflict Rename Banner ═══ */}
-      {showRenameModal ? (
-        <div className="shrink-0 border-b border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5 px-4 py-3">
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-              <p className="text-sm text-amber-700 dark:text-amber-400">
-                The username <strong>@{session.username}</strong> is already taken on the cloud. Choose a different one to sync your local notes:
-              </p>
-            </div>
-            <form onSubmit={handleRenameAndSync} className="flex items-center gap-2 shrink-0">
-              <label htmlFor="rename-username" className="sr-only">New username</label>
-              <input
-                id="rename-username"
-                name="rename-username"
-                type="text"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                placeholder="New username"
-                autoComplete="username"
-                className="h-11 min-w-0 w-full sm:w-48 px-3 text-base font-mono rounded-md border border-amber-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 outline-none"
-                required
-              />
-              <button
-                type="submit"
-                disabled={isRenaming}
-                className="px-3 py-1.5 text-xs font-semibold rounded-md bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white dark:text-zinc-950 transition-colors disabled:opacity-50"
-              >
-                {isRenaming ? "Renaming..." : "Rename & Sync"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRenameModal(false);
-                  setRenameError(null);
-                }}
-                className="p-2 rounded hover:bg-amber-100 dark:hover:bg-zinc-800 text-amber-700 dark:text-amber-300"
-                aria-label="Dismiss rename"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </form>
-          </div>
-          {renameError ? (
-            <p role="alert" className="text-xs text-red-700 dark:text-red-300 mt-1.5 break-words">{renameError}</p>
-          ) : null}
-        </div>
-      ) : null}
-
-
-      {/* ═══ Share link banner ═══ */}
-      {shareUrl && sharePassword ? (
-        <div className="shrink-0 border-b border-blue-200 dark:border-emerald-500/30 bg-blue-50/80 dark:bg-emerald-500/5 px-4 py-2.5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-            <p className="text-xs text-zinc-600 dark:text-zinc-400 shrink-0">Share link & password separately:</p>
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <code className="text-xs font-mono text-blue-700 dark:text-emerald-400 truncate flex-1 bg-white/60 dark:bg-black/20 px-2 py-1 rounded border border-blue-200/60 dark:border-emerald-500/20">
-                {shareUrl}
-              </code>
-              <button
-                type="button"
-                onClick={() => copyValue(shareUrl, "url")}
-                aria-label={copiedField === "url" ? "Share link copied" : "Copy share link"}
-                className="text-xs px-2 py-2 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
-              >
-                {copiedField === "url" ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-            <div className="flex items-center gap-1.5 min-w-0">
-              <code className="text-xs font-mono text-blue-700 dark:text-emerald-400 bg-white/60 dark:bg-black/20 px-2 py-1 rounded border border-blue-200/60 dark:border-emerald-500/20">
-                {sharePassword}
-              </code>
-              <button
-                type="button"
-                onClick={() => copyValue(sharePassword, "password")}
-                aria-label={copiedField === "password" ? "Password copied" : "Copy password"}
-                className="text-xs px-2 py-2 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
-              >
-                {copiedField === "password" ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-            <p role="status" className="sr-only">
-              {copiedField === "url" ? "Share link copied." : copiedField === "password" ? "Password copied." : ""}
-            </p>
-            <button
-              type="button"
-              onClick={() => { setShareUrl(null); setSharePassword(null); }}
-              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 shrink-0 p-2"
-              aria-label="Dismiss share link"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ═══ Error banner ═══ */}
-      {error ? (
-        <div className="shrink-0 border-b border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-4 py-2">
-          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      ) : null}
-
-      {/* ═══ Tab bar ═══ */}
-      <div className="shrink-0 flex items-end bg-zinc-100/60 dark:bg-zinc-900/40 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto">
-        {session.notes.length === 0 ? (
-          <div className="px-4 py-2 text-xs text-zinc-400 italic">
-            No notes — click <strong>+ New</strong> to get started
-          </div>
-        ) : (
-          session.notes.map((note) => {
-            const isActive = note.id === selectedNoteId;
-            return (
-              <div
-                key={note.id}
-                className={`group relative flex items-center max-w-[180px] border-r border-zinc-200 dark:border-zinc-800 ${
-                  isActive
-                    ? `bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 border-b-2 ${themes[themeColor].borderActive} -mb-px`
-                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedNoteId(note.id)}
-                  aria-current={isActive ? "true" : undefined}
-                  className={`flex items-center gap-1.5 min-w-0 px-3 py-2.5 text-xs font-semibold whitespace-nowrap ${
-                    isActive ? "" : "hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300"
-                  }`}
-                >
-                  <FileText className={`h-3 w-3 shrink-0 ${isActive ? themes[themeColor].accentText : "opacity-50 text-zinc-500"}`} />
-                  <span className={`truncate ${isActive ? themes[themeColor].accentText + " font-bold" : ""}`}>{note.title || "Untitled note"}</span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Close ${note.title || "Untitled note"}`}
-                  onClick={(e) => handleCloseTab(note.id, e)}
-                  className="shrink-0 mr-1 p-1 rounded hover:bg-zinc-300/60 dark:hover:bg-zinc-700/60 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            );
-          })
-        )}
-        {/* New tab button */}
-        <button
-          type="button"
-          onClick={handleCreateNote}
-          className="shrink-0 px-2.5 py-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 transition-colors"
-          aria-label="New note"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {/* ═══ Editor area — fills remaining space ═══ */}
-      <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950">
-        {selectedNote ? (
-          <div className="flex-1 flex flex-col md:flex-row min-h-0 divide-y md:divide-y-0 md:divide-x divide-zinc-200 dark:divide-zinc-900">
-            {/* Edit Pane */}
-            {(editorMode === "edit" || editorMode === "split") && (
-              <div className="flex-1 flex flex-col min-h-0">
-                {/* Title bar */}
-                <div className="shrink-0 border-b border-zinc-100 dark:border-zinc-900 px-4 py-2.5 flex items-center">
-                  <input
-                    id="note-title"
-                    name="note-title"
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Note title..."
-                    aria-label="Note title"
-                    className="w-full min-w-0 bg-transparent text-lg font-semibold text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none"
-                  />
-                  {editorMode === "split" && (
-                    <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-zinc-400 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 ml-2 shrink-0 select-none">
-                      Editor
-                    </span>
-                  )}
-                </div>
-                {/* Body */}
-                <textarea
-                  id="note-body"
-                  name="note-body"
-                  value={editBody}
-                  onChange={(e) => setEditBody(e.target.value)}
-                  placeholder="Start writing..."
-                  aria-label="Note body"
-                  className="flex-1 w-full min-h-0 resize-none bg-transparent px-4 py-3 text-base font-mono leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none"
-                />
-              </div>
-            )}
-
-            {/* Preview Pane */}
-            {(editorMode === "preview" || editorMode === "split") && (
-              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-zinc-50/20 dark:bg-zinc-900/5">
-                <div className="px-6 py-5 max-w-2xl w-full mx-auto">
-                  <div className="flex items-center justify-between border-b border-zinc-150 dark:border-zinc-900 pb-2.5 mb-5">
-                    <h1 className="text-lg font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 truncate flex-1 pr-4">
-                      {editTitle.trim() || "Untitled note"}
-                    </h1>
-                    <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-zinc-400 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 shrink-0 select-none">
-                      Preview
-                    </span>
-                  </div>
-                  <div className="prose dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200 text-sm leading-relaxed">
-                    <ReactMarkdown
-                      components={{
-                        h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-6 mb-3 border-b border-zinc-200 dark:border-zinc-850 pb-1" {...props} />,
-                        h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-5 mb-2.5" {...props} />,
-                        h3: ({node, ...props}) => <h3 className="text-base font-bold mt-4 mb-2" {...props} />,
-                        p: ({node, ...props}) => <p className="mb-4 leading-relaxed whitespace-pre-wrap font-sans text-zinc-700 dark:text-zinc-350" {...props} />,
-                        ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1 font-sans text-zinc-700 dark:text-zinc-350" {...props} />,
-                        ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1 font-sans text-zinc-700 dark:text-zinc-350" {...props} />,
-                        li: ({node, ...props}) => <li className="mb-0.5 font-sans text-zinc-700 dark:text-zinc-350" {...props} />,
-                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-zinc-300 dark:border-zinc-750 pl-4 py-0.5 my-4 italic text-zinc-500 dark:text-zinc-400 font-sans" {...props} />,
-                        code: ({node, ...props}) => <code className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 rounded px-1.5 py-0.5 text-xs font-mono font-semibold" {...props} />,
-                        pre: ({node, ...props}) => <pre className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 rounded-lg p-4 overflow-x-auto my-4 text-xs font-mono" {...props} />,
-                        a: ({node, ...props}) => <a className={`font-semibold hover:underline cursor-pointer font-sans ${themes[themeColor].accentText}`} target="_blank" rel="noopener noreferrer" {...props} />
-                      }}
-                    >
-                      {editBody || "*No content. Start writing to see preview.*"}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 gap-3">
-            <FileText className="h-12 w-12 opacity-30" />
-            <p className="text-sm">Select a note or create a new one</p>
-            <Button onClick={handleCreateNote} variant="outline" className="mt-2">
-              <Plus className="h-4 w-4 mr-2" />
-              New Note
-            </Button>
-          </div>
-        )}
-      </div>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        tone="danger"
+        title={isGuest ? "Delete this scratchpad?" : `Delete @${session.username} and all its notes?`}
+        description={
+          session.storageMode === "local"
+            ? "The encrypted notes are removed from this browser. This can't be undone."
+            : "The encrypted notepad is deleted from the server and this browser. This can't be undone."
+        }
+        confirmLabel="Delete everything"
+        onConfirm={() => {
+          setSidebarOpen(false);
+          void handleDeleteNotebook();
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       {showSyncModal && (
         <ModalDialog
           titleId="sync-dialog-title"
           descriptionId="sync-dialog-description"
-          onClose={() => {
-            setShowSyncModal(false);
-            setSyncError(null);
-          }}
-          panelClassName="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101]"
+          onClose={closeSync}
+          panelClassName="relative w-full max-w-[440px] max-h-[calc(100dvh-2rem)] overflow-y-auto animate-rise rounded-panel border border-line bg-surface shadow-float"
         >
-            <button
-              type="button"
-              onClick={() => {
-                setShowSyncModal(false);
-                setSyncError(null);
-              }}
-              className="absolute right-4 top-4 p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-              aria-label="Close dialog"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <CardHeader className="pb-4 border-b border-zinc-100 dark:border-zinc-900">
-              <div className="flex items-center gap-2 text-blue-600 dark:text-emerald-500 mb-1">
-                <Cloud className="h-5 w-5 animate-pulse" />
-                <span className="text-xs uppercase font-mono tracking-wider font-bold">Go Online</span>
+          <DialogHeader
+            id="sync-dialog-title"
+            descriptionId="sync-dialog-description"
+            icon={<Cloud aria-hidden="true" />}
+            title="Sync your scratchpad"
+            description="Choose a username and password. Notes are encrypted with that password before upload, so you can open them on any device."
+            onClose={closeSync}
+          />
+          <form onSubmit={handleCreateAndSync} className="flex flex-col gap-5 p-5">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="sync-username" className="text-small font-medium text-ink">
+                Username
+              </label>
+              <Input
+                id="sync-username"
+                name="username"
+                type="text"
+                required
+                value={syncUsername}
+                onChange={(e) => setSyncUsername(e.target.value)}
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex min-h-5 items-end justify-between gap-3">
+                <label htmlFor="sync-password" className="text-small font-medium text-ink">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyncPassword(generateRandomPassword(16));
+                    setShowSyncPassword(true);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-[6px] px-1 text-small font-medium text-ink-2 outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45"
+                  aria-label="Generate secure password"
+                >
+                  <KeyRound aria-hidden="true" className="size-3.5" />
+                  Generate
+                </button>
               </div>
-              <CardTitle id="sync-dialog-title" className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
-                Sync Scratchpad to Cloud
-              </CardTitle>
-              <p id="sync-dialog-description" className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                Enter a username and password to secure your notes and sync them to the serverless cloud. This allows you to access them from any device securely.
+              <RevealInput
+                id="sync-password"
+                name="password"
+                value={syncPassword}
+                onChange={setSyncPassword}
+                show={showSyncPassword}
+                onToggle={() => setShowSyncPassword(!showSyncPassword)}
+                autoComplete="new-password"
+              />
+              {syncPassword ? <PasswordMeter password={syncPassword} /> : null}
+            </div>
+            {syncError ? (
+              <p role="alert" className="break-words rounded-field bg-danger-soft px-3.5 py-3 text-small text-danger">
+                {syncError}
               </p>
-            </CardHeader>
-
-            <CardContent className="pt-6">
-              <form onSubmit={handleCreateAndSync} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="sync-username" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Username *</label>
-                  <Input
-                    id="sync-username"
-                    name="username"
-                    type="text"
-                    required
-                    value={syncUsername}
-                    onChange={(e) => setSyncUsername(e.target.value)}
-                    placeholder="Choose username"
-                    autoComplete="username"
-                    className={`h-11 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder}`}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="sync-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Password *</label>
-                  <div className="relative">
-                    <Input
-                      id="sync-password"
-                      name="password"
-                      type={showSyncPassword ? "text" : "password"}
-                      required
-                      value={syncPassword}
-                      onChange={(e) => setSyncPassword(e.target.value)}
-                      placeholder="Choose password"
-                      autoComplete="new-password"
-                      className={`h-11 text-base pr-20 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
-                    />
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setSyncPassword(generateRandomPassword(16))}
-                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
-                        aria-label="Generate secure password"
-                      >
-                        <Key className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowSyncPassword(!showSyncPassword)}
-                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
-                        aria-label={showSyncPassword ? "Hide password" : "Show password"}
-                      >
-                        {showSyncPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <PasswordStrengthIndicator password={syncPassword} />
-                </div>
-
-                {syncError ? (
-                  <div role="alert" className="flex items-start gap-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 p-3 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span className="break-words">{syncError}</span>
-                  </div>
-                ) : null}
-
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    disabled={isSyncing || !syncUsername.trim() || !syncPassword.trim()}
-                    aria-busy={isSyncing}
-                    className="w-full h-11 text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300"
-                  >
-                    {isSyncing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Syncing Notes...
-                      </>
-                    ) : (
-                      "Create Account & Sync"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
+            ) : null}
+            <Button type="submit" loading={isSyncing} disabled={!syncUsername.trim() || !syncPassword.trim()} className="w-full">
+              Create account and sync
+            </Button>
+          </form>
         </ModalDialog>
       )}
 
@@ -1495,135 +1315,245 @@ export default function NotepadClient() {
         <ModalDialog
           titleId="export-dialog-title"
           descriptionId="export-dialog-description"
-          onClose={() => {
-            setShowExportHtmlModal(false);
-            setExportPassword("");
-            setExportConfirmPassword("");
-            setExportError(null);
-          }}
-          panelClassName="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[101]"
+          onClose={closeExport}
+          panelClassName="relative w-full max-w-[440px] max-h-[calc(100dvh-2rem)] overflow-y-auto animate-rise rounded-panel border border-line bg-surface shadow-float"
         >
-            <button
-              type="button"
-              onClick={() => {
-                setShowExportHtmlModal(false);
-                setExportPassword("");
-                setExportConfirmPassword("");
-                setExportError(null);
-              }}
-              className="absolute right-4 top-4 p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-              aria-label="Close dialog"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <CardHeader className="pb-4 border-b border-zinc-100 dark:border-zinc-900">
-              <div className="flex items-center gap-2 text-amber-500 dark:text-amber-400 mb-1">
-                <Lock className="h-5 w-5" />
-                <span className="text-xs uppercase font-mono tracking-wider font-bold">Secure Export</span>
+          <DialogHeader
+            id="export-dialog-title"
+            descriptionId="export-dialog-description"
+            icon={<FileCode2 aria-hidden="true" />}
+            title="Export a self-decrypting file"
+            description="Downloads one HTML file with this note encrypted inside. It opens in any browser, offline, with the password you set here."
+            onClose={closeExport}
+          />
+          <form onSubmit={handleExportHtml} className="flex flex-col gap-5 p-5">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex min-h-5 items-end justify-between gap-3">
+                <label htmlFor="export-password" className="text-small font-medium text-ink">
+                  Password for the file
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const generated = generateRandomPassword(16);
+                    setExportPassword(generated);
+                    setExportConfirmPassword(generated);
+                    setShowExportPassword(true);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-[6px] px-1 text-small font-medium text-ink-2 outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45"
+                  aria-label="Generate secure password"
+                >
+                  <KeyRound aria-hidden="true" className="size-3.5" />
+                  Generate
+                </button>
               </div>
-              <CardTitle id="export-dialog-title" className="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">
-                Export Self-Decrypting Note
-              </CardTitle>
-              <p id="export-dialog-description" className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                Generate a standalone encrypted HTML file. You can open and decrypt it completely offline in any web browser using the password defined below.
+              <RevealInput
+                id="export-password"
+                name="password"
+                value={exportPassword}
+                onChange={setExportPassword}
+                show={showExportPassword}
+                onToggle={() => setShowExportPassword(!showExportPassword)}
+                autoComplete="new-password"
+              />
+              {exportPassword ? <PasswordMeter password={exportPassword} /> : null}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="export-confirm-password" className="text-small font-medium text-ink">
+                Repeat password
+              </label>
+              <Input
+                id="export-confirm-password"
+                name="confirmPassword"
+                type={showExportPassword ? "text" : "password"}
+                mono
+                required
+                value={exportConfirmPassword}
+                onChange={(e) => setExportConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                invalid={exportConfirmPassword.length > 0 && exportConfirmPassword !== exportPassword}
+              />
+            </div>
+            {exportError ? (
+              <p role="alert" className="break-words rounded-field bg-danger-soft px-3.5 py-3 text-small text-danger">
+                {exportError}
               </p>
-            </CardHeader>
-
-            <CardContent className="pt-6">
-              <form onSubmit={handleExportHtml} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="export-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Decryption Password *</label>
-                  <div className="relative">
-                    <Input
-                      id="export-password"
-                      name="password"
-                      type={showExportPassword ? "text" : "password"}
-                      required
-                      value={exportPassword}
-                      onChange={(e) => setExportPassword(e.target.value)}
-                      placeholder="Choose password for this file"
-                      autoComplete="new-password"
-                      className={`h-11 text-base pr-20 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder} w-full`}
-                    />
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setExportPassword(generateRandomPassword(16))}
-                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
-                        aria-label="Generate secure password"
-                      >
-                        <Key className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowExportPassword(!showExportPassword)}
-                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 p-2 rounded transition-colors"
-                        aria-label={showExportPassword ? "Hide password" : "Show password"}
-                      >
-                        {showExportPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <PasswordStrengthIndicator password={exportPassword} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="export-confirm-password" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Confirm Password *</label>
-                  <Input
-                    id="export-confirm-password"
-                    name="confirmPassword"
-                    type={showExportPassword ? "text" : "password"}
-                    required
-                    value={exportConfirmPassword}
-                    onChange={(e) => setExportConfirmPassword(e.target.value)}
-                    placeholder="Verify password"
-                    autoComplete="new-password"
-                    className={`h-11 text-base border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-black/30 ${themes[themeColor].focusBorder}`}
-                  />
-                </div>
-
-                {exportError ? (
-                  <div role="alert" className="flex items-start gap-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-500/5 border border-red-500/20 p-3 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span className="break-words">{exportError}</span>
-                  </div>
-                ) : null}
-
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    disabled={isExportingHtml || !exportPassword.trim() || exportPassword !== exportConfirmPassword}
-                    aria-busy={isExportingHtml}
-                    className={`w-full h-11 text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300 ${themes[themeColor].accentBg} ${themes[themeColor].accentHover} text-white dark:text-zinc-950`}
-                  >
-                    {isExportingHtml ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Generating Archive...
-                      </>
-                    ) : (
-                      "Generate & Download HTML"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
+            ) : null}
+            <Button
+              type="submit"
+              loading={isExportingHtml}
+              disabled={!exportPassword.trim() || exportPassword !== exportConfirmPassword}
+              className="w-full"
+            >
+              <Download aria-hidden="true" />
+              Download HTML file
+            </Button>
+          </form>
         </ModalDialog>
       )}
-
-      {/* Internal SEO Links */}
-      {!session && (
-        <div className="mt-8 text-center text-xs text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto pb-8">
-          <p>Looking for a different tool?</p>
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-            <a href="/notes" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Secure Notes</a>
-            <a href="/secrets" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">EnvShare (Dev Keys)</a>
-            <a href="/chat" className="hover:text-blue-600 dark:hover:text-emerald-400 hover:underline">Anonymous Chatroom</a>
-          </div>
-        </div>
-      )}
     </main>
+  );
+}
+
+// ── Helpers ──
+
+function timeAgo(timestamp: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+  if (seconds < 45) return "now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d`;
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function NoteMeta({ status, dirty, updatedAt, words }: { status: string | null; dirty: boolean; updatedAt: number; words: number }) {
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-ink-3">
+      <span aria-live="polite" className="inline-flex items-center gap-1.5">
+        {status ? (
+          <span className="inline-flex items-center gap-1.5 font-medium text-ink-2">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-ok" />
+            {status}
+          </span>
+        ) : dirty ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-warn" />
+            Unsaved changes · <Kbd className="h-4 min-w-4 text-[10px]">Ctrl</Kbd>
+            <Kbd className="h-4 min-w-4 text-[10px]">S</Kbd>
+          </span>
+        ) : (
+          <span>Saved {timeAgo(updatedAt) === "now" ? "just now" : `${timeAgo(updatedAt)} ago`}</span>
+        )}
+      </span>
+      <span aria-hidden="true">·</span>
+      <span className="tabular">
+        {words.toLocaleString("en-US")} {words === 1 ? "word" : "words"}
+      </span>
+      <span aria-hidden="true" className="hidden sm:inline">
+        ·
+      </span>
+      <span className="hidden items-center gap-1 sm:inline-flex">
+        <LockKeyhole aria-hidden="true" className="size-3" />
+        Encrypted before it&apos;s stored
+      </span>
+    </p>
+  );
+}
+
+function PasswordMeter({ password }: { password: string }) {
+  const info = strengthFromBits(estimateTypedBits(password));
+  return <StrengthMeter info={info} approximate className="mt-1.5" />;
+}
+
+function StorageOption({
+  active,
+  onClick,
+  icon,
+  title,
+  body,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-start gap-1 rounded-field border px-3 py-2.5 text-left outline-none transition-[border-color,background-color,box-shadow] duration-150 ease-seal focus-visible:ring-2 focus-visible:ring-seal/45 [&_svg]:size-4",
+        active ? "border-ink bg-surface shadow-[0_0_0_1px_rgb(var(--ink))]" : "border-line-strong bg-surface hover:border-ink-3/60"
+      )}
+    >
+      <span className={cn("flex items-center gap-1.5 text-small font-medium", active ? "text-ink" : "text-ink-2")}>
+        {icon}
+        {title}
+      </span>
+      <span className="text-meta text-ink-3">{body}</span>
+    </button>
+  );
+}
+
+function RevealInput({
+  id,
+  name,
+  value,
+  onChange,
+  show,
+  onToggle,
+  autoComplete,
+}: {
+  id: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  show: boolean;
+  onToggle: () => void;
+  autoComplete: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        name={name}
+        type={show ? "text" : "password"}
+        mono
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        autoComplete={autoComplete}
+        spellCheck={false}
+        required
+        className="pr-11"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={show ? "Hide password" : "Show password"}
+        aria-pressed={show}
+        className="absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-control text-ink-3 outline-none transition-colors hover:bg-ink/[0.05] hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45"
+      >
+        {show ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
+      </button>
+    </div>
+  );
+}
+
+function DialogHeader({
+  id,
+  descriptionId,
+  icon,
+  title,
+  description,
+  onClose,
+}: {
+  id: string;
+  descriptionId: string;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-3.5 border-b border-line p-5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2 [&_svg]:size-[18px]">{icon}</span>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <h2 id={id} className="text-[16px] font-semibold leading-6 tracking-[-0.01em] text-ink">
+          {title}
+        </h2>
+        <p id={descriptionId} className="mt-1 text-small text-ink-3">
+          {description}
+        </p>
+      </div>
+      <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close dialog" className="-mr-1.5 -mt-1">
+        <X aria-hidden="true" />
+      </Button>
+    </div>
   );
 }
 
@@ -1635,16 +1565,17 @@ function ToolbarButton({
   onClick,
   disabled,
   danger,
-  compact,
-  shortcut
+  shortcut,
+  showLabel,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
-  compact?: boolean;
   shortcut?: string;
+  /** Show the text label from lg up. */
+  showLabel?: boolean;
 }) {
   return (
     <button
@@ -1653,26 +1584,18 @@ function ToolbarButton({
       disabled={disabled}
       aria-label={shortcut ? `${label} (${shortcut})` : label}
       title={shortcut ? `${label} (${shortcut})` : label}
-      className={`
-        flex items-center gap-1.5 rounded-md transition-colors whitespace-nowrap
-        ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"}
-        ${disabled
-          ? "opacity-40 cursor-not-allowed text-zinc-400 dark:text-zinc-600"
-          : danger
-            ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
-            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-        }
-        font-medium
-      `}
+      className={cn(
+        "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-small font-medium outline-none transition-colors duration-150",
+        "focus-visible:ring-2 focus-visible:ring-seal/45 disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4 [&_svg]:shrink-0",
+        danger ? "text-ink-3 hover:bg-danger-soft hover:text-danger" : "text-ink-2 hover:bg-ink/[0.05] hover:text-ink"
+      )}
     >
       {icon}
-      <span className="hidden lg:inline">{label}</span>
+      {showLabel ? <span className="hidden lg:inline">{label}</span> : null}
     </button>
   );
 }
 
 function ToolbarDivider() {
-  return (
-    <div className="w-px h-5 bg-zinc-300 dark:bg-zinc-700 mx-0.5 shrink-0" />
-  );
+  return <div aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-line" />;
 }

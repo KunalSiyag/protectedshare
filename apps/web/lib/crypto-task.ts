@@ -1,4 +1,15 @@
-import { decrypt, derivePasswordProof, encrypt, type EncryptedPayload } from "@protectedshare/crypto";
+import {
+  decrypt,
+  deriveAuthToken,
+  derivePasswordProof,
+  encrypt,
+  openText,
+  sealText,
+  type EncryptedPayload,
+  type KdfMode,
+  type SealedV2,
+  type SecretInput,
+} from "@protectedshare/crypto";
 
 type WorkerResult = {
   id: number;
@@ -7,7 +18,11 @@ type WorkerResult = {
   payload?: EncryptedPayload;
   passwordProof?: string;
   plaintext?: string;
+  sealed?: SealedTextResult;
+  authToken?: string;
 };
+
+export type SealedTextResult = { payload: SealedV2; authToken: string; authHash: string };
 
 type Pending = {
   resolve: (result: WorkerResult) => void;
@@ -100,5 +115,45 @@ export async function decryptForShare(password: string, encryptedBlob: string, i
   } catch (error) {
     if (!(error instanceof Error) || error.message !== "WORKER_UNAVAILABLE") throw error;
     return decrypt(encryptedBlob, password, iv, salt);
+  }
+}
+
+function isWorkerMissing(error: unknown): boolean {
+  return error instanceof Error && error.message === "WORKER_UNAVAILABLE";
+}
+
+/** v2: seal text with a link key, a password, or both. Runs off the main thread when it can. */
+export async function sealTextTask(plaintext: string, secret: SecretInput): Promise<SealedTextResult> {
+  try {
+    const result = unwrap(await ask({ op: "sealV2", plaintext, secret }));
+    if (!result.sealed) throw new Error("Encryption failed.");
+    return result.sealed;
+  } catch (error) {
+    if (!isWorkerMissing(error)) throw error;
+    return sealText(plaintext, secret);
+  }
+}
+
+/** v2: open a sealed payload. */
+export async function openTextTask(payload: SealedV2, secret: SecretInput): Promise<string> {
+  try {
+    const result = unwrap(await ask({ op: "openV2", payload, secret }));
+    if (typeof result.plaintext !== "string") throw new Error("Could not decrypt this secret.");
+    return result.plaintext;
+  } catch (error) {
+    if (!isWorkerMissing(error)) throw error;
+    return openText(payload, secret);
+  }
+}
+
+/** v2: recompute the retrieval token from the salt and kdf reported by a `/meta` endpoint. */
+export async function authTokenTask(secret: SecretInput, salt: string, kdf: KdfMode): Promise<string> {
+  try {
+    const result = unwrap(await ask({ op: "authV2", secret, salt, kdf }));
+    if (!result.authToken) throw new Error("Could not prepare the key check.");
+    return result.authToken;
+  } catch (error) {
+    if (!isWorkerMissing(error)) throw error;
+    return deriveAuthToken(secret, salt, kdf);
   }
 }

@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { KEYHOLE_PATH, SEAL_PATH } from "../components/seal-mark";
 
 export const size = {
   width: 180,
@@ -7,6 +8,7 @@ export const size = {
 
 export const contentType = "image/png";
 
+/** Home-screen icon: the vermilion seal with its keyhole on the light Sealed canvas. */
 export default function AppleIcon() {
   return new ImageResponse(
     (
@@ -17,22 +19,13 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#2563eb",
-          borderRadius: 36,
+          background: "#F6F7F7",
         }}
       >
-        <svg
-          width="110"
-          height="110"
-          viewBox="0 0 24 24"
-          fill="#ffffff"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z"
-          />
+        <svg width="132" height="132" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d={SEAL_PATH} fill="#E8470F" />
+          <circle cx="12" cy="12" r="7.6" fill="none" stroke="#ffffff" strokeOpacity="0.38" strokeWidth="0.6" />
+          <path d={KEYHOLE_PATH} fill="#ffffff" />
         </svg>
       </div>
     ),

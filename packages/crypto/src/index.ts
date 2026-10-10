@@ -230,3 +230,5 @@ export function generateRandomPassword(length = 24): string {
 
   return password;
 }
+
+export * from "./v2";

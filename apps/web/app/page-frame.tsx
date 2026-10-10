@@ -1,30 +1,30 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import WindowHeader from "./window-header";
 
+/**
+ * Pages render straight onto the canvas. Non-home pages get the content width and gutters;
+ * the homepage controls its own full-bleed layout. The notepad workspace opts out of the width
+ * by putting `.notepad-full-width` on <html>.
+ */
 export default function PageFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isHome = pathname === "/";
 
-  if (isHome) {
+  if (pathname === "/") {
     return (
-      <div className="flex-1 w-full bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-300 flex flex-col">
-        <div className="flex-1 w-full max-w-5xl mx-auto p-0 flex flex-col">
-          {children}
-        </div>
+      <div id="main-content" tabIndex={-1} className="flex w-full flex-1 flex-col outline-none">
+        {children}
       </div>
     );
   }
 
   return (
-    <div className="flex-1 w-full max-w-5xl [.notepad-full-width_&]:max-w-none [.notepad-full-width_&]:px-2 [.notepad-full-width_&]:sm:px-4 [.notepad-full-width_&]:md:px-6 [.notepad-full-width_&]:py-4 p-3 sm:p-4 md:p-8 mx-auto flex flex-col">
-      <div className="flex-1 bg-white dark:bg-[#09090b]/80 border border-zinc-200 dark:border-zinc-800/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] overflow-hidden flex flex-col relative">
-        <WindowHeader />
-        <div className="flex-1 overflow-x-hidden text-zinc-800 dark:text-zinc-300">
-          {children}
-        </div>
-      </div>
+    <div
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-content flex-1 flex-col px-4 pb-16 pt-8 outline-none sm:px-6 md:pt-12 [.notepad-full-width_&]:max-w-none [.notepad-full-width_&]:px-2 [.notepad-full-width_&]:pb-4 [.notepad-full-width_&]:pt-4 sm:[.notepad-full-width_&]:px-4 md:[.notepad-full-width_&]:px-6"
+    >
+      {children}
     </div>
   );
 }

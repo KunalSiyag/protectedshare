@@ -1,144 +1,117 @@
 import AppLink from "../components/app-link";
-import ContactTrigger from "../components/contact-trigger";
+import SealMark from "../components/seal-mark";
 
-const toolLinks = [
-  { href: "/notes", label: "Secure Notes" },
-  { href: "/secrets", label: "EnvShare" },
-  { href: "/notepad", label: "Encrypted Notepad" },
-  { href: "/chat", label: "Anonymous Chatroom" },
-] as const;
+const GITHUB_URL = "https://github.com/KunalSiyag/protectedshare";
 
-const comparisonLinks = [
-  { href: "/vs/protectedtext", label: "ProtectedText Alternative" },
-  { href: "/vs/privnote", label: "Privnote Alternative" },
-  { href: "/vs/envshare", label: "EnvShare Alternative" },
-  { href: "/vs/onetimesecret", label: "OneTimeSecret Alternative" },
-] as const;
+const columns: { title: string; links: { href: string; label: string }[] }[] = [
+  {
+    title: "Products",
+    links: [
+      { href: "/notes", label: "Secure note" },
+      { href: "/secrets", label: "EnvShare" },
+      { href: "/files", label: "File drop" },
+      { href: "/request", label: "Secret request" },
+      { href: "/chat", label: "Chat" },
+      { href: "/notepad", label: "Notepad" },
+    ],
+  },
+  {
+    title: "Free tools",
+    links: [
+      { href: "/tools/password-generator", label: "Password generator" },
+      { href: "/tools/encrypt-text", label: "Encrypt text" },
+      { href: "/links", label: "My links" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { href: "/security", label: "Security model" },
+      { href: "/self-host", label: "Self-host" },
+      { href: "/pricing", label: "Pricing" },
+      { href: "/blog", label: "Blog" },
+    ],
+  },
+  {
+    title: "Compare",
+    links: [
+      { href: "/vs/privnote", label: "vs Privnote" },
+      { href: "/vs/onetimesecret", label: "vs OneTimeSecret" },
+      { href: "/vs/envshare", label: "vs EnvShare" },
+      { href: "/vs/protectedtext", label: "vs ProtectedText" },
+    ],
+  },
+];
 
-const guideLinks = [
-  { href: "/blog", label: "Security Blog" },
-  { href: "/self-host", label: "Self-Host" },
-  { href: "/about", label: "About Us" },
-  { href: "/contact", label: "Contact Us" },
-] as const;
+const legal = [
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
+];
+
+function GitHubMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+    </svg>
+  );
+}
+
+const linkClass =
+  "rounded-[4px] text-small text-ink-2 outline-none transition-colors duration-150 hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45";
 
 export default function SiteFooter() {
   return (
-    <footer className="border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-[#09090b] pt-12 md:pt-16 pb-16 md:pb-24 mt-auto">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
-        <div>
-          <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
-            <span className="text-blue-600 dark:text-emerald-500 font-mono">{"/*"}</span> Cryptographic Core
-          </h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
-            ProtectedShare encrypts plaintext in your browser with AES-256-GCM. Keys never leave the device, so the
-            server only stores ciphertext.
+    <footer className="mt-auto border-t border-line">
+      <div className="mx-auto grid max-w-content gap-x-8 gap-y-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))] lg:py-14">
+        <div className="max-w-[320px]">
+          <AppLink href="/" className="inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em] text-ink">
+            <SealMark size={20} />
+            ProtectedShare
+          </AppLink>
+          <p className="mt-3 text-small text-ink-3">
+            Encryption runs in your browser. The server keeps ciphertext and a verifier it can check, never your
+            plaintext or your key.
           </p>
-          <ul className="text-sm space-y-3 pl-1">
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-emerald-500 font-mono mt-0.5">-</span>
-              <span className="text-zinc-600 dark:text-zinc-400">
-                <strong className="text-zinc-900 dark:text-zinc-200 font-medium">One-time secrets:</strong> key stays in
-                the URL hash and the payload can burn after a read.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-emerald-500 font-mono mt-0.5">-</span>
-              <span className="text-zinc-600 dark:text-zinc-400">
-                <strong className="text-zinc-900 dark:text-zinc-200 font-medium">Secure notes:</strong> open from the
-                link, or send the password on a separate channel.
-              </span>
-            </li>
-          </ul>
+          <a
+            href={GITHUB_URL}
+            className="mt-5 inline-flex h-8 items-center gap-2 rounded-control border border-line bg-surface px-2.5 text-meta font-medium text-ink-2 outline-none transition-colors hover:border-line-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45"
+          >
+            <GitHubMark className="size-3.5" />
+            Source on GitHub
+            <span className="text-ink-3">· MIT</span>
+          </a>
         </div>
-        <div className="flex flex-col gap-8">
-          <div>
-            <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
-              <span className="text-blue-600 dark:text-emerald-500 font-mono">{"<>"}</span> Tools
-            </h3>
-            <ul className="space-y-3 text-sm">
-              {toolLinks.map((link) => (
-                <li key={link.href}>
-                  <AppLink href={link.href} className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
-                    {link.label}
-                  </AppLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
-              <span className="text-blue-600 dark:text-emerald-500 font-mono">{"{ }"}</span> Comparisons
-            </h3>
-            <ul className="space-y-3 text-sm">
-              {comparisonLinks.map((link) => (
-                <li key={link.href}>
-                  <AppLink href={link.href} className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
-                    {link.label}
-                  </AppLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <div>
-          <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
-            <span className="text-blue-600 dark:text-emerald-500 font-mono">{"*"}</span> Security
-          </h3>
-          <ul className="text-sm space-y-4">
-            <li className="text-zinc-600 dark:text-zinc-400">
-              <strong className="text-zinc-900 dark:text-zinc-200 font-medium">Encrypted at rest.</strong> A database
-              dump is ciphertext without your password.
-            </li>
-            <li className="text-zinc-600 dark:text-zinc-400">
-              <strong className="text-zinc-900 dark:text-zinc-200 font-medium">No accounts required.</strong> Sharing
-              sessions stay anonymous.
-            </li>
-            <li className="text-zinc-600 dark:text-zinc-400">
-              <strong className="text-zinc-900 dark:text-zinc-200 font-medium">Edge-hosted API.</strong> Secrets and notes
-              are served from Cloudflare Workers.
-            </li>
-          </ul>
-        </div>
-        <div className="flex flex-col justify-between">
-          <div>
-            <h3 className="text-zinc-900 dark:text-zinc-100 font-semibold mb-5 flex items-center gap-2 text-base md:text-lg">
-              <span className="text-blue-600 dark:text-emerald-500 font-mono">{"//"}</span> Guides
-            </h3>
-            <ul className="space-y-3 text-sm">
-              {guideLinks.map((link) => (
-                <li key={link.href}>
-                  <AppLink href={link.href} className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors">
-                    {link.label}
-                  </AppLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="mt-8 p-4 rounded-lg bg-zinc-200/40 dark:bg-zinc-900/60 border border-zinc-300 dark:border-zinc-800/80">
-            <h4 className="text-xs uppercase font-mono tracking-wider text-zinc-900 dark:text-zinc-200 font-semibold mb-2">Dedicated Infrastructure</h4>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Need an isolated zero-knowledge setup?{" "}
-              <ContactTrigger className="text-blue-600 dark:text-emerald-400 hover:underline font-bold focus:outline-none">
-                Let&apos;s make a deal
-              </ContactTrigger>
-              .
-            </p>
-          </div>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4 md:col-span-1 lg:contents">
+          {columns.map((column) => (
+            <nav key={column.title} aria-label={column.title}>
+              <h2 className="eyebrow !text-[11px]">{column.title}</h2>
+              <ul className="mt-3.5 flex flex-col gap-2.5">
+                {column.links.map((link) => (
+                  <li key={link.href}>
+                    <AppLink href={link.href} className={linkClass}>
+                      {link.label}
+                    </AppLink>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
       </div>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-12 md:mt-16 pt-8 border-t border-zinc-200 dark:border-zinc-800/40 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
-        <p className="text-xs text-zinc-600 dark:text-zinc-550 font-mono order-2 sm:order-1">
-          © {new Date().getFullYear()} ProtectedShare.me — Zero-Knowledge Security Protocols.
-        </p>
-        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-mono text-zinc-600 dark:text-zinc-400 order-1 sm:order-2">
-          <AppLink href="/about" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">About Us</AppLink>
-          <AppLink href="/contact" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Contact Us</AppLink>
-          <AppLink href="/blog" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Blog</AppLink>
-          <AppLink href="/self-host" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Self-Host</AppLink>
-          <AppLink href="/chat" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Chatroom</AppLink>
-          <AppLink href="/privacy" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Privacy Policy</AppLink>
-          <AppLink href="/terms" className="hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors">Terms of Service</AppLink>
+      <div className="border-t border-line">
+        <div className="mx-auto flex max-w-content flex-col gap-3 px-4 py-5 text-meta text-ink-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>© {new Date().getFullYear()} ProtectedShare. Open source under the MIT license.</p>
+          <ul className="flex flex-wrap gap-x-5 gap-y-2">
+            {legal.map((link) => (
+              <li key={link.href}>
+                <AppLink href={link.href} className="rounded-[4px] outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45">
+                  {link.label}
+                </AppLink>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </footer>

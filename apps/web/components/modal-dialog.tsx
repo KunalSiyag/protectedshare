@@ -95,7 +95,7 @@ export default function ModalDialog({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
         aria-hidden="true"
-        className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 animate-fade-in bg-black/40 backdrop-blur-[2px] dark:bg-black/70"
         onClick={() => onCloseRef.current()}
       />
       <div

@@ -1,10 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#2563eb">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <style>
-    @media (prefers-color-scheme: dark) {
-      path {
-        fill: #10b981;
-      }
-    }
+    .seal { fill: #E8470F; }
+    @media (prefers-color-scheme: dark) { .seal { fill: #FF6B36; } }
   </style>
-  <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clip-rule="evenodd" />
+  <path class="seal" d="M12 1.8A2.25 2.25 0 0 1 15.9 2.58A2.25 2.25 0 0 1 19.21 4.79A2.25 2.25 0 0 1 21.42 8.1A2.25 2.25 0 0 1 22.2 12A2.25 2.25 0 0 1 21.42 15.9A2.25 2.25 0 0 1 19.21 19.21A2.25 2.25 0 0 1 15.9 21.42A2.25 2.25 0 0 1 12 22.2A2.25 2.25 0 0 1 8.1 21.42A2.25 2.25 0 0 1 4.79 19.21A2.25 2.25 0 0 1 2.58 15.9A2.25 2.25 0 0 1 1.8 12A2.25 2.25 0 0 1 2.58 8.1A2.25 2.25 0 0 1 4.79 4.79A2.25 2.25 0 0 1 8.1 2.58A2.25 2.25 0 0 1 12 1.8Z"/>
+  <circle cx="12" cy="12" r="7.6" fill="none" stroke="#fff" stroke-opacity="0.38" stroke-width="0.75"/>
+  <path fill="#fff" d="M12 7.55a2.35 2.35 0 0 0-1.2 4.37l-.62 3.88a.6.6 0 0 0 .6.7h2.44a.6.6 0 0 0 .6-.7l-.62-3.88A2.35 2.35 0 0 0 12 7.55Z"/>
 </svg>

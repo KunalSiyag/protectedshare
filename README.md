@@ -1,159 +1,137 @@
-# ProtectedShare: Zero-Knowledge Secure Notes, Online Notepad & EnvShare
+# ProtectedShare
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Lighthouse: 100/100](https://img.shields.io/badge/Lighthouse-100%2F100-success)](https://protectedshare.me)
 [![Next.js: 15](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com)
 
-ProtectedShare is a modern, open-source, privacy-first zero-knowledge web application designed for secure communication, credential sharing, and private drafting. It serves as a high-performance alternative to legacy platforms like **ProtectedText**, **Privnote**, and **EnvShare**.
+Encrypt a secret in your browser and hand it to someone else without either of you making an account. The server keeps ciphertext and a few facts it needs to enforce limits. It never receives the plaintext, the key, or the password.
 
-All encryption and decryption routines execute entirely client-side in the user's browser using standard W3C Web Crypto APIs. Secret keys never cross the network, providing mathematical guarantees of absolute privacy.
+Hosted at [protectedshare.me](https://protectedshare.me). MIT licensed.
 
----
+## Tools
 
-## 🚀 Key Features
+| Tool | Route | What it does |
+|---|---|---|
+| Secure note | `/notes` | Encrypted text behind a link. Key in the link (`#k=`), a separate password, or both. Can burn after the first read. |
+| EnvShare | `/secrets` | `.env` files and API keys with a read limit of 1–100. Key in the link. |
+| File drop | `/files` | Up to 25 MB of files, encrypted in 1 MB chunks, with a download limit. File names live in an encrypted manifest. |
+| Secret request | `/request` | Ask someone for a secret. Their reply is encrypted to your public key; the private key lives only in your inbox link. |
+| My links | `/links` | Shares you created on this device, with status (opened, expired, revoked), reads left and revoke. Stored in this browser only. |
+| Chat | `/chat` | Encrypted rooms with nicknames, replies, reactions, edit/delete, disappearing messages, images and files, safety words, and burn room. Messages are purged when everyone leaves. |
+| Notepad | `/notepad` | Markdown notepad. Local mode keeps the encrypted vault in the browser; optional sync uploads ciphertext. Notes export as self-decrypting HTML. |
+| Password generator | `/tools/password-generator` | Passwords and passphrases with an entropy estimate. Runs entirely in the browser. |
+| Encrypt text | `/tools/encrypt-text` | Password-encrypt text into an armored block you can paste anywhere and open offline. |
 
-*   **🔒 Secure Notes & Letters:** Create password-locked messages with custom TTL expirations and optional burn-after-reading. Perfect for safe two-channel password delivery.
-*   **💻 EnvShare (Developer Credentials):** Share `.env` files, API keys, database strings, and configurations. Decryption keys are kept in the URL hash fragment (`#key`) which browsers never send to server networks. Supports configurable read limits (1 to 10 views).
-*   **📝 Offline-First Encrypted Notepad:** A fully functional online scratchpad with rich markdown rendering, local browser storage persistence, and cloud synchronization.
-*   **⚡ Edge-Optimized Architecture:** Backend powered by Cloudflare Workers and Cloudflare D1 SQL databases for globally distributed, low-latency, and isolated serverless performance.
-*   **🍪 Zero-Tracking Privacy:** 100% cookie-free, tracker-free, and account-free. No email addresses or personal information are collected.
+Every share expires within 30 days (1 hour, 1 day, 7 days or a custom time).
 
----
+## Security model
 
-## 🛡️ Technical Security & Cryptographic Model
+Short version: AES-256-GCM in the browser via Web Crypto, keys in the URL fragment (which browsers don't send to servers), and the server checks a hash before releasing ciphertext. The full model is at [`/security`](https://protectedshare.me/security); what's stored and for how long is at [`/privacy`](https://protectedshare.me/privacy).
 
-ProtectedShare operates on a strict zero-knowledge model. The server acts strictly as an ephemeral storage courier for ciphertext.
+### Crypto v2 (`packages/crypto/src/v2.ts`)
 
-```
-[Plaintext Data] 
-       │
-       ▼ (Browser Runtime)
-[PBKDF2 Key Derivation] ──► Derived Key (256-bit AES)
-       │
-       ▼ (Web Crypto API)
-[AES-256-GCM Encryption] ──► Ciphertext + IV + Salt ──► Uploaded to Server
-```
+- **Keys.** Link mode uses a random 32-byte key, base64url in the fragment: `/notes/{id}#k={key}`. Password mode stretches the password with PBKDF2-SHA256 at 600,000 iterations over a random 16-byte salt. `key+password` concatenates both.
+- **Derivation.** HKDF-SHA256 over that input and the item's salt gives two independent values: an AES-256-GCM key (`info = "ps/v2/enc"`) and a 32-byte auth token (`info = "ps/v2/auth"`).
+- **What the server gets.** Ciphertext, IV, salt, KDF mode, and `authHash = SHA-256(authToken)`. To read, the client derives the token and sends it in `X-Auth-Token`; the server hashes it and compares in constant time. A guessed id alone returns nothing.
+- **Files.** Each chunk is encrypted separately with its index and the chunk count bound as AAD (`ps-chunk:{i}/{n}`), so chunks can't be reordered or dropped silently. The server counts a download when it starts (`POST /api/drops/:id/start` decrements the count atomically and opens a 60-minute download session); chunk reads need that session's `X-Download-Token`.
+- **Secret requests.** ECDH P-256 + HKDF-SHA256 + AES-256-GCM with an ephemeral sender key. The inbox token is derived from the private key. Only a holder of the full sender link (`#k=`) can answer: replying needs a respond token derived from that key, and the sender's browser checks the public key against a SHA-256 fingerprint carried inside the encrypted label before sending.
+- **Chat.** Room keys come from the invite fragment (`/chat#r={room}&k={key}`) or a room password. Members see five safety words derived from the key to confirm they share the same room.
+- **Receipts.** Creating a share can register a random manage token; the server stores only its hash plus status, counts and timestamps (never content). My links keeps the token and sends it only to show "opened" and to revoke.
+- **Ids.** New note and EnvShare ids are 10 random characters (v1 links have 5). The id is in the path, so the server sees it; the key never is.
 
-### 1. Key Derivation & Encryption Standard
-*   **PBKDF2 Key Stretching:** Passwords are stretched using **PBKDF2** with **210,000 iterations**, salt, and a SHA-256 digest wrapper to protect against offline dictionary attacks.
-*   **AES-256-GCM Authenticated Encryption:** The stretched key encrypts plaintext locally using Galois/Counter Mode (GCM). This mode provides message integrity authentication, preventing ciphertext tampering attacks.
+### Legacy v1 links
 
-### 2. URL Hash Key Delivery
-For one-click sharing links, the derived key is appended as a URL hash fragment (`https://protectedshare.me/secrets/[id]#key`). According to HTTP specifications, everything after the `#` character remains local to the browser and is **never** sent to the hosting network, proxies, or databases.
+Links made before v2 keep working. They use PBKDF2 (210,000 iterations) for the encryption key and a separate password proof (PBKDF2 at 100,000 iterations with a fixed salt, then SHA-256) that the server checks. Synced notepad workspaces still authenticate with that proof and store usernames as SHA-256 hashes.
 
-### 3. Ephemeral Auto-Destruction
-*   **Burn-After-Read:** Immediately upon database retrieval, the worker executes a transactional delete query, wiping the ciphertext, IV, and salt from SQLite tables.
-*   **TTL Expirations:** Inactive secrets are automatically deleted by a cleanup process once their expiration timestamp is reached.
+### Honest limits
 
----
+- The server sees request metadata: share ids, sizes, counts, timestamps. Every API call goes through the web app's host (`/api/*` is relayed to the Worker), so that host and Cloudflare both see IP addresses, request metadata and ciphertext in transit; Workers observability logs are enabled in `wrangler.toml`.
+- Password-mode notes can be guessed online against a known id: reads aren't rate limited yet, though each guess costs 600,000 PBKDF2 rounds. Prefer link-key or link+password mode.
+- Pages send a Content-Security-Policy (same-origin scripts, connections and images, `frame-ancestors 'none'`). It keeps `'unsafe-inline'` for scripts because the Next.js bootstrap is inline without nonces, so it limits where data can be sent rather than stopping inline script.
+- Anyone with a full link can open it until it expires or runs out of reads. Links you created are saved in your browser's localStorage (My links), keys included.
+- Google Analytics loads only if `NEXT_PUBLIC_GA_ID` is set at build time; it sets its own cookies when it does. It never loads on pages that open or hold a share (note/secret/file/request links, chat, My links, notepad) and reports the path only, never the query or fragment. The app itself sets no cookies.
+- The contact form is not end-to-end encrypted; it stores name, email, company and message.
+- No independent security audit has been published.
 
-## 🔄 Multi-Device Sync & Conflict Resolution (OCC)
-
-The synchronized Notepad supports multi-device updates using **Optimistic Concurrency Control (OCC)** coupled with a **Last-Write-Wins (LWW) Element Set CRDT** merge mechanism.
-
-### How Conflict Detection Works:
-1.  **Versioning:** Every workspace record stores an `updated_at` unix epoch timestamp representing its version.
-2.  **State Tracking:** When the client pulls notes, it caches the `updatedAt` version.
-3.  **Conflict Prevention:** When saving, the client sends the `lastKnownUpdatedAt` timestamp. The server verifies this against the current record:
-    ```sql
-    -- Fails to update if database version > client version
-    UPDATE workspaces
-    SET vault_blob = ?, vault_iv = ?, vault_salt = ?, updated_at = ?
-    WHERE username = ? AND updated_at = ?;
-    ```
-4.  **Auto-Merging:** If a conflict occurs (HTTP 409 `SYNC_CONFLICT`), the client receives the newer server vault, decrypts it locally, and merges the lists automatically by comparing timestamps for matching note IDs. It then writes the merged list back to the server, preserving all changes without data loss.
-
----
-
-## 📂 Monorepo Structure
-
-ProtectedShare is organized as a Turborepo monorepo:
+## Architecture
 
 ```
-├── apps
-│   ├── web/        # Next.js 15 App Router frontend (TailwindCSS, SEO optimized)
-│   └── api/        # Hono API backend deployed to Cloudflare Workers (SQLite/D1)
-└── packages
-    ├── crypto/     # Shared Web Crypto wrapper for AES-GCM and PBKDF2
-    ├── contracts/  # Zod schema definitions for API payloads
-    ├── ui/         # Reusable React components built on Tailwind
-    └── formatting/ # Utility modules for string parsing
+apps/
+  web/        Next.js 15 App Router, React 19, Tailwind 3.4. All encryption happens here, in the browser.
+              /api/* is proxied to the Worker (API_BACKEND_URL).
+  api/        Hono on Cloudflare Workers + D1. Stores ciphertext, verifier hashes, receipts.
+              Routes in src/routes (shares, drops, requests, manage, chat), helpers in src/lib.
+              A cron (*/30 * * * *) purges expired rows.
+packages/
+  crypto/     Web Crypto wrappers: v1 (legacy) and v2 (src/v2.ts).
+  contracts/  Zod schemas and TypeScript types for every API payload.
+  ui/         Shared React primitives (Button, Field, Panel, StatusChip, ...).
+  formatting/ Small string helpers.
 ```
 
----
+Retention, enforced on read and by the cron: notes and secrets are deleted on their last allowed read or at expiry; file drops after their last download or at expiry (unfinished uploads after 6 hours); secret requests when the inbox collects the reply; chat messages when the room empties, on their disappearing timer, or when the room is burned; receipts 30 days after the share's expiry.
 
-## 💻 Local Development & Installation
+## Local development
 
-### Prerequisites
-*   Node.js v22+
-*   npm v10+
+Requires Node.js 22+ and npm 10+.
 
-### Setup Instructions
+```bash
+git clone https://github.com/KunalSiyag/protectedshare.git
+cd protectedshare
+npm install
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/KunalSiyag/protectedshare.git
-    cd protectedshare
-    ```
+# Create the local D1 database with the full v2 schema
+cd apps/api
+npx wrangler d1 execute protectedshare --local --file=schema.sql
+cd ../..
 
-2.  **Install Dependencies:**
-    ```bash
-    npm install
-    ```
+# Point the web app at the local API (otherwise it proxies to the hosted API)
+echo "API_BACKEND_URL=http://localhost:8787" > apps/web/.env.local
 
-3.  **Initialize Local D1 SQLite Database:**
-    Generate local D1 schema migrations:
-    ```bash
-    cd apps/api
-    npx wrangler d1 execute protectedshare --local --file=schema.sql
-    ```
+# In two terminals
+npm run dev:api   # http://localhost:8787
+npm run dev:web   # http://localhost:3000
+```
 
-4.  **Start Dev Servers:**
-    Return to the root directory and boot up the Monorepo dev stack:
-    ```bash
-    cd ../..
-    npm run dev
-    ```
-    *   **Next.js Frontend:** `http://localhost:3000`
-    *   **Cloudflare Worker API:** `http://localhost:8787`
+`npm run typecheck` checks every workspace.
 
----
+### Schema and migrations
 
-## 🌐 Production Deployment
+`apps/api/schema.sql` is the complete current schema (it includes everything in migrations 0001–0005). Use it for new databases. For an existing database, apply the migrations in `apps/api/migrations/` that it hasn't seen, in order; `0005_v2.sql` adds receipts, file drops, secret requests, chat rooms and the v2 columns. A "duplicate column" error from one of its `ALTER TABLE` lines means that column already exists. The Worker also creates missing tables and columns at runtime (`src/lib/schema.ts`).
 
-### 1. Deploy the API Backend (Cloudflare Workers)
-Create a D1 database, apply migrations, and deploy the worker API:
+## Deployment
+
+### API (Cloudflare Workers + D1)
+
 ```bash
 cd apps/api
-npx wrangler d1 create protectedshare
-# Copy the database_id from output and paste it into wrangler.toml
+npx wrangler d1 create protectedshare            # put the database_id into wrangler.toml
 npx wrangler d1 execute protectedshare --remote --file=schema.sql
-npx wrangler deploy
+npx wrangler deploy                              # also registers the */30 cleanup cron
 ```
 
-Set up these secrets in GitHub if deploying via CI workflows (`deploy-api.yml`):
-*   `CLOUDFLARE_API_TOKEN`
-*   `CLOUDFLARE_ACCOUNT_ID`
+Optional Worker secret: `RESEND_API_KEY`, to email contact-form messages to the admin address.
 
-### 2. Deploy the Next.js Frontend
-Deploy `apps/web` to Vercel, Netlify, or Cloudflare Pages. 
+The `deploy-api.yml` workflow deploys on pushes to `main` that touch the API when `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repository secrets. It does not run migrations.
 
-**Configure Environment Variables:**
-*   `API_BACKEND_URL`: The absolute HTTPS endpoint URL of your deployed Worker backend.
-*   `NEXT_PUBLIC_GA_ID` *(Optional)*: Google Analytics Measurement ID.
+### Web app
 
-### 3. Deploy via Docker Container
-We publish frontend container builds to GitHub Container Registry. Pull the image and bind it to your deployed worker API at runtime:
+Deploy `apps/web` to any Next.js host, or use the container image that `publish-web-image.yml` pushes to GitHub Container Registry:
+
 ```bash
 docker pull ghcr.io/kunalsiyag/protectedshare-web:latest
 docker run --rm -p 3000:3000 \
-  -e API_BACKEND_URL=https://your-api.example.com \
+  -e API_BACKEND_URL=https://your-api.example.workers.dev \
   ghcr.io/kunalsiyag/protectedshare-web:latest
 ```
 
----
+| Variable | When | Purpose |
+|---|---|---|
+| `API_BACKEND_URL` | runtime | Your Worker's URL. Without it, the proxy falls back to the hosted API. |
+| `NEXT_PUBLIC_GA_ID` | build time, optional | Google Analytics. Leave unset to ship without analytics. |
 
-## 📄 License
+More detail: [protectedshare.me/self-host](https://protectedshare.me/self-host).
 
-Licensed under the [MIT License](LICENSE). Transparency and user security come first.
+## License
+
+[MIT](LICENSE).
