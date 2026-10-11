@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Security updates only: version-update PRs stay off.
+    open-pull-requests-limit: 0
+    ignore:
+      # Tailwind 4 changes the config model; moving the design system to it is a planned migration.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
