@@ -123,6 +123,13 @@ export function isSameSite(linkOrigin: string, siteUrl: string): boolean {
   }
 }
 
+/** Drops trailing "/" characters in linear time (a `/\/+$/` regex backtracks on long runs of slashes). */
+export function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
+}
+
 /** "https://protectedshare.me/" → "https://protectedshare.me". Throws on anything that isn't http(s). */
 export function normalizeSiteUrl(value: string): string {
   const url = new URL(value);

@@ -1,6 +1,6 @@
 import { McpServer, fromJsonSchema, type Implementation, type StandardSchemaWithJSON } from "@modelcontextprotocol/server";
 import type { ApiFetch } from "./api";
-import { normalizeSiteUrl } from "./links";
+import { normalizeSiteUrl, trimTrailingSlashes } from "./links";
 import { fail, type Mode, type ToolContext, type ToolDefinition } from "./shared";
 import { SERVER_DESCRIPTION, instructions } from "./text";
 import { DEFAULT_HIBP_URL, checkPasswordBreach } from "./tools/check-password-breach";
@@ -94,7 +94,7 @@ export function createProtectedShareServer(config: ServerConfig): McpServer {
     api: config.api,
     siteUrl: normalizeSiteUrl(config.siteUrl ?? DEFAULT_SITE_URL),
     fetch: config.fetch ?? ((input, init) => fetch(input, init)),
-    hibpUrl: (config.hibpUrl ?? DEFAULT_HIBP_URL).replace(/\/+$/, ""),
+    hibpUrl: trimTrailingSlashes(config.hibpUrl ?? DEFAULT_HIBP_URL),
     userAgent: `protectedshare-mcp/${config.version}`,
     now: config.now ?? Date.now,
   };

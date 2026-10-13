@@ -178,14 +178,24 @@ export default function BreachCheckerClient() {
     } catch {
       return;
     }
-    const trim = (path: string) => path.replace(/\/+$/, "") || "/";
+    const trim = (path: string) => {
+      let end = path.length;
+      while (end > 0 && path.charCodeAt(end - 1) === 47) end -= 1;
+      return path.slice(0, end) || "/";
+    };
     if (trim(loadedPath) !== trim(window.location.pathname)) window.location.replace(window.location.href);
   }, []);
 
   // A Content-Security-Policy block never reaches the network; say so plainly instead of "network error".
   useEffect(() => {
     const onViolation = (event: SecurityPolicyViolationEvent) => {
-      if (event.blockedURI.includes("pwnedpasswords.com")) setBlocked(true);
+      let host = "";
+      try {
+        host = new URL(event.blockedURI).hostname;
+      } catch {
+        return; // "inline", "eval" and similar aren't URLs
+      }
+      if (host === "api.pwnedpasswords.com") setBlocked(true);
     };
     document.addEventListener("securitypolicyviolation", onViolation);
     return () => document.removeEventListener("securitypolicyviolation", onViolation);

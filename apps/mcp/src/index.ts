@@ -25,7 +25,7 @@ import {
   readRequestBody,
   type McpHttpHandler,
 } from "@modelcontextprotocol/server";
-import { DEFAULT_SITE_URL, createProtectedShareServer, type ApiFetch } from "@protectedshare/mcp-core";
+import { DEFAULT_SITE_URL, createProtectedShareServer, trimTrailingSlashes, type ApiFetch } from "@protectedshare/mcp-core";
 
 export interface Env {
   /** Service Binding to the protectedshare-api Worker. Used unless API_BASE_URL is set. */
@@ -62,7 +62,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 function apiFetcher(env: Env): ApiFetch {
-  const base = env.API_BASE_URL?.trim().replace(/\/+$/, "");
+  const base = env.API_BASE_URL ? trimTrailingSlashes(env.API_BASE_URL.trim()) : "";
   if (base) return (path, init) => fetch(`${base}${path}`, init);
   const binding = env.API;
   if (binding) return (path, init) => binding.fetch(new Request(`https://protectedshare-api.internal${path}`, init));
