@@ -1,10 +1,25 @@
 import type { Context } from "hono";
 import { MAX_SHARE_TTL_SECONDS, type ApiError } from "@protectedshare/contracts";
+import type { RateLimitBindings } from "./limits";
 
 export type Bindings = {
   DB: D1Database;
   RESEND_API_KEY?: string;
-};
+  /** R2 bucket for file-drop chunks. Optional: without it chunks stay in D1. */
+  DROPS_BUCKET?: R2Bucket;
+  /** Worker secret for DELETE /api/admin/:kind/:id. Unset (or under 32 chars) = route disabled. */
+  ADMIN_TOKEN?: string;
+  /** Where contact-form and abuse-report emails go. Default: admin@protectedshare.me. */
+  NOTIFY_EMAIL_TO?: string;
+  /** Sender domain for those emails; must be verified in Resend. Default: protectedshare.me. */
+  NOTIFY_EMAIL_DOMAIN?: string;
+} & RateLimitBindings;
+
+/** Recipient and sender addresses for operator emails (contact form, abuse reports). */
+export function notifyEmail(env: Bindings, sender: string, senderName: string): { from: string; to: string } {
+  const domain = env.NOTIFY_EMAIL_DOMAIN?.trim() || "protectedshare.me";
+  return { from: `${senderName} <${sender}@${domain}>`, to: env.NOTIFY_EMAIL_TO?.trim() || "admin@protectedshare.me" };
+}
 
 export type AppEnv = { Bindings: Bindings };
 export type AppContext = Context<AppEnv>;

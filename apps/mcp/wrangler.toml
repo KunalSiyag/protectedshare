@@ -1,0 +1,47 @@
+name = "protectedshare-mcp"
+main = "src/index.ts"
+compatibility_date = "2026-10-06"
+
+# Public endpoint: https://mcp.protectedshare.me/mcp, served by this Worker directly (no web-host
+# relay, so only Cloudflare handles connector traffic). Needs the protectedshare.me zone in the same
+# Cloudflare account; wrangler creates the DNS record and certificate on deploy. Self-hosting or a
+# zone elsewhere: delete this block and use the workers.dev URL (or your own custom domain).
+routes = [{ pattern = "mcp.protectedshare.me", custom_domain = true }]
+
+# Request logs only (method, path, status, timing). The Worker never logs MCP arguments, results
+# or bodies; rejected requests log one line with the error class name.
+[observability]
+enabled = true
+
+[vars]
+# Links point at the web app.
+SITE_URL = "https://protectedshare.me"
+# Hostnames allowed in an Origin header besides localhost. Requests without Origin (server-side
+# clients such as Claude's connector backend, Claude Code, MCP Inspector's proxy) always pass.
+ALLOWED_ORIGINS = "claude.ai,claude.com"
+
+# Storage API, Worker to Worker (no public hop). Requires the protectedshare-api Worker in the same
+# account. Self-hosting or no binding: delete this block and set API_BASE_URL (an [vars] entry or
+# `--var API_BASE_URL:https://…`); with neither, the Worker calls https://protectedshare.me/api.
+[[services]]
+binding = "API"
+service = "protectedshare-api"
+
+# Rate limits (Workers Rate Limiting), keyed on the connecting IP (IPv6 grouped by /64), counted per
+# Cloudflare location. Over a limit the Worker answers 429 with Retry-After: 60. Delete a block to
+# turn that limit off. Each namespace_id must be unique in the account (the API uses 71001-71006).
+
+# Flood guard: MCP requests per client IP per minute. Claude's custom connectors connect from
+# Anthropic's servers (shared egress IPs), so this is set far above what people produce.
+[[ratelimits]]
+name = "RL_MCP"
+namespace_id = "71101"
+simple = { limit = 600, period = 60 }
+
+# Calls to the tools that create links (create_secret_link, share_env_file, request_secret) per
+# client IP per minute, counted on top of RL_MCP. Connector traffic shares Anthropic's egress IPs,
+# so a burst from one user can delay creates for others on the same IP until the minute is up.
+[[ratelimits]]
+name = "RL_MCP_CREATE"
+namespace_id = "71102"
+simple = { limit = 120, period = 60 }

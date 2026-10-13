@@ -43,7 +43,7 @@ function StringValue({ value, truncateAt }: { value: string; truncateAt: number 
   return (
     <span className="text-ink-2" title={`${value.length.toLocaleString()} characters`}>
       &quot;{value.slice(0, HEAD)}
-      <span className="mx-0.5 inline-block whitespace-nowrap rounded-[4px] indent-0 bg-ink/[0.06] px-1 align-[1px] text-[10.5px] leading-[15px] text-ink-3">
+      <span className="mx-0.5 inline-block whitespace-nowrap rounded-[4px] indent-0 bg-ink/[0.06] px-1 align-[1px] text-[10.5px] leading-[15px] text-ink-2">
         …{hidden.toLocaleString()} chars…
       </span>
       {value.slice(-TAIL)}&quot;
@@ -54,7 +54,7 @@ function StringValue({ value, truncateAt }: { value: string; truncateAt: number 
 type Line = { depth: number; content: ReactNode[] };
 
 const punct = (text: string, key?: string) => (
-  <span key={key} className="text-ink-3/70">
+  <span key={key} className="text-ink-3">
     {text}
   </span>
 );
@@ -179,7 +179,8 @@ export default function ServerView({
         </span>
       </header>
 
-      <div className="bg-surface-2/40">
+      {/* A light tint: text-ink-3 keeps 4.5:1 on it in both themes. */}
+      <div className="bg-surface-2/[0.15]">
         {outgoing ? (
           <div
             role="group"
@@ -188,7 +189,7 @@ export default function ServerView({
           >
             {lines.map((line, index) => (
               <div key={index} className="flex">
-                <span aria-hidden="true" className="w-[2ch] shrink-0 select-none text-right text-ink-3/45 tabular">
+                <span aria-hidden="true" className="w-[2ch] shrink-0 select-none text-right text-ink-3 tabular">
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1" style={{ paddingLeft: `${line.depth * 2 + 3.5}ch`, textIndent: "-2ch" }}>
@@ -199,7 +200,7 @@ export default function ServerView({
           </div>
         ) : (
           <div className="flex items-start gap-3 px-4 py-5">
-            <span aria-hidden="true" className="whitespace-nowrap font-mono text-[12px] leading-[19px] text-ink-3/60">
+            <span aria-hidden="true" className="whitespace-nowrap font-mono text-[12px] leading-[19px] text-ink-3">
               {"{ }"}
             </span>
             <p className="text-small text-ink-3">{emptyText}</p>

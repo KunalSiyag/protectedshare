@@ -1,4 +1,4 @@
-import { MAX_SHARE_TTL_SECONDS, MIN_SHARE_TTL_SECONDS } from "@protectedshare/contracts";
+import { MAX_SHARE_TTL_SECONDS, MIN_SHARE_TTL_SECONDS } from "@protectedshare/contracts/constants";
 
 export const MIN_SHARE_TTL_MS = MIN_SHARE_TTL_SECONDS * 1000;
 export const MAX_SHARE_TTL_MS = MAX_SHARE_TTL_SECONDS * 1000;

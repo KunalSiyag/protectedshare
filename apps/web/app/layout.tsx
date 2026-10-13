@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AppShell from "./app-shell";
 import Analytics from "../components/analytics";
+import StandaloneServiceWorker from "../components/standalone-sw";
 import JsonLd from "../components/json-ld";
 import { DEFAULT_DESCRIPTION, organizationJsonLd, websiteJsonLd } from "../lib/seo";
 import "./globals.css";
@@ -45,6 +46,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  // No images here: app/opengraph-image.tsx (or a route's own opengraph-image.tsx) supplies
+  // og:image, and Next copies it to twitter:image.
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -52,21 +55,12 @@ export const metadata: Metadata = {
     title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     description: DEFAULT_DESCRIPTION,
     siteName: "ProtectedShare",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "ProtectedShare - Zero-Knowledge Secure Notes & Online Notepad",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Zero-Knowledge Secure Note Sharing | ProtectedShare",
     description: DEFAULT_DESCRIPTION,
     creator: "@ProtectedShare",
-    images: ["/og-image.jpg"],
   },
   robots: {
     index: true,
@@ -102,6 +96,7 @@ export default function RootLayout({
         <JsonLd data={websiteJsonLd()} />
         <AppShell>{children}</AppShell>
         <Analytics />
+        <StandaloneServiceWorker />
       </body>
     </html>
   );

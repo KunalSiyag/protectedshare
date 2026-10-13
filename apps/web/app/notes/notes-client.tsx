@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { FileText, Flame, KeyRound, Link2, LockKeyhole } from "lucide-react";
 import type { CreateNoteV2Request } from "@protectedshare/contracts";
 import {
@@ -12,6 +13,7 @@ import {
   PanelBody,
   PanelFooter,
   Segmented,
+  Spinner,
   StatusChip,
   Switch,
   Textarea,
@@ -20,13 +22,10 @@ import {
 import AppLink from "../../components/app-link";
 import ExpiryPicker, { useExpiry } from "../../components/expiry-picker";
 import ServerView from "../../components/server-view";
-import ShareResult from "../../components/share-result";
 import ToolLayout, { ToolNotes } from "../../components/tool-layout";
 import { useToast } from "../../components/toast";
-import { sealTextTask } from "../../lib/crypto-task";
 import { addLink } from "../../lib/my-links";
 import { resolveExpiresAt, withFragmentParams } from "../../lib/share-window";
-import PasswordField from "./_shared/password-field";
 import {
   ESTIMATED_AUTH_HASH,
   createManageToken,
@@ -35,8 +34,30 @@ import {
   estimatedPayload,
   toEpochSeconds,
 } from "./_shared/share-client";
-import { useDraftSecrets, useLiveSeal } from "./_shared/use-live-seal";
+import { loadCrypto, sealTextLazy, useDraftSecrets, useLiveSeal } from "./_shared/use-live-seal";
 import { useModKey } from "./_shared/use-mod-key";
+
+/*
+ * Not needed to paint the composer, so they load on demand: the share result (QR code, copy
+ * fields) appears only after sealing, and the password field (passphrase word list, strength
+ * estimate) only in the password modes. The first keystroke prefetches both.
+ */
+const ShareResult = dynamic(() => import("../../components/share-result"), {
+  loading: () => (
+    <div className="flex min-h-[320px] items-center justify-center rounded-panel border border-line bg-surface text-ink-3">
+      <Spinner size={18} label="Preparing your link" />
+    </div>
+  ),
+});
+const PasswordField = dynamic(() => import("./_shared/password-field"), {
+  loading: () => <div aria-hidden="true" className="h-[66px]" />,
+});
+
+function prefetchAfterFirstInput() {
+  void import("../../components/share-result");
+  void import("./_shared/password-field");
+  void import("../../lib/crypto-task");
+}
 
 /** The manage token is kept in this browser, but it is sent when you check a receipt or revoke. */
 const MANAGE_TOKEN_LABEL = "Manage token (sent only to check or revoke)";
@@ -99,6 +120,7 @@ export default function NotesClient() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const prefetched = useRef(false);
 
   const usesKey = mode !== "password";
   const usesPassword = mode !== "key";
@@ -176,7 +198,10 @@ export default function NotesClient() {
     setSubmitting(true);
     try {
       const manage = draft.manage ?? (await createManageToken());
-      const sealed = await sealTextTask(text, secret);
+      // The draft key arrives just after mount; make one here if sealing beats it.
+      const key = usesKey ? draft.key || (await loadCrypto()).generateKey() : undefined;
+      const sealing = { key, password: secret.password };
+      const sealed = await sealTextLazy(text, sealing);
       const body: CreateNoteV2Request = {
         payload: sealed.payload,
         authHash: sealed.authHash,
@@ -186,7 +211,7 @@ export default function NotesClient() {
       };
       const id = await createShare("note", body);
       const base = `${window.location.origin}/notes/${id}`;
-      const url = secret.key ? withFragmentParams(base, { k: secret.key }) : base;
+      const url = key ? withFragmentParams(base, { k: key }) : base;
       const saved = addLink({
         kind: "note",
         id,
@@ -197,7 +222,7 @@ export default function NotesClient() {
         expiresAt: resolved.expiresAt,
         maxReads: burn ? 1 : undefined,
       });
-      setResult({ url, mode, body, key: secret.key, manageToken: manage.token, password: secret.password, expiresAt: resolved.expiresAt, burn, saved });
+      setResult({ url, mode, body, key, manageToken: manage.token, password: sealing.password, expiresAt: resolved.expiresAt, burn, saved });
       setText("");
     } catch (error) {
       const message = describeError(error, "Couldn't create the link. Nothing was stored. Try again.");
@@ -227,7 +252,7 @@ export default function NotesClient() {
   return (
     <ToolLayout
       eyebrow="Share"
-      title="Secure note"
+      title="Send a self-destructing note"
       description="Write it, seal it in this browser, send the link. By default it burns after one read."
       meta={
         <>
@@ -308,7 +333,13 @@ export default function NotesClient() {
                     ref={textRef}
                     id={textId}
                     value={text}
-                    onChange={(event) => setText(event.target.value)}
+                    onChange={(event) => {
+                      if (!prefetched.current) {
+                        prefetched.current = true;
+                        prefetchAfterFirstInput();
+                      }
+                      setText(event.target.value);
+                    }}
                     placeholder={"The Wi‑Fi password is…\n\nMarkdown works: **bold**, `code`, lists."}
                     rows={9}
                     invalid={Boolean(textError)}

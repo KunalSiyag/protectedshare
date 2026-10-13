@@ -113,7 +113,8 @@ CREATE INDEX IF NOT EXISTS idx_drops_expires_at ON drops (expires_at);
 CREATE TABLE IF NOT EXISTS drop_chunks (
   drop_id TEXT NOT NULL,
   idx INTEGER NOT NULL,
-  data BLOB NOT NULL,
+  data BLOB NOT NULL,               -- chunk bytes; empty when the bytes live in R2 (drops/<drop_id>/<idx>)
+  size INTEGER,                     -- chunk bytes stored; NULL on rows written before R2 (use LENGTH(data))
   PRIMARY KEY (drop_id, idx)
 );
 
@@ -158,3 +159,53 @@ CREATE TABLE IF NOT EXISTS chat_deletions (
   PRIMARY KEY (room_id, message_id)
 );
 CREATE INDEX IF NOT EXISTS idx_chat_deletions_room ON chat_deletions (room_id, deleted_at);
+
+-- Successful creates per UTC day and kind (note | secret | drop | request | chat), for GET /api/stats.
+CREATE TABLE IF NOT EXISTS usage_daily (
+  day TEXT NOT NULL,                -- YYYY-MM-DD (UTC)
+  kind TEXT NOT NULL,
+  created INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, kind)
+);
+
+-- Abuse reports from recipients (POST /api/reports). Never holds a link key. Purged after 180 days.
+CREATE TABLE IF NOT EXISTS abuse_reports (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,               -- note | secret | drop | request
+  target_id TEXT NOT NULL,
+  reason TEXT NOT NULL,             -- malware | phishing | illegal | spam | other
+  details TEXT,                     -- up to 500 characters
+  contact TEXT,                     -- optional email
+  created_at INTEGER NOT NULL       -- epoch seconds
+);
+CREATE INDEX IF NOT EXISTS idx_abuse_reports_created_at ON abuse_reports (created_at);
+CREATE INDEX IF NOT EXISTS idx_abuse_reports_target ON abuse_reports (kind, target_id);
+
+-- Targets locked after too many failed key/password attempts ('auth:<scope>:<id>').
+CREATE TABLE IF NOT EXISTS auth_lockouts (
+  key TEXT PRIMARY KEY,
+  until INTEGER NOT NULL            -- epoch seconds
+);
+
+-- Read notifications: browsers (Web Push subscriptions) told when a share is opened. At most 5
+-- per share, added with its manage token, gone when the share is used up, revoked or expires.
+CREATE TABLE IF NOT EXISTS share_watchers (
+  kind TEXT NOT NULL,               -- note | secret | drop | request (same as share_receipts)
+  id TEXT NOT NULL,
+  endpoint TEXT NOT NULL,           -- push service URL (allow-listed browser push services only)
+  p256dh TEXT NOT NULL,             -- browser's P-256 public key, base64url
+  auth TEXT NOT NULL,               -- browser's 16-byte auth secret, base64url
+  created_at INTEGER NOT NULL,      -- epoch seconds
+  PRIMARY KEY (kind, id, endpoint)
+);
+CREATE TRIGGER IF NOT EXISTS share_watchers_on_revoke
+AFTER UPDATE OF status ON share_receipts
+WHEN NEW.status = 'revoked'
+BEGIN
+  DELETE FROM share_watchers WHERE kind = NEW.kind AND id = NEW.id;
+END;
+CREATE TRIGGER IF NOT EXISTS share_watchers_on_receipt_delete
+AFTER DELETE ON share_receipts
+BEGIN
+  DELETE FROM share_watchers WHERE kind = OLD.kind AND id = OLD.id;
+END;

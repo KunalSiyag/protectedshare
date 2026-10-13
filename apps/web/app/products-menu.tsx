@@ -7,29 +7,35 @@ import { cn } from "@protectedshare/ui";
 import AppLink from "../components/app-link";
 import { PRODUCT_GROUPS, PRODUCT_HREFS, isActivePath, type NavProduct } from "../lib/site-nav";
 
-function ProductItem({ item, active }: { item: NavProduct; active: boolean }) {
+/** `compact` drops the description: free-tool names explain themselves, and it keeps the columns even. */
+function ProductItem({ item, active, compact = false }: { item: NavProduct; active: boolean; compact?: boolean }) {
   const Icon = item.icon;
   return (
     <AppLink
       href={item.href}
       data-menu-item=""
       aria-current={active ? "page" : undefined}
-      className="group flex items-start gap-3 rounded-[10px] px-2.5 py-2 outline-none transition-colors duration-150 hover:bg-ink/[0.04] focus-visible:bg-ink/[0.05] focus-visible:ring-2 focus-visible:ring-seal/45"
+      title={compact ? item.description : undefined}
+      className={cn(
+        "group flex gap-3 rounded-[10px] px-2.5 outline-none transition-colors duration-150 hover:bg-ink/[0.04] focus-visible:bg-ink/[0.05] focus-visible:ring-2 focus-visible:ring-seal/45",
+        compact ? "items-center py-1.5" : "items-start py-2"
+      )}
     >
       <span
         className={cn(
-          "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-control border border-line bg-surface text-ink-2 transition-colors group-hover:border-line-strong group-hover:text-ink",
+          "flex shrink-0 items-center justify-center rounded-control border border-line bg-surface text-ink-2 transition-colors group-hover:border-line-strong group-hover:text-ink",
+          compact ? "size-7" : "mt-0.5 size-8",
           active && "border-line-strong text-ink"
         )}
       >
-        <Icon aria-hidden="true" className="size-4" strokeWidth={1.75} />
+        <Icon aria-hidden="true" className={compact ? "size-3.5" : "size-4"} strokeWidth={1.75} />
       </span>
       <span className="min-w-0">
         <span className="flex items-center gap-1.5 text-small font-medium text-ink">
           {item.label}
           {active ? <span className="size-1.5 rounded-full bg-seal" aria-hidden="true" /> : null}
         </span>
-        <span className="mt-0.5 block text-meta leading-[17px] text-ink-3">{item.description}</span>
+        {compact ? null : <span className="mt-0.5 block text-meta leading-[17px] text-ink-3">{item.description}</span>}
       </span>
     </AppLink>
   );
@@ -153,15 +159,26 @@ export default function ProductsMenu() {
                 </h2>
                 <div className="flex flex-col gap-0.5">
                   {group.items.map((item) => (
-                    <ProductItem key={item.href} item={item} active={isActivePath(pathname, item.href)} />
+                    <ProductItem key={item.href} item={item} active={isActivePath(pathname, item.href)} compact={group.compact} />
                   ))}
                 </div>
+                {group.more ? (
+                  <AppLink
+                    href={group.more.href}
+                    data-menu-item=""
+                    aria-current={pathname === group.more.href ? "page" : undefined}
+                    className={cn(group.compact ? "ml-[50px]" : "ml-[54px]", "mt-1 inline-flex items-center gap-1 rounded-[6px] py-1 text-meta font-medium text-ink-2 outline-none transition-colors duration-150 hover:text-ink focus-visible:ring-2 focus-visible:ring-seal/45")}
+                  >
+                    {group.more.label}
+                    <ArrowRight aria-hidden="true" className="size-3.5" />
+                  </AppLink>
+                ) : null}
               </section>
             ))}
           </div>
         </div>
         <div className="flex items-center justify-between gap-4 border-t border-line bg-surface-2/50 px-5 py-3">
-          <p className="text-meta text-ink-3">Every tool encrypts in your browser before anything is sent.</p>
+          <p className="text-meta text-ink-3">Everything you share or keep is encrypted in your browser first.</p>
           <AppLink
             href="/security"
             data-menu-item=""

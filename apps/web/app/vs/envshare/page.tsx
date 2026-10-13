@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import ComparisonPage, { PS, type ComparisonRow, type Faq } from "../comparison";
 
 const DESCRIPTION =
-  "EnvShare vs ProtectedShare: both encrypt .env files in the browser with AES-GCM. ProtectedShare adds notes with a separate password, encrypted file drops, secret requests, receipts and revoke.";
+  "EnvShare vs ProtectedShare: both encrypt .env files in the browser with AES-GCM. ProtectedShare adds notes with a password, file drops and secret requests.";
 
 export const metadata: Metadata = {
-  title: "Best Free EnvShare Alternative (Active & Polished)",
+  title: "EnvShare Alternative for .env Files",
   description: DESCRIPTION,
   keywords: [
     "EnvShare alternative",
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
     canonical: "https://protectedshare.me/vs/envshare",
   },
   openGraph: {
-    title: "Best Free EnvShare Alternative (Active & Polished) — ProtectedShare",
+    title: "EnvShare Alternative for .env Files — ProtectedShare",
     description: DESCRIPTION,
     url: "https://protectedshare.me/vs/envshare",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Best Free EnvShare Alternative (Active & Polished) — ProtectedShare",
+    title: "EnvShare Alternative for .env Files — ProtectedShare",
     description: DESCRIPTION,
   },
 };

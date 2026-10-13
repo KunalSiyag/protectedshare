@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import ComparisonPage, { PS, type ComparisonRow, type Faq } from "../comparison";
 
 const DESCRIPTION =
-  "ProtectedText vs ProtectedShare: both encrypt in the browser. ProtectedShare adds self-destructing links, read limits, .env sharing, encrypted file drops and an encrypted notepad with local mode. Open source, no signup.";
+  "ProtectedText vs ProtectedShare: both encrypt in the browser. We add self-destructing links, read limits, file drops and a local-first notepad.";
 
 export const metadata: Metadata = {
-  title: "Best Free ProtectedText Alternative (AES-256-GCM)",
+  title: "ProtectedText Alternative (AES-256-GCM)",
   description: DESCRIPTION,
   keywords: [
     "ProtectedText alternative",
@@ -25,13 +25,13 @@ export const metadata: Metadata = {
     canonical: "https://protectedshare.me/vs/protectedtext",
   },
   openGraph: {
-    title: "Best Free ProtectedText Alternative (AES-256-GCM) — ProtectedShare",
+    title: "ProtectedText Alternative (AES-256-GCM) — ProtectedShare",
     description: DESCRIPTION,
     url: "https://protectedshare.me/vs/protectedtext",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Best Free ProtectedText Alternative (AES-256-GCM) — ProtectedShare",
+    title: "ProtectedText Alternative (AES-256-GCM) — ProtectedShare",
     description: DESCRIPTION,
   },
 };

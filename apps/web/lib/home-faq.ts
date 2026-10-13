@@ -2,7 +2,7 @@ export const HOME_FAQS = [
   {
     question: "Can ProtectedShare read what I send?",
     answer:
-      "No. Notes, EnvShare secrets, files, requests and chat messages are encrypted in your browser with AES-256-GCM before anything is sent. The server stores ciphertext and a hash it uses to check that a reader holds the key. The key itself is in the part of the link after #, which browsers don't send to servers. Like every web app that encrypts in the browser, you are trusting the JavaScript the site serves; the code is open source so you can check it or run your own copy.",
+      "No. Notes, EnvShare secrets, files, requests and chat messages are encrypted in your browser with AES-256-GCM before anything is sent. The server stores ciphertext and a hash it uses to check that a reader holds the key. The key itself is in the part of the link after #, which browsers don't send to servers. Like every web app that encrypts in the browser, you are trusting the JavaScript the site serves; the code is open source so you can check it or run your own copy. One exception: the remote Claude connector encrypts what you give it on our MCP server, in memory, without storing or logging it; the local MCP server encrypts on your computer.",
   },
   {
     question: "What is the #k= part of the link?",
@@ -22,7 +22,7 @@ export const HOME_FAQS = [
   {
     question: "Can I tell whether my link was opened?",
     answer:
-      "Yes, from the browser that created it. Links you make are listed in My links, kept only in that browser. Each one holds a manage token that lets you see the status, the read count and when it was first and last opened, or revoke it; the token is sent only for those two things. For a file drop, opened means a download started. The server keeps that receipt, with no content, until 30 days after the link expires.",
+      "Yes, from the browser that created it. Links you make are listed in My links, kept only in that browser. Each one holds a manage token that lets you see the status, the read count and when it was first and last opened, or revoke it. For a file drop, opened means a download started. The server keeps that receipt, with no content, until 30 days after the link expires. You can also ask for a browser notification when the link is first opened and when it's used up: your browser's push service delivers it, encrypted, and the server keeps the push address only until the link is used up, revoked or expired.",
   },
   {
     question: "How do I share API keys or a .env file safely?",
@@ -42,7 +42,7 @@ export const HOME_FAQS = [
   {
     question: "Can I host it myself?",
     answer:
-      "Yes. The code is MIT licensed on GitHub. The API runs on Cloudflare Workers with a D1 database, and the web app runs on any Node host or from the Docker image ghcr.io/kunalsiyag/protectedshare-web.",
+      "Yes. The code is MIT licensed on GitHub. The API runs on Cloudflare Workers with a D1 database (file chunks go to an R2 bucket, or to D1 if you skip it), and the web app runs on any Node host or from the Docker image ghcr.io/kunalsiyag/protectedshare-web.",
   },
   {
     question: "How is this different from Privnote or OneTimeSecret?",

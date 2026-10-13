@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { COMPARISONS as ALL_COMPARISONS } from "./vs/registry";
 import type { ReactNode } from "react";
 import { ArrowRight, ArrowUpRight, Container, Lock, ShieldCheck } from "lucide-react";
 import { buttonVariants, cn } from "@protectedshare/ui";
@@ -7,6 +8,7 @@ import JsonLd from "../components/json-ld";
 import HowItWorks from "../components/home/how-it-works";
 import QuickShare from "../components/home/quick-share";
 import ToolIndex from "../components/home/tool-index";
+import UsageStats from "../components/home/usage-stats";
 import WhatWeStore from "../components/home/what-we-store";
 import { HOME_FAQS } from "../lib/home-faq";
 import { DEFAULT_DESCRIPTION, SITE_URL, faqPageJsonLd, webApplicationJsonLd } from "../lib/seo";
@@ -18,33 +20,33 @@ export const metadata: Metadata = {
   title: { absolute: TITLE },
   description: DEFAULT_DESCRIPTION,
   alternates: { canonical: SITE_URL },
+  // No `images` here: the file-based app/opengraph-image.tsx supplies og:image and twitter:image.
   openGraph: {
     title: TITLE,
     description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "ProtectedShare: encrypted links for passwords, .env files, notes and files",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DEFAULT_DESCRIPTION,
-    images: ["/og-image.jpg"],
   },
 };
 
-const COMPARISONS = [
-  { href: "/vs/privnote", name: "Privnote", line: "One-time notes, side by side." },
-  { href: "/vs/onetimesecret", name: "OneTimeSecret", line: "Expiring secrets and passphrases." },
-  { href: "/vs/envshare", name: "EnvShare", line: ".env sharing with read limits." },
-  { href: "/vs/protectedtext", name: "ProtectedText", line: "Encrypted notepads compared." },
+// Featured on the homepage; the full list lives in app/vs/registry.ts and on /vs.
+const FEATURED_COMPARISONS: { slug: string; line: string }[] = [
+  { slug: "privnote", line: "One-time notes, side by side." },
+  { slug: "onetimesecret", line: "Expiring secrets and passphrases." },
+  { slug: "bitwarden-send", line: "Encrypted sends, without an account." },
+  { slug: "password-pusher", line: "Expiring links, encrypted in your browser." },
+  { slug: "wetransfer", line: "Sensitive files, encrypted before upload." },
+  { slug: "envshare", line: ".env sharing with read limits." },
 ];
+
+const COMPARISONS = FEATURED_COMPARISONS.flatMap(({ slug, line }) => {
+  const entry = ALL_COMPARISONS.find((item) => item.slug === slug);
+  return entry ? [{ href: `/vs/${slug}`, name: entry.name, line }] : [];
+});
 
 function GitHubMark({ className }: { className?: string }) {
   return (
@@ -104,10 +106,13 @@ export default function HomePage() {
       <Band labelledBy="tools-title">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-end lg:gap-16">
           <SectionHeading id="tools-title" eyebrow="Eight tools" title="Pick the right tool." />
-          <p className="max-w-[52ch] text-prose text-ink-2 lg:justify-self-end">
-            Each one does a single job, and all of them encrypt in your browser before anything is sent. The limits
-            listed are the ones the code enforces.
-          </p>
+          <div className="max-w-[52ch] lg:justify-self-end">
+            <p className="text-prose text-ink-2">
+              Each one does a single job, and all of them encrypt in your browser before anything is sent. The limits
+              listed are the ones the code enforces.
+            </p>
+            <UsageStats className="mt-3" />
+          </div>
         </div>
         <div className="mt-10">
           <ToolIndex />
@@ -198,6 +203,13 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
+            <AppLink
+              href="/vs"
+              className="mt-4 inline-flex items-center gap-1.5 text-ui font-medium text-ink underline decoration-line-strong underline-offset-4 outline-none transition-colors hover:decoration-ink focus-visible:ring-2 focus-visible:ring-seal/45"
+            >
+              All {ALL_COMPARISONS.length} comparisons
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </AppLink>
           </div>
         </div>
       </Band>

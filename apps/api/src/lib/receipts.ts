@@ -1,5 +1,6 @@
 import type { ManageStatusResponse, ReceiptStatus, ShareKind } from "@protectedshare/contracts";
 import { nowEpochSeconds } from "./env";
+import { notifyReceiptChange } from "../routes/notify";
 
 export type ReceiptRow = {
   kind: ShareKind;
@@ -47,6 +48,9 @@ export async function createReceipt(
 /**
  * Records one successful read / download / response. `consumed` marks the share
  * as gone (burned, reads spent, downloads spent, response collected).
+ *
+ * Read notifications hook in here: browsers watching the share get a Web Push on the first
+ * open and when it's used up. That is sent after the response (waitUntil), never in its way.
  */
 export async function recordReceiptEvent(
   db: D1Database,
@@ -56,21 +60,24 @@ export async function recordReceiptEvent(
 ): Promise<void> {
   const now = nowEpochSeconds();
   const increment = options.countRead === false ? 0 : 1;
+  let after: { reads: number; status: ReceiptStatus } | null = null;
   try {
-    await db.prepare(
+    after = await db.prepare(
       `UPDATE share_receipts SET
          reads = reads + ?,
          first_read_at = CASE WHEN ? = 1 THEN COALESCE(first_read_at, ?) ELSE first_read_at END,
          last_read_at = CASE WHEN ? = 1 THEN ? ELSE last_read_at END,
          status = CASE WHEN ? = 1 THEN 'consumed' ELSE status END,
          updated_at = ?
-       WHERE kind = ? AND id = ? AND status = 'active'`
+       WHERE kind = ? AND id = ? AND status = 'active'
+       RETURNING reads, status`
     )
       .bind(increment, increment, now, increment, now, options.consumed ? 1 : 0, now, kind, id)
-      .run();
+      .first<{ reads: number; status: ReceiptStatus }>();
   } catch (error) {
     console.error("Failed to record receipt event:", error);
   }
+  if (after) notifyReceiptChange(db, kind, id, increment === 1, after);
 }
 
 export function toManageStatus(row: ReceiptRow, now = nowEpochSeconds()): ManageStatusResponse {

@@ -9,16 +9,8 @@ import {
   generateToken,
   hashToken,
 } from "@protectedshare/crypto";
-import {
-  AUTH_TOKEN_HEADER,
-  DELETE_TOKEN_HEADER,
-  type ChatClaimResponse,
-  type ChatMessageV2Response,
-  type ChatRoomSettings,
-  type CreateChatMessageV2Request,
-  type GetChatMessagesV2Response,
-  type GetChatPresenceResponse,
-} from "@protectedshare/contracts";
+import { type ChatClaimResponse, type ChatMessageV2Response, type ChatRoomSettings, type CreateChatMessageV2Request, type GetChatMessagesV2Response, type GetChatPresenceResponse } from "@protectedshare/contracts";
+import { AUTH_TOKEN_HEADER, DELETE_TOKEN_HEADER } from "@protectedshare/contracts/constants";
 import { apiUrl } from "../../lib/api";
 import { readApiError } from "../../lib/feedback";
 import {

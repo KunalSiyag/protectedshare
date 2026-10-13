@@ -3,18 +3,24 @@
  * Everything that touches a key or password happens in the caller; this file only moves
  * ciphertext, hashes and tokens.
  */
-import {
-  AUTH_TOKEN_HEADER,
-  type CreateNoteResponse,
-  type GetNoteResponse,
-  type GetNoteV2Response,
-  type GetSecretResponse,
-  type GetSecretV2Response,
-  type KdfMode,
-  type ShareMetaResponse,
+import type {
+  AUTH_TOKEN_HEADER as ContractAuthTokenHeader,
+  CreateNoteResponse,
+  GetNoteResponse,
+  GetNoteV2Response,
+  GetSecretResponse,
+  GetSecretV2Response,
+  KdfMode,
+  ShareMetaResponse,
 } from "@protectedshare/contracts";
-import { generateToken, hashToken } from "@protectedshare/crypto";
 import { apiUrl } from "../../../lib/api";
+
+/**
+ * The contract's header name, without a runtime import: importing a value from
+ * @protectedshare/contracts loads its zod schemas into every page that uses this file.
+ * The type annotation fails the build if the contract's value ever changes.
+ */
+const AUTH_TOKEN_HEADER: typeof ContractAuthTokenHeader = "X-Auth-Token";
 
 export type ShareKind = "note" | "secret";
 
@@ -42,10 +48,36 @@ async function serverMessage(response: Response): Promise<string | null> {
   return null;
 }
 
+/** Seconds to wait from a Retry-After header (delta-seconds or an HTTP date), or null. */
+function retryAfterSeconds(response: Response): number | null {
+  const value = response.headers.get("Retry-After")?.trim();
+  if (!value) return null;
+  if (/^\d+$/.test(value)) return Number(value);
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? null : Math.max(0, (at - Date.now()) / 1000);
+}
+
+/** Rounded up to whole minutes, so the wait is never shorter than we say. */
+function describeWait(seconds: number): string {
+  const minutes = Math.ceil(seconds / 60);
+  return minutes <= 1 ? "a minute" : `${minutes} minutes`;
+}
+
+/**
+ * 429: the server's reason (its first sentence) and how long to wait from Retry-After, e.g.
+ * "Too many wrong attempts on this link. Try again in 10 minutes." after a password lockout.
+ */
+async function rateLimitError(response: Response): Promise<ShareError> {
+  const message = (await serverMessage(response))?.trim();
+  const reason = message ? (message.match(/^[^.!?]*[.!?]/)?.[0] ?? `${message}.`) : "Too many tries.";
+  const wait = retryAfterSeconds(response);
+  return new ShareError("rate", `${reason} ${wait === null ? "Wait a minute, then try again." : `Try again in ${describeWait(wait)}.`}`);
+}
+
 async function toError(response: Response, fallback: string): Promise<ShareError> {
   if (response.status === 404) return new ShareError("not_found", "Not found.");
   if (response.status === 401) return new ShareError("auth", "Wrong key or password.");
-  if (response.status === 429) return new ShareError("rate", "Too many tries. Wait a minute, then try again.");
+  if (response.status === 429) return rateLimitError(response);
   if (response.status === 413) return new ShareError("too_large", "That's too large to store. Shorten it and try again.");
   return new ShareError("server", (await serverMessage(response)) ?? fallback);
 }
@@ -66,7 +98,9 @@ export function describeError(error: unknown, fallback: string): string {
 
 /* ───────────── Create ───────────── */
 
+/** Loads the crypto package on demand, so composers don't ship it with the page. */
 export async function createManageToken(): Promise<{ token: string; hash: string }> {
+  const { generateToken, hashToken } = await import("@protectedshare/crypto");
   const token = generateToken();
   return { token, hash: await hashToken(token) };
 }

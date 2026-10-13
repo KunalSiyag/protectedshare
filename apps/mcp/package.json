@@ -1,0 +1,22 @@
+{
+  "name": "@protectedshare/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remote MCP server (Cloudflare Worker) for ProtectedShare: dual-era Streamable HTTP, stateless, no sign-in.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8790 --var API_BASE_URL:http://localhost:8787 --var SITE_URL:http://localhost:3000",
+    "deploy": "wrangler deploy",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.3.1",
+    "@protectedshare/mcp-core": "file:../../packages/mcp-core"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260929.1",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.144.0"
+  }
+}

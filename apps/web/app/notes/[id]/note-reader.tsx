@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, EyeOff, Flame } from "lucide-react";
 import { Button, Panel, PanelHeader, Segmented, StatusChip } from "@protectedshare/ui";
 import AppLink from "../../../components/app-link";
+import ReportAbuse from "../../../components/report-abuse";
 import ToolLayout, { ToolNotes } from "../../../components/tool-layout";
 import { copyText } from "../../../lib/clipboard";
 import { formatShareDeadline } from "../../../lib/share-window";
@@ -196,6 +197,7 @@ export default function NoteReader({ id }: { id: string }) {
               </>,
             ]}
           />
+          {phase !== "loading" && phase !== "gone" ? <ReportAbuse kind="note" id={id} className="ml-1" /> : null}
         </>
       }
     >

@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "import": "./dist/constants.js"
     }
   },
   "scripts": {
@@ -22,4 +26,3 @@
     "typescript": "^5.8.3"
   }
 }
-

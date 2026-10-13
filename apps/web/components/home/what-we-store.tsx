@@ -19,9 +19,9 @@ export const STORE_ROWS: StoreRow[] = [
   {
     tool: "File drop",
     href: "/files",
-    stored: "Encrypted chunks, an encrypted manifest, the total encrypted size, chunk count, downloads left, expiry, and a hash of each download's session token.",
+    stored: "Encrypted chunks (in Cloudflare R2), an encrypted manifest, the total encrypted size, chunk count, downloads left, expiry, and a hash of each download's session token.",
     local: "File names, types, sizes and contents (names sit inside the encrypted manifest), and the key.",
-    gone: "Once the last allowed download finishes or its session lapses, at expiry, or 6 hours after an upload that never finished.",
+    gone: "Once the last allowed download finishes or its session lapses, on revoke, at expiry, or 6 hours after an upload that never finished.",
   },
   {
     tool: "Secret request",
@@ -40,7 +40,7 @@ export const STORE_ROWS: StoreRow[] = [
   {
     tool: "Notepad, synced",
     href: "/notepad",
-    stored: "A SHA-256 of your username, the encrypted vault, a password proof, and save times. Local mode stores nothing with us.",
+    stored: "A SHA-256 of your username, the encrypted vault, a password proof, save times, and a check-in for each open tab. Local mode stores nothing with us.",
     local: "Your notes and your password.",
     gone: "When you delete the workspace.",
   },
@@ -48,13 +48,40 @@ export const STORE_ROWS: StoreRow[] = [
     tool: "Read receipts",
     href: "/links",
     stored: "Kind, id, status, read count, and created, expiry, first-read and last-read times. A hash of the manage token.",
-    local: "The links in My links. The manage token is kept there too, and sent only to check status or revoke.",
+    local: "The links in My links. The manage token is kept there too, and sent only to check status, revoke, or switch notifications on or off.",
     gone: "30 days after the share expires.",
   },
   {
-    tool: "Password generator, Encrypt text",
-    stored: "Nothing. They never make a request with your data.",
-    local: "Everything.",
+    tool: "Read notifications",
+    href: "/links",
+    stored: "Only if you turn them on, for up to 5 browsers per link: each browser's push address, the keys that encrypt messages for it, and the link's kind and id.",
+    local: "The link, its key, and your label for it.",
+    gone: "When the link is used up, revoked or expired, or you switch them off.",
+  },
+  {
+    tool: "Abuse reports",
+    stored: "The link's kind and id, a reason, and any details (up to 500 characters) and email you add.",
+    local: "The link's key. A report that contains one is refused.",
+    gone: "After 180 days.",
+  },
+  {
+    tool: "Usage counts",
+    stored: "One number per day for each kind of link: how many were created. No ids, no content.",
+    local: "Nothing extra. Creating a link just adds one to that day's count.",
+    gone: "After 400 days.",
+  },
+  {
+    tool: "Claude connector",
+    href: "/integrations/claude",
+    stored: "Nothing of its own. Links it creates are stored exactly like the website's.",
+    local: "With the local server: your text, link keys and passwords. The remote connector receives the text and makes the link key, in memory only, and stores and logs neither.",
+    gone: "The MCP server keeps nothing. Its links follow the rules above.",
+  },
+  {
+    tool: "Free tools",
+    href: "/tools",
+    stored: "Nothing. They never send your data to us.",
+    local: "Everything. The breached-password checker sends only the first 5 characters of a SHA-1 hash, to Have I Been Pwned.",
     gone: "Nothing to delete.",
   },
 ];
@@ -104,9 +131,12 @@ export default function WhatWeStore() {
       <p className="mt-4 max-w-[80ch] text-small text-ink-3">
         Keys travel inside the link you share, after the #, which browsers don&apos;t send. Around every request: API
         calls pass through the web app&apos;s host to Cloudflare, which runs the API, and both see IP addresses, request
-        metadata and the ciphertext going by, like any host would. Workers logs are on. Google Analytics loads only if
-        the operator sets an ID, and never on pages that open or hold a share. The contact form stores the name, email,
-        company and message you send. Expired rows are purged every 30 minutes, and reads past expiry are refused.
+        metadata and the ciphertext going by, like any host would. Workers logs are on. Rate limits count wrong
+        passwords per link and new links per IP address, without storing the address, and a password-protected link
+        that gets too many wrong guesses locks for 10 minutes. Google Analytics and Cloudflare Web Analytics load only
+        if the operator sets them up, and never on pages that open or hold a share. The contact form stores the name,
+        email, company and message you send. Expired rows are purged every 30 minutes, and reads past expiry are
+        refused.
       </p>
     </div>
   );

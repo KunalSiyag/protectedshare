@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { FileUp, ScanSearch } from "lucide-react";
 import type { CreateSecretV2Request } from "@protectedshare/contracts";
 import {
@@ -13,6 +14,7 @@ import {
   PanelBody,
   PanelFooter,
   Segmented,
+  Spinner,
   StatusChip,
   Switch,
   Textarea,
@@ -21,13 +23,10 @@ import {
 import AppLink from "../../components/app-link";
 import ExpiryPicker, { useExpiry } from "../../components/expiry-picker";
 import ServerView from "../../components/server-view";
-import ShareResult from "../../components/share-result";
 import ToolLayout, { ToolNotes } from "../../components/tool-layout";
 import { useToast } from "../../components/toast";
-import { sealTextTask } from "../../lib/crypto-task";
 import { addLink } from "../../lib/my-links";
 import { resolveExpiresAt, withFragmentParams } from "../../lib/share-window";
-import PasswordField from "../notes/_shared/password-field";
 import {
   ESTIMATED_AUTH_HASH,
   createManageToken,
@@ -36,9 +35,30 @@ import {
   estimatedPayload,
   toEpochSeconds,
 } from "../notes/_shared/share-client";
-import { useDraftSecrets, useLiveSeal } from "../notes/_shared/use-live-seal";
+import { loadCrypto, sealTextLazy, useDraftSecrets, useLiveSeal } from "../notes/_shared/use-live-seal";
 import { useModKey } from "../notes/_shared/use-mod-key";
 import { countEnvVars, detectSecretTypes } from "./detect";
+
+/*
+ * Loaded on demand, as on Secure Note: the share result (QR code, copy fields) appears only after
+ * sealing, and the password field only when a password is turned on. The first edit prefetches both.
+ */
+const ShareResult = dynamic(() => import("../../components/share-result"), {
+  loading: () => (
+    <div className="flex min-h-[320px] items-center justify-center rounded-panel border border-line bg-surface text-ink-3">
+      <Spinner size={18} label="Preparing your link" />
+    </div>
+  ),
+});
+const PasswordField = dynamic(() => import("../notes/_shared/password-field"), {
+  loading: () => <div aria-hidden="true" className="h-[66px]" />,
+});
+
+function prefetchAfterFirstInput() {
+  void import("../../components/share-result");
+  void import("../notes/_shared/password-field");
+  void import("../../lib/crypto-task");
+}
 
 /** The manage token is kept in this browser, but it is sent when you check a receipt or revoke. */
 const MANAGE_TOKEN_LABEL = "Manage token (sent only to check or revoke)";
@@ -99,6 +119,12 @@ export default function SecretsClient() {
   const [result, setResult] = useState<Result | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const prefetched = useRef(false);
+  const prefetchOnce = () => {
+    if (prefetched.current) return;
+    prefetched.current = true;
+    prefetchAfterFirstInput();
+  };
 
   const detected = useMemo(() => detectSecretTypes(text), [text]);
   const varCount = useMemo(() => countEnvVars(text), [text]);
@@ -163,6 +189,7 @@ export default function SecretsClient() {
         setTextError("That looks like a binary file. EnvShare is for text: .env files, keys, tokens.");
         return;
       }
+      prefetchOnce();
       setText(content);
       setTextError(undefined);
       setFileNote(`Loaded ${file.name} (${(file.size / 1024).toFixed(1)} KB) from your device. It hasn't been sent anywhere.`);
@@ -200,7 +227,9 @@ export default function SecretsClient() {
     setSubmitting(true);
     try {
       const manage = draft.manage ?? (await createManageToken());
-      const sealed = await sealTextTask(text, secret);
+      // The draft key arrives just after mount; make one here if sealing beats it.
+      const key = draft.key || (await loadCrypto()).generateKey();
+      const sealed = await sealTextLazy(text, { key, password: secret.password });
       const body: CreateSecretV2Request = {
         payload: sealed.payload,
         authHash: sealed.authHash,
@@ -209,7 +238,7 @@ export default function SecretsClient() {
         maxReads: reads,
       };
       const id = await createShare("secret", body);
-      const url = withFragmentParams(`${window.location.origin}/secrets/${id}`, { k: draft.key });
+      const url = withFragmentParams(`${window.location.origin}/secrets/${id}`, { k: key });
       const saved = addLink({
         kind: "secret",
         id,
@@ -227,7 +256,7 @@ export default function SecretsClient() {
         reads,
         saved,
         body,
-        key: draft.key,
+        key,
         manageToken: manage.token,
       });
       setText("");
@@ -256,7 +285,7 @@ export default function SecretsClient() {
   return (
     <ToolLayout
       eyebrow="Share"
-      title="EnvShare"
+      title="Share .env files and API keys securely"
       description="Send a .env file, an API key or a token. It's sealed in this browser and deleted after the reads you allow."
       meta={
         <>
@@ -352,6 +381,7 @@ export default function SecretsClient() {
                     mono
                     value={text}
                     onChange={(event) => {
+                      prefetchOnce();
                       setText(event.target.value);
                       setTextError(undefined);
                     }}

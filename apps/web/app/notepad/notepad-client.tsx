@@ -687,7 +687,7 @@ export default function NotepadClient() {
     return (
       <main className="mx-auto flex w-full max-w-[440px] flex-col py-4 sm:py-10">
         <p className="eyebrow mb-3">Keep</p>
-        <h1 className="text-[32px] font-semibold leading-[36px] tracking-[-0.035em] text-ink sm:text-h1">Notepad</h1>
+        <h1 className="text-[32px] font-semibold leading-[36px] tracking-[-0.035em] text-ink sm:text-h1">Encrypted online notepad</h1>
         <p className="mt-3 text-[16px] leading-[25px] text-ink-2">
           Private markdown notes, encrypted in your browser. Keep them on this device, or sync the ciphertext to open them anywhere.
         </p>
@@ -959,7 +959,6 @@ export default function NotepadClient() {
               setSelectedNoteId(null);
               setPassword("");
             }}
-            aria-label={isGuest ? "Sign In / Load Account" : "Sign Out"}
           >
             <LockKeyhole aria-hidden="true" />
             {isGuest ? "Open another notepad" : "Lock notepad"}

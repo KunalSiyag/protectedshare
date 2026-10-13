@@ -2,9 +2,35 @@ import type { Metadata } from "next";
 
 export const SITE_URL = "https://protectedshare.me";
 export const SITE_NAME = "ProtectedShare";
-export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.jpg`;
 export const DEFAULT_DESCRIPTION =
-  "Encrypt passwords, .env files, notes and files in your browser, then share a link. Our server never sees the plaintext or the key. Burn after reading, read limits, no account.";
+  "Encrypt passwords, .env files, notes and files in your browser, then share a link. Our server never sees the plaintext or the key. No account needed.";
+
+/**
+ * Social images are file-based: each route's opengraph-image.tsx, else the root
+ * app/opengraph-image.tsx. Absolute URL of a route's image, for JSON-LD.
+ */
+export function ogImageUrl(path: string): string {
+  return `${SITE_URL}${path === "/" ? "" : path}/opengraph-image`;
+}
+
+/** The root social image (app/opengraph-image.tsx). public/og-image.jpg stays only for old hotlinks. */
+export const DEFAULT_OG_IMAGE = ogImageUrl("/");
+
+/**
+ * Routes without an opengraph-image file of their own. Next.js replaces the whole `openGraph`
+ * object per segment, so a page that sets og:title and og:url would drop the root image; these
+ * name it explicitly. Every other route gets its own file's image automatically. Remove a path
+ * from this list when its route gains an opengraph-image.tsx, or that file will be ignored.
+ */
+const ROOT_OG_IMAGE_PATHS = new Set(["/about", "/blog", "/contact", "/privacy", "/self-host", "/terms"]);
+
+const ROOT_OG_IMAGE = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  type: "image/png",
+  alt: "ProtectedShare — encrypted links for passwords, .env files, notes and files",
+};
 
 export function pageMetadata({
   title,
@@ -32,20 +58,15 @@ export function pageMetadata({
       type: "website",
       siteName: SITE_NAME,
       locale: "en_US",
-      images: [
-        {
-          url: "/og-image.jpg",
-          width: 1200,
-          height: 630,
-          alt: socialTitle,
-        },
-      ],
+      // The key must be absent, not undefined, for Next to use the route's opengraph-image file.
+      ...(ROOT_OG_IMAGE_PATHS.has(path) ? { images: [ROOT_OG_IMAGE] } : {}),
     },
+    // No images: Next copies og:image into twitter:image. The card is set here because a twitter
+    // object without images would otherwise resolve to the small "summary" card.
     twitter: {
       card: "summary_large_image",
       title: socialTitle,
       description,
-      images: ["/og-image.jpg"],
     },
   };
 }

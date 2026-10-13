@@ -1,0 +1,55 @@
+{
+  "name": "protectedshare-mcp",
+  "version": "0.1.0",
+  "description": "Local MCP server for ProtectedShare: create and open end-to-end encrypted, self-destructing links from Claude and other MCP clients. Encryption runs on your machine.",
+  "license": "MIT",
+  "author": "Kunal Siyag <admin@protectedshare.me>",
+  "homepage": "https://protectedshare.me/integrations/claude",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KunalSiyag/protectedshare.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/KunalSiyag/protectedshare/issues",
+    "email": "admin@protectedshare.me"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "encryption",
+    "secrets",
+    "one-time-secret",
+    "env",
+    "end-to-end-encryption"
+  ],
+  "mcpName": "io.github.KunalSiyag/protectedshare",
+  "type": "module",
+  "bin": {
+    "protectedshare-mcp": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.3.1"
+  },
+  "devDependencies": {
+    "@protectedshare/crypto": "file:../crypto",
+    "@protectedshare/mcp-core": "file:../mcp-core",
+    "@types/node": "^22.15.15",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.8.3"
+  }
+}

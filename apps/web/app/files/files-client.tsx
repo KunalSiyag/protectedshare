@@ -22,10 +22,10 @@ import ServerView from "../../components/server-view";
 import ShareResult from "../../components/share-result";
 import ToolLayout, { ToolNotes } from "../../components/tool-layout";
 import { useToast } from "../../components/toast";
+import { MAX_DROP_PLAINTEXT_BYTES } from "@protectedshare/contracts/constants";
 import {
   MAX_DROP_FILES,
   MAX_DROP_MESSAGE,
-  MAX_DROP_PLAINTEXT_BYTES,
   DROP_CHUNK_OVERHEAD,
   buildCreateBody,
   chunkCountFor,
@@ -42,6 +42,7 @@ import {
 import { addLink, makeLinkLabel } from "../../lib/my-links";
 import { resolveExpiresAt, withFragmentParams } from "../../lib/share-window";
 import { FileName, FileTile, ProgressBar, TransferMeter, useTransferRate } from "./drop-ui";
+import { takeSharedFiles } from "../share-target/inbox";
 
 type LimitChoice = "1" | "3" | "5" | "10" | "custom";
 
@@ -182,6 +183,19 @@ export default function FilesClient() {
     },
     [toast]
   );
+
+  // Files shared to the installed app wait in this browser's IndexedDB. Take them once, and only after
+  // the visitor reviewed them on /share-target and chose File drop (takeSharedFiles checks that).
+  const sharedTaken = useRef(false);
+  useEffect(() => {
+    if (sharedTaken.current || new URLSearchParams(window.location.search).get("from") !== "share") return;
+    sharedTaken.current = true;
+    void takeSharedFiles().then((shared) => {
+      // Cleaned after an await, once the App Router owns history (its effects run after this one).
+      window.history.replaceState(null, "", window.location.pathname);
+      addFiles(shared);
+    });
+  }, [addFiles]);
 
   const removeFile = (target: File) => {
     setFiles((current) => current.filter((file) => file !== target));
@@ -405,7 +419,7 @@ export default function FilesClient() {
   return (
     <ToolLayout
       eyebrow="Share"
-      title="File drop"
+      title="Send files securely, no signup"
       description="Send files up to 25 MB. They're encrypted in this browser, then deleted after the downloads you allow."
       meta={
         <>

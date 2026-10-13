@@ -14,3 +14,62 @@ database_id = "36a87f23-cbee-4380-858b-bd713d5c82f5"
 # Purge expired notes, secrets, drops, requests, receipts, and idle chat rows.
 [triggers]
 crons = ["*/30 * * * *"]
+
+# File-drop chunk bytes live in R2; D1 keeps each chunk's size and the upload budget. Create the
+# bucket before deploying, or the deploy fails:
+#   npx wrangler r2 bucket create protectedshare-drops
+# Optional backstop for anything a delete missed (the cron also sweeps orphans every 30 minutes):
+#   npx wrangler r2 bucket lifecycle add protectedshare-drops expire-old-drops drops/ --expire-days 31
+# Self-hosting without R2? Delete this block: the API detects that and keeps chunks in D1.
+[[r2_buckets]]
+binding = "DROPS_BUCKET"
+bucket_name = "protectedshare-drops"
+
+# Rate limits (Workers Rate Limiting binding). Counted per Cloudflare location and eventually
+# consistent. Each namespace_id must be unique within the Cloudflare account. Every limiter is
+# optional: delete a block and that check is skipped. Over a limit the API answers 429
+# { code: "RATE_LIMITED" } with Retry-After.
+
+# Wrong keys or passwords per share, chat room or notepad. Past the limit, password-protected
+# targets are locked for 10 minutes (auth_lockouts in D1); key-only links just get 429s.
+[[ratelimits]]
+name = "RL_AUTH"
+namespace_id = "71001"
+simple = { limit = 10, period = 60 }
+
+# Claims per chat room (every join claims the room).
+[[ratelimits]]
+name = "RL_CLAIM"
+namespace_id = "71002"
+simple = { limit = 30, period = 60 }
+
+# Answers sent to one secret request (only the first is accepted).
+[[ratelimits]]
+name = "RL_RESPOND"
+namespace_id = "71003"
+simple = { limit = 10, period = 60 }
+
+# Messages posted per chat room.
+[[ratelimits]]
+name = "RL_CHAT_POST"
+namespace_id = "71004"
+simple = { limit = 120, period = 60 }
+
+# Abuse reports per reported share (also caps report emails to the admin).
+[[ratelimits]]
+name = "RL_REPORT"
+namespace_id = "71005"
+simple = { limit = 5, period = 60 }
+
+# Creates per client IP, IPv6 grouped by /64 (notes, secrets, drops, requests, reports, inquiries,
+# notepads). It only stops floods. Trade-off: the hosted site's /api is rewritten by Vercel straight
+# to this Worker, so CF-Connecting-IP is a Vercel egress IP shared by many visitors, and anyone who
+# sends this many creates in a minute holds up creates for everyone else on that IP until the
+# minute is up. The limit is high to make that hard, not impossible; keying on visitors needs a
+# proxy that passes the real client IP in a form this Worker can trust.
+# Self-hosting the web app with its built-in /api proxy? Every request then arrives from your
+# server's IP, so this becomes a site-wide cap: raise it or delete this block.
+[[ratelimits]]
+name = "RL_CREATE"
+namespace_id = "71006"
+simple = { limit = 600, period = 60 }

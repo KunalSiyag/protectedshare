@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, Copy, Download, EyeOff, Flame } from "lucide-react";
 import { Button, Panel, Segmented, StatusChip, cn } from "@protectedshare/ui";
 import AppLink from "../../../components/app-link";
+import ReportAbuse from "../../../components/report-abuse";
 import ToolLayout, { ToolNotes } from "../../../components/tool-layout";
 import { copyText } from "../../../lib/clipboard";
 import {
@@ -255,6 +256,7 @@ export default function SecretReader({ id }: { id: string }) {
               </>,
             ]}
           />
+          {phase !== "loading" && phase !== "gone" ? <ReportAbuse kind="secret" id={id} className="ml-1" /> : null}
         </>
       }
     >

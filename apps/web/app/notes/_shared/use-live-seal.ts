@@ -1,25 +1,52 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { generateKey } from "@protectedshare/crypto";
-import { sealTextTask, type SealedTextResult } from "../../../lib/crypto-task";
+import type { SecretInput } from "@protectedshare/crypto";
+import type { SealedTextResult } from "../../../lib/crypto-task";
 import { createManageToken } from "./share-client";
 
 export type PreviewState = "empty" | "sealing" | "sealed" | "estimate";
 
 /**
+ * The crypto code loads on demand instead of with the page, so the composer paints and hydrates
+ * without it. The first request goes out right after hydration (the draft key), long before
+ * anyone can type a note and seal it.
+ */
+export function loadCrypto() {
+  return import("@protectedshare/crypto");
+}
+
+/** `sealTextTask` (worker first, main-thread fallback), imported on first use. */
+export async function sealTextLazy(plaintext: string, secret: SecretInput): Promise<SealedTextResult> {
+  const { sealTextTask } = await import("../../../lib/crypto-task");
+  return sealTextTask(plaintext, secret);
+}
+
+/**
  * Draft secrets for a composer: the link key and the manage token are created up front, so the
  * server view can show the real key that will go in the link and the real manage-token hash.
- * `reset()` makes fresh ones for the next share.
+ * `reset()` makes fresh ones for the next share. Both arrive a moment after mount; until then
+ * `key` is "" and `manage` is null, and callers create their own when they need one sooner.
  */
 export function useDraftSecrets() {
   const [key, setKey] = useState("");
   const [manage, setManage] = useState<{ token: string; hash: string } | null>(null);
+  const generation = useRef(0);
 
   const reset = useCallback(() => {
-    setKey(generateKey());
+    const current = ++generation.current;
+    setKey("");
     setManage(null);
-    void createManageToken().then(setManage);
+    loadCrypto()
+      .then(({ generateKey }) => {
+        if (generation.current === current) setKey(generateKey());
+      })
+      .catch(() => {});
+    createManageToken()
+      .then((next) => {
+        if (generation.current === current) setManage(next);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -48,7 +75,7 @@ export function useLiveSeal(text: string, secret: { key?: string; password?: str
     const started = latest.current;
     setBusy(true);
     try {
-      const sealed = await sealTextTask(text, { key: secret.key || undefined, password: secret.password || undefined });
+      const sealed = await sealTextLazy(text, { key: secret.key || undefined, password: secret.password || undefined });
       if (latest.current === started) setResult({ signature: started, sealed });
     } catch {
       // Preview only. The real seal reports its own errors.

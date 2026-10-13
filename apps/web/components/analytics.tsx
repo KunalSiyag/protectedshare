@@ -5,10 +5,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+/** Cloudflare Web Analytics site token. Cookieless; reports origin and path only. */
+const CF_BEACON_TOKEN = process.env.NEXT_PUBLIC_CF_BEACON_TOKEN;
+const CF_BEACON_SRC = "https://static.cloudflareinsights.com/beacon.min.js";
 
 /**
  * Pages that open or hold shared content. Analytics never loads on them, and if it was loaded
- * earlier in the session it is switched off (the gtag `ga-disable-<id>` flag) while one is open.
+ * earlier in the session it is switched off while one is open (the gtag `ga-disable-<id>` flag,
+ * or the Cloudflare beacon's config held aside).
  */
 const SENSITIVE_PATTERNS = [
   /^\/notes\/[^/]+/, // open a note
@@ -18,6 +22,7 @@ const SENSITIVE_PATTERNS = [
   /^\/chat(\/|$)/,
   /^\/links(\/|$)/,
   /^\/notepad(\/|$)/,
+  /^\/share-target(\/|$)/, // text or files handed over by the OS share sheet
 ];
 
 export function isSensitivePath(pathname: string): boolean {
@@ -48,14 +53,43 @@ function gtag(...args: unknown[]) {
   w.gtag(...args);
 }
 
+type BeaconWindow = Window & { __cfBeacon?: Record<string, unknown> };
+
 /**
- * Google Analytics, only when NEXT_PUBLIC_GA_ID is set. Page views are sent by hand with the
- * origin and path only — never the query string or the #fragment, which is where keys live.
+ * Cloudflare's beacon checks `window.__cfBeacon` before every send and skips sending when it is
+ * unset; a beacon script that finds `{ load: "single" }` there doesn't start at all. So on a
+ * sensitive page the running beacon's config is held aside, or, if the script hasn't run yet,
+ * this placeholder stops it from starting.
+ */
+const CF_BEACON_BLOCK = { load: "single" };
+let heldBeacon: Record<string, unknown> | undefined;
+
+function pauseCloudflareBeacon(paused: boolean) {
+  const w = window as BeaconWindow;
+  if (paused) {
+    if (w.__cfBeacon && w.__cfBeacon !== CF_BEACON_BLOCK) heldBeacon = w.__cfBeacon;
+    w.__cfBeacon = heldBeacon ? undefined : CF_BEACON_BLOCK;
+  } else if (heldBeacon) {
+    w.__cfBeacon = heldBeacon;
+    heldBeacon = undefined;
+  } else if (w.__cfBeacon === CF_BEACON_BLOCK) {
+    delete w.__cfBeacon;
+  }
+}
+
+/**
+ * Google Analytics when NEXT_PUBLIC_GA_ID is set, Cloudflare Web Analytics when
+ * NEXT_PUBLIC_CF_BEACON_TOKEN is set; either, both or neither. GA page views are sent by hand with
+ * the origin and path only — never the query string or the #fragment, which is where keys live.
+ * The Cloudflare beacon strips the query and fragment itself. Its SPA mode stays off because it
+ * reports a route change from inside history.pushState, before this component can pause it for a
+ * sensitive page, so it counts full page loads only.
  */
 export default function Analytics() {
   const pathname = usePathname() || "/";
   const sensitive = isSensitivePath(pathname);
   const [load, setLoad] = useState(false);
+  const [loadBeacon, setLoadBeacon] = useState(false);
 
   useEffect(() => {
     if (!GA_ID) return;
@@ -68,12 +102,29 @@ export default function Analytics() {
     setLoad(true);
   }, [pathname, sensitive]);
 
-  if (!GA_ID || !load) return null;
+  useEffect(() => {
+    if (!CF_BEACON_TOKEN) return;
+    pauseCloudflareBeacon(sensitive);
+    if (!sensitive) setLoadBeacon(true);
+  }, [sensitive]);
+
   return (
-    <Script
-      id="ga-gtag"
-      strategy="afterInteractive"
-      src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`}
-    />
+    <>
+      {GA_ID && load ? (
+        <Script
+          id="ga-gtag"
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`}
+        />
+      ) : null}
+      {CF_BEACON_TOKEN && loadBeacon ? (
+        <Script
+          id="cf-beacon"
+          strategy="afterInteractive"
+          src={CF_BEACON_SRC}
+          data-cf-beacon={JSON.stringify({ token: CF_BEACON_TOKEN, spa: false })}
+        />
+      ) : null}
+    </>
   );
 }

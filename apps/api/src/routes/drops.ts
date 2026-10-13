@@ -21,8 +21,11 @@ import {
   readJsonBody,
   rejectShareExpiry,
 } from "../lib/env";
+import { deleteDropObjects, dropBucket, dropChunkKey, dropChunkPrefix } from "../lib/drop-storage";
+import { authFailed, createFloodGuard } from "../lib/limits";
 import { createReceipt, recordReceiptEvent } from "../lib/receipts";
 import { hashToken, randomToken, verifyToken } from "../lib/tokens";
+import { recordUsage } from "../lib/usage";
 
 type DropRow = {
   id: string;
@@ -45,6 +48,9 @@ const NOT_FOUND = () => jsonError("File drop not found or expired.", "DROP_NOT_F
 export const DROP_SESSION_TTL_SECONDS = 60 * 60;
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,256}$/;
+
+/** Bytes a chunk row accounts for: `size`, or the inline BLOB on rows written before R2. */
+const CHUNK_SIZE_SQL = "COALESCE(size, LENGTH(data))";
 
 export const dropsRoutes = new Hono<AppEnv>();
 
@@ -71,7 +77,10 @@ function isReadable(row: DropRow | null, now: number): row is DropRow {
 async function checkDropAuth(c: AppContext, row: DropRow): Promise<Response | null> {
   const token = c.req.header("x-auth-token")?.trim();
   if (!token) return jsonError("This link needs an auth token.", "AUTH_REQUIRED", 401);
-  if (!(await verifyToken(token, row.auth_hash))) return jsonError("Wrong key.", "INVALID_AUTH", 401);
+  if (!(await verifyToken(token, row.auth_hash))) {
+    // Drop keys are random 256-bit values: wrong attempts are slowed, the drop is never locked.
+    return authFailed(c, "drop", row.id, jsonError("Wrong key.", "INVALID_AUTH", 401), { lock: false });
+  }
   return null;
 }
 
@@ -107,8 +116,15 @@ async function loadUploadableDrop(c: AppContext): Promise<{ ok: true; row: DropR
   return { ok: true, row };
 }
 
+function parseChunkIndex(raw: string | undefined, chunkCount: number): number | null {
+  const idx = raw && /^\d{1,3}$/.test(raw) ? Number(raw) : -1;
+  return idx >= 0 && idx < chunkCount ? idx : null;
+}
+
 dropsRoutes.post("/api/drops", async (c) => {
   const db = c.env.DB;
+  const flooded = await createFloodGuard(c);
+  if (flooded) return flooded;
   const read = await readJsonBody(c, 256_000);
   if (!read.ok) return read.response;
   const parsed = CreateDropRequestSchema.safeParse(read.body);
@@ -156,9 +172,8 @@ dropsRoutes.put("/api/drops/:id/chunks/:idx", async (c) => {
   if (!auth.ok) return auth.response;
   const drop = auth.row;
 
-  const idxRaw = c.req.param("idx");
-  const idx = /^\d{1,3}$/.test(idxRaw) ? Number(idxRaw) : -1;
-  if (idx < 0 || idx >= drop.chunk_count) {
+  const idx = parseChunkIndex(c.req.param("idx"), drop.chunk_count);
+  if (idx === null) {
     return jsonError("Chunk index out of range.", "INVALID_CHUNK_INDEX", 400);
   }
 
@@ -170,17 +185,19 @@ dropsRoutes.put("/api/drops/:id/chunks/:idx", async (c) => {
     return jsonError(`A chunk can be at most ${MAX_DROP_CHUNK_BYTES} bytes.`, "CHUNK_TOO_LARGE", 413);
   }
 
-  // One statement: the size check and the write happen atomically, so parallel PUTs can't
-  // push the stored total past the declared totalBytes, and nothing lands after /complete.
+  // Reserve the bytes in D1 first. One statement: the size check and the write happen
+  // atomically, so parallel PUTs can't push the stored total past the declared totalBytes,
+  // and nothing lands after /complete. With R2 the row holds only the size; the bytes follow.
+  const bucket = dropBucket(c.env);
   const written = await db.prepare(
-    `INSERT INTO drop_chunks (drop_id, idx, data)
-     SELECT ?1, ?2, ?3
-     WHERE (SELECT COALESCE(SUM(LENGTH(data)), 0) FROM drop_chunks WHERE drop_id = ?1 AND idx != ?2) + ?4
+    `INSERT INTO drop_chunks (drop_id, idx, data, size)
+     SELECT ?1, ?2, ${bucket ? "X''" : "?4"}, ?3
+     WHERE (SELECT COALESCE(SUM(${CHUNK_SIZE_SQL}), 0) FROM drop_chunks WHERE drop_id = ?1 AND idx != ?2) + ?3
            <= (SELECT total_bytes FROM drops WHERE id = ?1 AND is_complete = 0)
-     ON CONFLICT(drop_id, idx) DO UPDATE SET data = excluded.data
+     ON CONFLICT(drop_id, idx) DO UPDATE SET data = excluded.data, size = excluded.size
      RETURNING idx`
   )
-    .bind(drop.id, idx, body, body.byteLength)
+    .bind(...(bucket ? [drop.id, idx, body.byteLength] : [drop.id, idx, body.byteLength, body]))
     .first<{ idx: number }>();
   if (!written) {
     const current = await loadDrop(db, drop.id);
@@ -189,6 +206,20 @@ dropsRoutes.put("/api/drops/:id/chunks/:idx", async (c) => {
     }
     if (!current) return NOT_FOUND();
     return jsonError("Upload exceeds the declared totalBytes.", "DROP_TOO_LARGE", 413);
+  }
+
+  if (bucket) {
+    try {
+      await bucket.put(dropChunkKey(drop.id, idx), body);
+    } catch (error) {
+      console.error("R2 put failed for a drop chunk:", error);
+      // Release the reservation so the budget and /complete don't count bytes that aren't stored.
+      await db.prepare("DELETE FROM drop_chunks WHERE drop_id = ? AND idx = ? AND LENGTH(data) = 0")
+        .bind(drop.id, idx)
+        .run()
+        .catch((releaseError: unknown) => console.error("Failed to release a chunk reservation:", releaseError));
+      return jsonError("Couldn't store this chunk. Try again.", "CHUNK_STORE_FAILED", 503);
+    }
   }
 
   const response: UploadDropChunkResponse = { idx, size: body.byteLength };
@@ -202,11 +233,36 @@ dropsRoutes.post("/api/drops/:id/complete", async (c) => {
   const drop = auth.row;
 
   const stats = await db.prepare(
-    "SELECT COUNT(*) AS count, COALESCE(SUM(LENGTH(data)), 0) AS bytes FROM drop_chunks WHERE drop_id = ? AND idx < ?"
+    `SELECT COUNT(*) AS count, COALESCE(SUM(${CHUNK_SIZE_SQL}), 0) AS bytes FROM drop_chunks WHERE drop_id = ? AND idx < ?`
   )
     .bind(drop.id, drop.chunk_count)
     .first<{ count: number; bytes: number }>();
-  const count = stats?.count ?? 0;
+  let count = stats?.count ?? 0;
+
+  // R2-backed chunks: check every object landed with the size D1 reserved for it. A chunk
+  // whose write never finished is dropped from D1 so the uploader sends it again.
+  const bucket = dropBucket(c.env);
+  if (bucket && count === drop.chunk_count) {
+    const { results: reserved } = await db.prepare(
+      "SELECT idx, size FROM drop_chunks WHERE drop_id = ? AND idx < ? AND LENGTH(data) = 0"
+    )
+      .bind(drop.id, drop.chunk_count)
+      .all<{ idx: number; size: number }>();
+    if (reserved.length > 0) {
+      const listing = await bucket.list({ prefix: dropChunkPrefix(drop.id), limit: 1000 });
+      const stored = new Map(listing.objects.map((object) => [object.key, object.size]));
+      const missing = reserved.filter((row) => stored.get(dropChunkKey(drop.id, row.idx)) !== row.size);
+      if (missing.length > 0) {
+        await db.batch(
+          missing.map((row) =>
+            db.prepare("DELETE FROM drop_chunks WHERE drop_id = ? AND idx = ? AND LENGTH(data) = 0").bind(drop.id, row.idx)
+          )
+        );
+        count -= missing.length;
+      }
+    }
+  }
+
   if (count !== drop.chunk_count) {
     return c.json(
       { error: `Missing chunks: ${count} of ${drop.chunk_count} uploaded.`, code: "DROP_INCOMPLETE", uploaded: count },
@@ -214,9 +270,10 @@ dropsRoutes.post("/api/drops/:id/complete", async (c) => {
     );
   }
   const totalBytes = stats?.bytes ?? 0;
-  await db.prepare("UPDATE drops SET is_complete = 1, total_bytes = ? WHERE id = ? AND is_complete = 0")
+  const sealed = await db.prepare("UPDATE drops SET is_complete = 1, total_bytes = ? WHERE id = ? AND is_complete = 0")
     .bind(totalBytes, drop.id)
     .run();
+  if ((sealed.meta?.changes ?? 0) > 0) recordUsage(c, "drop");
 
   const response: CompleteDropResponse = { id: drop.id, totalBytes, chunkCount: drop.chunk_count };
   return c.json(response);
@@ -294,30 +351,36 @@ dropsRoutes.get("/api/drops/:id/chunks/:idx", async (c) => {
     .first<{ live: number }>();
   if (!session) return INVALID_DOWNLOAD_TOKEN();
 
-  const idxRaw = c.req.param("idx");
-  const idx = /^\d{1,3}$/.test(idxRaw) ? Number(idxRaw) : -1;
-  if (idx < 0 || idx >= row.chunk_count) {
+  const idx = parseChunkIndex(c.req.param("idx"), row.chunk_count);
+  if (idx === null) {
     return jsonError("Chunk index out of range.", "INVALID_CHUNK_INDEX", 400);
   }
-  const chunk = await db.prepare("SELECT data FROM drop_chunks WHERE drop_id = ? AND idx = ?")
+  // `data` comes back only for chunks stored in D1 (including every row written before R2).
+  const chunk = await db.prepare(
+    "SELECT CASE WHEN LENGTH(data) > 0 THEN data END AS data FROM drop_chunks WHERE drop_id = ? AND idx = ?"
+  )
     .bind(row.id, idx)
     .first<{ data: unknown }>();
   if (!chunk) return jsonError("Chunk not found.", "CHUNK_NOT_FOUND", 404);
-  const bytes = toBytes(chunk.data);
-  return new Response(bytes, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/octet-stream",
-      "Content-Length": String(bytes.byteLength),
-      "Cache-Control": "no-store",
-    },
-  });
+  const headers = { "Content-Type": "application/octet-stream", "Cache-Control": "no-store" };
+
+  if (chunk.data !== null && chunk.data !== undefined) {
+    const bytes = toBytes(chunk.data);
+    return new Response(bytes, { status: 200, headers: { ...headers, "Content-Length": String(bytes.byteLength) } });
+  }
+  const bucket = dropBucket(c.env);
+  if (!bucket) {
+    return jsonError("This server can't read file-drop storage right now.", "CHUNK_STORAGE_UNAVAILABLE", 503);
+  }
+  const object = await bucket.get(dropChunkKey(row.id, idx));
+  if (!object) return jsonError("Chunk not found.", "CHUNK_NOT_FOUND", 404);
+  return new Response(object.body, { status: 200, headers: { ...headers, "Content-Length": String(object.size) } });
 });
 
 /**
  * Finish a download (path kept as /consume; /finish is an alias). Ends the caller's download
  * session. When no downloads are left and no other download is running, the drop and its
- * chunks are deleted. The download itself was already counted by /start.
+ * chunks are deleted (D1 rows and R2 objects). The download itself was already counted by /start.
  */
 async function finishDownload(c: AppContext): Promise<Response> {
   const db = c.env.DB;
@@ -332,18 +395,21 @@ async function finishDownload(c: AppContext): Promise<Response> {
     .first<{ drop_id: string }>();
   if (!ended) return INVALID_DOWNLOAD_TOKEN();
 
-  const [removed] = await db.batch<{ id: string }>([
+  const [removed] = await db.batch<{ id: string; chunk_count: number }>([
     db.prepare(
       `DELETE FROM drops WHERE id = ?1 AND downloads_remaining <= 0
          AND NOT EXISTS (SELECT 1 FROM drop_sessions WHERE drop_id = ?1 AND expires_at > ?2)
-       RETURNING id`
+       RETURNING id, chunk_count`
     ).bind(id, now),
     db.prepare("DELETE FROM drop_chunks WHERE drop_id = ?1 AND NOT EXISTS (SELECT 1 FROM drops WHERE id = ?1)").bind(id),
     db.prepare("DELETE FROM drop_sessions WHERE drop_id = ?1 AND NOT EXISTS (SELECT 1 FROM drops WHERE id = ?1)").bind(id),
   ]);
-  let deleted = (removed?.results?.length ?? 0) > 0;
+  const gone = removed?.results?.[0];
+  let deleted = !!gone;
   let downloadsRemaining = 0;
-  if (!deleted) {
+  if (gone) {
+    await deleteDropObjects(c.env, [{ id, chunkCount: gone.chunk_count }]);
+  } else {
     const row = await db.prepare("SELECT downloads_remaining FROM drops WHERE id = ?").bind(id).first<{ downloads_remaining: number }>();
     // Already gone (revoked, or removed when another download finished): report it as deleted.
     if (!row) deleted = true;

@@ -67,7 +67,7 @@ export default function Lobby({ name, onNameChange, prefillRoomId, onStart, onJo
   return (
     <ToolLayout
       eyebrow="Talk"
-      title="Encrypted chat"
+      title="Encrypted chat room, no signup"
       description="Open a private room, send the link, and talk. Messages are encrypted in your browser, so the server only relays ciphertext."
       meta={
         <>
