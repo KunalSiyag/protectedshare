@@ -1,19 +1,23 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, CircleHelp, Minus, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, CircleHelp, Minus, X } from "lucide-react";
 import { buttonVariants, cn } from "@protectedshare/ui";
 import AppLink from "../../components/app-link";
 import JsonLd from "../../components/json-ld";
 import SealMark from "../../components/seal-mark";
 import { Breadcrumb } from "../../components/breadcrumb";
 import { PageHeader } from "../../components/marketing";
+import { COMPARISONS } from "./registry";
 
 export type Status = "yes" | "no" | "partial" | "unknown";
 export type Cell = { status: Status; note?: string };
 export type ComparisonRow = { feature: string; them: Cell; us: Cell };
 export type Faq = { q: string; a: string };
+export type Source = { label: string; href: string };
+export type Action = { href: string; label: string };
+export type ToolLink = { href: string; title: string; body: string };
 
-const STATUS: Record<Status, { label: string; icon: typeof Check; className: string }> = {
+export const STATUS: Record<Status, { label: string; icon: typeof Check; className: string }> = {
   yes: { label: "Yes", icon: Check, className: "text-ok" },
   no: { label: "No", icon: X, className: "text-ink-3" },
   partial: { label: "Partial", icon: Minus, className: "text-warn" },
@@ -35,36 +39,78 @@ function StatusCell({ cell }: { cell: Cell }) {
   );
 }
 
-const ALL_COMPARISONS = [
-  { slug: "privnote", label: "vs Privnote" },
-  { slug: "onetimesecret", label: "vs OneTimeSecret" },
-  { slug: "envshare", label: "vs EnvShare" },
-  { slug: "protectedtext", label: "vs ProtectedText" },
-] as const;
+/** ProtectedShare's tools, described the same way on every comparison. */
+export const TOOLS = {
+  notes: {
+    href: "/notes",
+    title: "Secure Notes",
+    body: "A note encrypted in your browser. Burns after one read by default; add a password to send separately.",
+  },
+  secrets: {
+    href: "/secrets",
+    title: "EnvShare",
+    body: ".env files, API keys and passwords, deleted after 1 to 100 reads or at expiry.",
+  },
+  files: {
+    href: "/files",
+    title: "File drop",
+    body: "Files up to 25 MB, encrypted in your browser and deleted after 1 to 100 downloads.",
+  },
+  request: {
+    href: "/request",
+    title: "Secret request",
+    body: "Send someone a link. What they type back is encrypted to a key only your browser holds.",
+  },
+} satisfies Record<string, ToolLink>;
+
+const DEFAULT_ACTIONS: Action[] = [
+  { href: "/notes", label: "Create a secure note" },
+  { href: "/secrets", label: "Share a .env file" },
+];
+
+const DEFAULT_TOOLS: ToolLink[] = [TOOLS.notes, TOOLS.secrets, TOOLS.files, TOOLS.request];
+
+const inlineLink = "font-medium text-ink underline decoration-line-strong underline-offset-[3px] hover:decoration-ink";
 
 export default function ComparisonPage({
   slug,
   competitor,
+  competitorLabel,
   title,
   lead,
+  actions = DEFAULT_ACTIONS,
   rows,
   sources,
+  sourcesNote,
   differences,
+  whenThemTitle,
   whenThem,
+  tools = DEFAULT_TOOLS,
   faqs,
 }: {
   slug: string;
   competitor: string;
+  /** Column header, when it should say more than the name (e.g. a discontinued product). */
+  competitorLabel?: string;
   title: ReactNode;
   lead: ReactNode;
+  /** Header buttons: the first is primary. */
+  actions?: Action[];
   rows: ComparisonRow[];
   /** Where the competitor column comes from. */
-  sources: { label: string; href: string }[];
+  sources: Source[];
+  /** Replaces the default "reflects their public docs" sentence before the source list. */
+  sourcesNote?: ReactNode;
   differences: { title: string; body: ReactNode }[];
+  whenThemTitle?: string;
   /** Honest cases where the other tool is the better pick. */
-  whenThem: string[];
+  whenThem: ReactNode[];
+  /** ProtectedShare tools this page talks about. */
+  tools?: ToolLink[];
   faqs: Faq[];
 }) {
+  const columnLabel = competitorLabel ?? competitor;
+
   return (
     <main className="w-full">
       <JsonLd
@@ -82,17 +128,21 @@ export default function ComparisonPage({
       <Breadcrumb
         items={[
           { name: "Home", path: "/" },
+          { name: "Comparisons", path: "/vs" },
           { name: `${competitor} alternative`, path: `/vs/${slug}` },
         ]}
       />
 
       <PageHeader eyebrow="Compare" title={title} lead={lead}>
-        <AppLink href="/notes" className={buttonVariants({ variant: "primary" })}>
-          Create a secure note
-        </AppLink>
-        <AppLink href="/secrets" className={buttonVariants({ variant: "secondary" })}>
-          Share a .env file
-        </AppLink>
+        {actions.map((action, index) => (
+          <AppLink
+            key={action.href}
+            href={action.href}
+            className={buttonVariants({ variant: index === 0 ? "primary" : "secondary" })}
+          >
+            {action.label}
+          </AppLink>
+        ))}
       </PageHeader>
 
       <section aria-labelledby="table-heading" className="mt-12">
@@ -102,7 +152,7 @@ export default function ComparisonPage({
         <div className="overflow-hidden rounded-panel border border-line bg-surface">
           <table className="w-full border-collapse text-left">
             <caption className="sr-only">
-              {competitor} and ProtectedShare, feature by feature. Each answer is Yes, No, Partial or Not stated.
+              {columnLabel} and ProtectedShare, feature by feature. Each answer is Yes, No, Partial or Not stated.
             </caption>
             <colgroup>
               <col className="hidden sm:table-column sm:w-[34%]" />
@@ -115,7 +165,7 @@ export default function ComparisonPage({
                   Feature
                 </th>
                 <th scope="col" className="px-4 py-3 text-small font-semibold text-ink sm:px-5">
-                  {competitor}
+                  {columnLabel}
                 </th>
                 <th scope="col" className="px-4 py-3 text-small font-semibold text-ink sm:px-5">
                   <span className="inline-flex items-center gap-1.5">
@@ -133,8 +183,13 @@ export default function ComparisonPage({
           </table>
         </div>
         <p className="mt-3 max-w-[720px] text-meta text-ink-3">
-          The {competitor} column reflects their public docs and site at time of writing (October 2026). Products change,
-          so check theirs before deciding. Sources:{" "}
+          {sourcesNote ?? (
+            <>
+              The {competitor} column reflects their public docs and site at time of writing (October 2026). Products
+              change, so check theirs before deciding.
+            </>
+          )}{" "}
+          Sources:{" "}
           {sources.map((source, index) => (
             <span key={source.href}>
               {index > 0 ? ", " : null}
@@ -152,7 +207,13 @@ export default function ComparisonPage({
           {differences.map((difference) => (
             <section key={difference.title}>
               <h2 className="text-[22px] font-semibold leading-[28px] tracking-[-0.02em] text-ink">{difference.title}</h2>
-              <div className="mt-3 flex flex-col gap-4 text-prose text-ink-2 [&_code]:rounded-[5px] [&_code]:bg-surface-2 [&_code]:px-[5px] [&_code]:py-px [&_code]:font-mono [&_code]:text-[0.875em] [&_code]:text-ink">
+              <div
+                className={cn(
+                  "mt-3 flex flex-col gap-4 text-prose text-ink-2",
+                  "[&_code]:rounded-[5px] [&_code]:bg-surface-2 [&_code]:px-[5px] [&_code]:py-px [&_code]:font-mono [&_code]:text-[0.875em] [&_code]:text-ink",
+                  "[&_a]:font-medium [&_a]:text-ink [&_a]:underline [&_a]:decoration-line-strong [&_a]:underline-offset-[3px] hover:[&_a]:decoration-ink"
+                )}
+              >
                 {difference.body}
               </div>
             </section>
@@ -160,16 +221,50 @@ export default function ComparisonPage({
         </div>
 
         <aside className="lg:pt-1.5">
-          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">When {competitor} may suit you better</h2>
-          <ul className="mt-3 flex flex-col gap-2.5 border-l border-line pl-4">
-            {whenThem.map((item) => (
-              <li key={item} className="text-small text-ink-2">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
+            {whenThemTitle ?? `When ${competitor} may suit you better`}
+          </h2>
+          <ul className="mt-3 flex flex-col gap-2.5 border-l border-line pl-4 [&_a]:font-medium [&_a]:text-ink [&_a]:underline [&_a]:decoration-line-strong [&_a]:underline-offset-2 hover:[&_a]:decoration-ink">
+            {whenThem.map((item, index) => (
+              <li key={index} className="text-small text-ink-2">
                 {item}
               </li>
             ))}
           </ul>
         </aside>
       </div>
+
+      <section aria-labelledby="tools-heading" className="mt-16 max-w-[900px]">
+        <h2 id="tools-heading" className="text-[22px] font-semibold leading-[28px] tracking-[-0.02em] text-ink">
+          Try it on ProtectedShare
+        </h2>
+        <p className="mt-2 max-w-[680px] text-ui text-ink-2">
+          Free, with no account. Each tool encrypts in your browser before anything is uploaded. The{" "}
+          <Link href="/security" className={inlineLink}>
+            security model
+          </Link>{" "}
+          lists exactly what the server stores.
+        </p>
+        <ul className="mt-5 grid gap-x-10 gap-y-1 sm:grid-cols-2">
+          {tools.map((tool) => (
+            <li key={tool.href}>
+              <AppLink
+                href={tool.href}
+                className="group -mx-3 flex items-start justify-between gap-4 rounded-field px-3 py-3 outline-none transition-colors hover:bg-ink/[0.04] focus-visible:ring-2 focus-visible:ring-seal/45"
+              >
+                <span>
+                  <span className="block text-ui font-medium text-ink">{tool.title}</span>
+                  <span className="mt-0.5 block text-small text-ink-3">{tool.body}</span>
+                </span>
+                <ArrowRight
+                  aria-hidden="true"
+                  className="mt-1 size-4 shrink-0 text-ink-3 transition-transform duration-150 ease-seal group-hover:translate-x-0.5 group-hover:text-ink"
+                />
+              </AppLink>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section aria-labelledby="faq-heading" className="mt-16 max-w-[760px]">
         <h2 id="faq-heading" className="text-[22px] font-semibold leading-[28px] tracking-[-0.02em] text-ink">
@@ -193,11 +288,14 @@ export default function ComparisonPage({
 
       <nav aria-label="Other comparisons" className="mt-14 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-6 text-small text-ink-3">
         <span className="font-medium text-ink-2">Other comparisons</span>
-        {ALL_COMPARISONS.filter((item) => item.slug !== slug).map((item) => (
+        {COMPARISONS.filter((item) => item.slug !== slug).map((item) => (
           <Link key={item.slug} href={`/vs/${item.slug}`} className="transition-colors hover:text-ink">
-            {item.label}
+            vs {item.name}
           </Link>
         ))}
+        <Link href="/vs" className="transition-colors hover:text-ink">
+          All comparisons
+        </Link>
         <Link href="/security" className="transition-colors hover:text-ink">
           Security model
         </Link>

@@ -25,8 +25,10 @@ import {
   readJsonBody,
   rejectShareExpiry,
 } from "../lib/env";
+import { authFailed, authKey, createFloodGuard, lockedOut, lockedUntilColumn } from "../lib/limits";
 import { createReceipt, recordReceiptEvent } from "../lib/receipts";
 import { timingSafeEqual, verifyToken } from "../lib/tokens";
+import { recordUsage } from "../lib/usage";
 
 /** v2 note/secret ids are 10 characters; v1 creates keep 5. Readers accept any valid id. */
 const V2_ID_LENGTH = 10;
@@ -47,10 +49,26 @@ type ShareRow = {
   created_at: number;
   version: number | null;
   kdf: KdfMode | null;
+  /** Only on reads that open the share: set while it is locked after too many wrong passwords. */
+  locked_until?: number | null;
 };
 
 const NOTE_COLUMNS = "id, encrypted_blob, iv, salt, password_proof, is_burn_after_read, expires_at, created_at, version, kdf";
 const SECRET_COLUMNS = "id, encrypted_blob, iv, salt, password_proof, is_burn_after_read, reads_remaining, expires_at, created_at, version, kdf";
+
+/**
+ * A password stands between the link and the content (v1 rows, v2 "password" and
+ * "key+password"), so wrong guesses lock the share. Key-only links can't be guessed.
+ */
+function isGuessable(row: ShareRow): boolean {
+  return row.version !== 2 || (row.kdf ?? "key") !== "key";
+}
+
+/** Row query for an open: the share plus its lock expiry. Binds (id, now, lock key). */
+function openQuery(table: "notes" | "secrets"): string {
+  const columns = table === "notes" ? NOTE_COLUMNS : SECRET_COLUMNS;
+  return `SELECT ${columns}, ${lockedUntilColumn("?3")} FROM ${table} WHERE id = ?1 AND expires_at > ?2`;
+}
 
 function isV2Body(body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
@@ -64,13 +82,28 @@ function authTokenFrom(c: AppContext): string | undefined {
 }
 
 /** Shared v2 auth gate. Returns an error response or null when the token matches. */
-async function checkV2Auth(c: AppContext, storedHash: string): Promise<Response | null> {
+async function checkV2Auth(c: AppContext, kind: "note" | "secret", row: ShareRow): Promise<Response | null> {
   const token = authTokenFrom(c);
   if (!token) {
     return jsonError("This link needs an auth token.", "AUTH_REQUIRED", 401);
   }
-  if (!(await verifyToken(token, storedHash))) {
-    return jsonError("Wrong key or password.", "INVALID_AUTH", 401);
+  const lock = isGuessable(row);
+  if (lock) {
+    const locked = lockedOut(row.locked_until);
+    if (locked) return locked;
+  }
+  if (!(await verifyToken(token, row.password_proof))) {
+    return authFailed(c, kind, row.id, jsonError("Wrong key or password.", "INVALID_AUTH", 401), { lock });
+  }
+  return null;
+}
+
+/** v1 gate: `?proof=` against the stored password proof, with the lock around it. */
+async function checkV1Proof(c: AppContext, kind: "note" | "secret", row: ShareRow, proof: string): Promise<Response | null> {
+  const locked = lockedOut(row.locked_until);
+  if (locked) return locked;
+  if (!timingSafeEqual(row.password_proof ?? "", proof)) {
+    return authFailed(c, kind, row.id, jsonError("Invalid password.", "INVALID_PASSWORD", 401), { lock: true });
   }
   return null;
 }
@@ -88,6 +121,8 @@ export const sharesRoutes = new Hono<AppEnv>();
 /* ------------------------------- Notes -------------------------------- */
 
 sharesRoutes.post("/api/notes", async (c) => {
+  const flooded = await createFloodGuard(c);
+  if (flooded) return flooded;
   const read = await readJsonBody(c, MAX_SHARE_BODY_BYTES);
   if (!read.ok) return read.response;
   const createdAt = nowEpochSeconds();
@@ -121,6 +156,7 @@ sharesRoutes.post("/api/notes", async (c) => {
       kind: "note", id, manageHash: request.manageTokenHash,
       maxReads: request.isBurnAfterRead ? 1 : null, createdAt, expiresAt,
     });
+    recordUsage(c, "note");
     const response: CreateNoteResponse = { id };
     return c.json(response, 201);
   }
@@ -149,6 +185,7 @@ sharesRoutes.post("/api/notes", async (c) => {
     .run();
   // No receipt for v1 shares; this only clears a stale one under the same id.
   await createReceipt(db, { kind: "note", id, manageHash: undefined, maxReads: null, createdAt, expiresAt });
+  recordUsage(c, "note");
   const response: CreateNoteResponse = { id };
   return c.json(response, 201);
 });
@@ -178,12 +215,12 @@ sharesRoutes.get("/api/notes/:id", async (c) => {
   const db = c.env.DB;
   if (!isValidId(id)) return jsonError("Note not found or expired.", "NOTE_NOT_FOUND", 404);
 
-  const row = await db.prepare(`SELECT ${NOTE_COLUMNS} FROM notes WHERE id = ? AND expires_at > ?`)
-    .bind(id, now)
+  const row = await db.prepare(openQuery("notes"))
+    .bind(id, now, authKey("note", id))
     .first<ShareRow>();
 
   if (row && row.version === 2) {
-    const authError = await checkV2Auth(c, row.password_proof);
+    const authError = await checkV2Auth(c, "note", row);
     if (authError) return authError;
     const burn = row.is_burn_after_read === 1;
     if (burn) {
@@ -213,9 +250,8 @@ sharesRoutes.get("/api/notes/:id", async (c) => {
   if (!proof) {
     return jsonError("A valid password proof is required.", "INVALID_PASSWORD_PROOF", 400);
   }
-  if (!timingSafeEqual(row.password_proof ?? "", proof)) {
-    return jsonError("Invalid password.", "INVALID_PASSWORD", 401);
-  }
+  const proofError = await checkV1Proof(c, "note", row, proof);
+  if (proofError) return proofError;
   if (row.is_burn_after_read === 1) {
     const deleted = await db.prepare(
       "DELETE FROM notes WHERE id = ? AND password_proof = ? AND expires_at > ? RETURNING id"
@@ -239,6 +275,8 @@ sharesRoutes.get("/api/notes/:id", async (c) => {
 /* ------------------------------ Secrets ------------------------------- */
 
 sharesRoutes.post("/api/secrets", async (c) => {
+  const flooded = await createFloodGuard(c);
+  if (flooded) return flooded;
   const read = await readJsonBody(c, MAX_SHARE_BODY_BYTES);
   if (!read.ok) return read.response;
   const createdAt = nowEpochSeconds();
@@ -281,6 +319,7 @@ sharesRoutes.post("/api/secrets", async (c) => {
       .run();
     await createReceipt(db, { kind: "secret", id, manageHash: undefined, maxReads, createdAt, expiresAt });
   }
+  recordUsage(c, "secret");
 
   const response: CreateSecretResponse = { id };
   return c.json(response, 201);
@@ -329,12 +368,12 @@ sharesRoutes.get("/api/secrets/:id", async (c) => {
   const db = c.env.DB;
   if (!isValidId(id)) return jsonError("Secret not found or expired.", "SECRET_NOT_FOUND", 404);
 
-  const row = await db.prepare(`SELECT ${SECRET_COLUMNS} FROM secrets WHERE id = ? AND expires_at > ?`)
-    .bind(id, now)
+  const row = await db.prepare(openQuery("secrets"))
+    .bind(id, now, authKey("secret", id))
     .first<ShareRow>();
 
   if (row && row.version === 2) {
-    const authError = await checkV2Auth(c, row.password_proof);
+    const authError = await checkV2Auth(c, "secret", row);
     if (authError) return authError;
     const remaining = await spendSecretRead(db, id, now);
     if (remaining === null) return jsonError("Secret not found or expired.", "SECRET_NOT_FOUND", 404);
@@ -358,9 +397,8 @@ sharesRoutes.get("/api/secrets/:id", async (c) => {
   if (!proof) {
     return jsonError("A valid password proof is required.", "INVALID_PASSWORD_PROOF", 400);
   }
-  if (!timingSafeEqual(row.password_proof ?? "", proof)) {
-    return jsonError("Invalid password.", "INVALID_PASSWORD", 401);
-  }
+  const proofError = await checkV1Proof(c, "secret", row, proof);
+  if (proofError) return proofError;
   const remaining = await spendSecretRead(db, id, now);
   if (remaining === null) return jsonError("Secret not found or expired.", "SECRET_NOT_FOUND", 404);
   const response: GetSecretResponse = {

@@ -1,5 +1,6 @@
 /**
- * Self-healing schema. Mirrors schema.sql + migrations/0005_v2.sql + 0006_security.sql so a Worker
+ * Self-healing schema. Mirrors schema.sql + migrations/0005_v2.sql, 0006_security.sql and
+ * 0007_r2_limits_stats_reports.sql (+ 0008_push.sql) so a Worker
  * pointed at an older D1 database upgrades it on first use. Runs once per isolate.
  */
 
@@ -73,6 +74,7 @@ const CREATE_STATEMENTS = [
     drop_id TEXT NOT NULL,
     idx INTEGER NOT NULL,
     data BLOB NOT NULL,
+    size INTEGER,
     PRIMARY KEY (drop_id, idx)
   )`,
   `CREATE TABLE IF NOT EXISTS drop_sessions (
@@ -132,6 +134,49 @@ const CREATE_STATEMENTS = [
     PRIMARY KEY (room_id, message_id)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_chat_deletions_room ON chat_deletions (room_id, deleted_at)`,
+  // 0007: usage counters, abuse reports, auth lockouts.
+  `CREATE TABLE IF NOT EXISTS usage_daily (
+    day TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    created INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, kind)
+  )`,
+  `CREATE TABLE IF NOT EXISTS abuse_reports (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    details TEXT,
+    contact TEXT,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_abuse_reports_created_at ON abuse_reports (created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_abuse_reports_target ON abuse_reports (kind, target_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_lockouts (
+    key TEXT PRIMARY KEY,
+    until INTEGER NOT NULL
+  )`,
+  // 0008: read notifications (Web Push subscriptions per share) and their cleanup triggers.
+  `CREATE TABLE IF NOT EXISTS share_watchers (
+    kind TEXT NOT NULL,
+    id TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (kind, id, endpoint)
+  )`,
+  `CREATE TRIGGER IF NOT EXISTS share_watchers_on_revoke
+    AFTER UPDATE OF status ON share_receipts
+    WHEN NEW.status = 'revoked'
+    BEGIN
+      DELETE FROM share_watchers WHERE kind = NEW.kind AND id = NEW.id;
+    END`,
+  `CREATE TRIGGER IF NOT EXISTS share_watchers_on_receipt_delete
+    AFTER DELETE ON share_receipts
+    BEGIN
+      DELETE FROM share_watchers WHERE kind = OLD.kind AND id = OLD.id;
+    END`,
 ];
 
 /** Columns added after a table's first release. `ALTER ... ADD COLUMN` fails harmlessly when present. */
@@ -149,6 +194,7 @@ const COLUMN_ADDITIONS = [
   `ALTER TABLE chat_messages ADD COLUMN delete_hash TEXT`,
   `ALTER TABLE chat_messages ADD COLUMN version INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE requests ADD COLUMN respond_hash TEXT`,
+  `ALTER TABLE drop_chunks ADD COLUMN size INTEGER`,
 ];
 
 const POST_COLUMN_STATEMENTS = [

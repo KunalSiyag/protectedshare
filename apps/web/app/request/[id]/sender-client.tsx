@@ -3,15 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CircleCheck, Clock, FileText, Inbox, KeyRound, LockKeyhole, RotateCw, ShieldAlert, ShieldCheck, Type } from "lucide-react";
 import { sealToPublicKey, type SealedToPublicKey } from "@protectedshare/crypto";
-import {
-  AUTH_TOKEN_HEADER,
-  type PublicRequestResponse,
-  type RespondToRequestRequest,
-  type RespondToRequestResponse,
-} from "@protectedshare/contracts";
+import { type PublicRequestResponse, type RespondToRequestRequest, type RespondToRequestResponse } from "@protectedshare/contracts";
+import { AUTH_TOKEN_HEADER } from "@protectedshare/contracts/constants";
 import { Button, Field, Panel, PanelBody, PanelFooter, Spinner, StatusChip, Textarea, buttonVariants, cn } from "@protectedshare/ui";
 import AppLink from "../../../components/app-link";
 import EmptyState from "../../../components/empty-state";
+import ReportAbuse from "../../../components/report-abuse";
 import ServerView from "../../../components/server-view";
 import ToolLayout, { ToolNotes } from "../../../components/tool-layout";
 import { apiUrl } from "../../../lib/api";
@@ -376,6 +373,7 @@ function Composer({
               "The answer is deleted when they open it, or when the request expires.",
             ]}
           />
+          <ReportAbuse kind="request" id={id} className="ml-1" />
         </>
       }
     >

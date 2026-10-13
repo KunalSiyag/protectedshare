@@ -214,6 +214,16 @@ function menuItems(message: ChatMessage, actions: MessageActions): MenuItem[] {
 
 function MoreMenu({ items, onClose, align }: { items: MenuItem[]; onClose: () => void; align: "left" | "right" }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Opens toward the message's outer edge; on narrow screens shift it back inside the viewport.
+  const [shift, setShift] = useState(0);
+  useLayoutEffect(() => {
+    const menu = ref.current;
+    if (!menu) return;
+    const rect = menu.getBoundingClientRect();
+    const margin = 8;
+    if (rect.left < margin) setShift(margin - rect.left);
+    else if (rect.right > window.innerWidth - margin) setShift(window.innerWidth - margin - rect.right);
+  }, []);
   useEffect(() => {
     const first = ref.current?.querySelector<HTMLButtonElement>("button");
     first?.focus();
@@ -244,6 +254,7 @@ function MoreMenu({ items, onClose, align }: { items: MenuItem[]; onClose: () =>
     <div
       ref={ref}
       role="menu"
+      style={shift ? { translate: `${shift}px 0` } : undefined}
       className={cn(
         "absolute top-full z-30 mt-1 w-52 animate-drop rounded-[12px] border border-line bg-surface p-1 shadow-float",
         align === "right" ? "right-0" : "left-0"
@@ -383,6 +394,21 @@ const MessageRow = memo(function MessageRow({
   const [swipe, setSwipe] = useState(0);
   const touch = useRef<{ x: number; y: number; timer?: number; moved: boolean; long: boolean } | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  // The picker opens toward the message's outer edge; on narrow screens shift it back inside the viewport.
+  const pickerPanelRef = useRef<HTMLDivElement>(null);
+  const [pickerShift, setPickerShift] = useState(0);
+  useLayoutEffect(() => {
+    if (!pickerOpen) {
+      setPickerShift(0);
+      return;
+    }
+    const panel = pickerPanelRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    const margin = 8;
+    if (rect.left < margin) setPickerShift(margin - rect.left);
+    else if (rect.right > window.innerWidth - margin) setPickerShift(window.innerWidth - margin - rect.right);
+  }, [pickerOpen]);
   const url = useObjectUrl(message.file);
   const self = message.self;
   const tone = NAME_TONES[message.color % NAME_TONES.length];
@@ -558,6 +584,8 @@ const MessageRow = memo(function MessageRow({
                 </button>
                 {pickerOpen ? (
                   <div
+                    ref={pickerPanelRef}
+                    style={pickerShift ? { translate: `${pickerShift}px 0` } : undefined}
                     className={cn(
                       "absolute bottom-full z-30 mb-1.5 animate-drop rounded-[12px] border border-line bg-surface p-1 shadow-float",
                       self ? "right-0" : "left-0"

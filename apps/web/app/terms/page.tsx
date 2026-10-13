@@ -30,7 +30,7 @@ export default function TermsPage() {
         lead="Plain terms for a free tool. Use it lawfully, keep your own keys, and know that we can't recover what we can't read."
         meta={
           <>
-            <span>Last updated October 10, 2026</span>
+            <span>Last updated October 12, 2026</span>
             <MetaDot />
             <span>Applies to protectedshare.me</span>
           </>
@@ -49,7 +49,8 @@ export default function TermsPage() {
         <Section id="service" title="What the service is">
           <p>
             ProtectedShare is a set of free browser tools: secure notes, EnvShare, file drop, secret requests, chat, an
-            encrypted notepad, a password generator and an offline text encryptor. Encryption happens in your browser. The
+            encrypted notepad, and smaller tools such as a password generator and an offline text encryptor. Encryption
+            happens in your browser. The
             server stores ciphertext and the metadata described in our <a href="/privacy">privacy policy</a>.
           </p>
           <p>
@@ -77,8 +78,9 @@ export default function TermsPage() {
           <p>
             This applies to file drops in particular. We can&apos;t see what&apos;s inside an encrypted file, but if we
             receive a credible report that includes the share id, we will delete it, and we may block abuse of the service,
-            such as automated bulk uploads. Report problems to <a href={`mailto:${EMAIL}`}>{EMAIL}</a> with the id, not the
-            full link.
+            such as automated bulk uploads. To report a share, use the Report abuse link on the page that opens it, or
+            email <a href={`mailto:${EMAIL}`}>{EMAIL}</a> with the id, not the full link. Our{" "}
+            <a href="/privacy#reports">privacy policy</a> says what a report stores.
           </p>
         </Section>
 

@@ -1,0 +1,6 @@
+# Found a security problem in ProtectedShare? Please email us before publishing it.
+Contact: mailto:admin@protectedshare.me
+Expires: 2027-10-11T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://protectedshare.me/.well-known/security.txt
+Policy: https://protectedshare.me/security#disclosure

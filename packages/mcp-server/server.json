@@ -1,0 +1,55 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.KunalSiyag/protectedshare",
+  "title": "ProtectedShare",
+  "description": "Encrypted, self-destructing links. Remote: encrypts on our MCP server. Local: on your device.",
+  "version": "0.1.0",
+  "websiteUrl": "https://protectedshare.me/integrations/claude",
+  "repository": {
+    "url": "https://github.com/KunalSiyag/protectedshare",
+    "source": "github",
+    "subfolder": "packages/mcp-server"
+  },
+  "icons": [
+    {
+      "src": "https://protectedshare.me/apple-icon",
+      "mimeType": "image/png",
+      "sizes": ["180x180"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.protectedshare.me/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "protectedshare-mcp",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "PROTECTEDSHARE_API_URL",
+          "description": "ProtectedShare instance to use (web app origin). Must be https, except for localhost.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "default": "https://protectedshare.me"
+        },
+        {
+          "name": "PROTECTEDSHARE_HIBP_URL",
+          "description": "Pwned Passwords range API used by check_password_breach.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "default": "https://api.pwnedpasswords.com"
+        }
+      ]
+    }
+  ]
+}

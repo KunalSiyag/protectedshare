@@ -15,7 +15,9 @@ import {
   type UpdateChatPresenceRequest,
 } from "@protectedshare/contracts";
 import { type AppContext, type AppEnv, BASE64_URL_PATTERN, jsonError, readJsonBody } from "../lib/env";
+import { authFailed, authKey, limit, lockedOut, lockedUntilColumn } from "../lib/limits";
 import { timingSafeEqual, verifyToken } from "../lib/tokens";
+import { recordUsage } from "../lib/usage";
 
 const CHAT_PRESENCE_TTL_MS = 15_000;
 /** Deletion/burn events are kept this long so reconnecting streams can replay them. */
@@ -44,7 +46,11 @@ type ChatRoomRow = {
   ttl_seconds: number | null;
   created_at: number;
   last_active_at: number;
+  /** Set while the room is locked after too many wrong keys or passwords (epoch seconds). */
+  locked_until?: number | null;
 };
+
+const ROOM_AUTH_FAILED = () => jsonError("Wrong room key.", "INVALID_ROOM_AUTH", 401);
 
 export const chatRoutes = new Hono<AppEnv>();
 
@@ -69,7 +75,12 @@ function toMessage(row: ChatMessageRow): ChatMessageV2Response {
 }
 
 async function getRoom(db: D1Database, roomId: string): Promise<ChatRoomRow | null> {
-  return db.prepare("SELECT * FROM chat_rooms WHERE room_id = ?").bind(roomId).first<ChatRoomRow>();
+  return db.prepare(
+    `SELECT room_id, auth_hash, ttl_seconds, created_at, last_active_at, ${lockedUntilColumn("?2")}
+     FROM chat_rooms WHERE room_id = ?1`
+  )
+    .bind(roomId, authKey("room", roomId))
+    .first<ChatRoomRow>();
 }
 
 function toSettings(roomId: string, room: ChatRoomRow | null): ChatRoomSettings {
@@ -95,8 +106,11 @@ async function authorizeRoom(
   if (!token) {
     return { ok: false, response: jsonError("This room needs its key.", "ROOM_AUTH_REQUIRED", 401) };
   }
+  // Password rooms can be guessed, and the server can't tell them from key rooms: lock both.
+  const locked = lockedOut(room.locked_until);
+  if (locked) return { ok: false, response: locked };
   if (!(await verifyToken(token, room.auth_hash))) {
-    return { ok: false, response: jsonError("Wrong room key.", "INVALID_ROOM_AUTH", 401) };
+    return { ok: false, response: await authFailed(c, "room", roomId, ROOM_AUTH_FAILED(), { lock: true }) };
   }
   return { ok: true, roomId, room };
 }
@@ -201,6 +215,9 @@ chatRoutes.post("/api/chat/:roomId/claim", async (c) => {
   const db = c.env.DB;
   const roomId = c.req.param("roomId");
   if (!isValidRoomId(roomId)) return jsonError("Invalid room ID", "INVALID_ROOM_ID", 400);
+  // Every join claims the room; past this many a minute it's a script, not people.
+  const limited = await limit(c, "RL_CLAIM", `claim:${roomId}`, "Too many people tried to open this room just now. Wait a minute, then try again.");
+  if (limited) return limited;
   const read = await readJsonBody(c, 4_000);
   if (!read.ok) return read.response;
   const parsed = ChatClaimRequestSchema.safeParse(read.body);
@@ -218,13 +235,19 @@ chatRoutes.post("/api/chat/:roomId/claim", async (c) => {
     .first<{ room_id: string }>();
 
   if (inserted) {
+    recordUsage(c, "chat");
     const response: ChatClaimResponse = { roomId, claimed: true, ttlSeconds: ttl, created: true };
     return c.json(response, 201);
   }
 
   const room = await getRoom(db, roomId);
-  if (!room || !timingSafeEqual(room.auth_hash, parsed.data.authHash)) {
-    return jsonError("This room is already claimed with a different key.", "ROOM_CLAIMED", 409);
+  const claimedElsewhere = () => jsonError("This room is already claimed with a different key.", "ROOM_CLAIMED", 409);
+  if (!room) return claimedElsewhere();
+  // A claim with a guessed hash is a password guess too.
+  const locked = lockedOut(room.locked_until);
+  if (locked) return locked;
+  if (!timingSafeEqual(room.auth_hash, parsed.data.authHash)) {
+    return authFailed(c, "room", roomId, claimedElsewhere(), { lock: true });
   }
   await touchRoom(db, roomId, now);
   const response: ChatClaimResponse = { ...toSettings(roomId, room), created: false };
@@ -261,6 +284,8 @@ chatRoutes.post("/api/chat/:roomId", async (c) => {
   const db = c.env.DB;
   const auth = await authorizeRoom(c);
   if (!auth.ok) return auth.response;
+  const limited = await limit(c, "RL_CHAT_POST", `chat:${auth.roomId}`, "This room is sending messages too fast. Wait a few seconds, then try again.");
+  if (limited) return limited;
 
   const read = await readJsonBody(c, MAX_CHAT_BLOB_CHARS + 4_000);
   if (!read.ok) return read.response;

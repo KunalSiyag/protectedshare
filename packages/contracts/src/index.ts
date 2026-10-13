@@ -1,10 +1,8 @@
 import { z } from "zod";
+import { MAX_DROP_TOTAL_BYTES, MAX_DROP_CHUNKS, MAX_REQUEST_RESPONSE_BYTES, MAX_CHAT_BLOB_CHARS, MIN_CHAT_TTL_SECONDS, MAX_CHAT_TTL_SECONDS, MAX_MANAGE_BATCH_ITEMS, MAX_REPORT_DETAILS_CHARS } from "./constants";
 
-/** Shortest lifetime the share forms will send. */
-export const MIN_SHARE_TTL_SECONDS = 5 * 60;
-
-/** Longest lifetime a note or secret may live. */
-export const MAX_SHARE_TTL_SECONDS = 30 * 24 * 60 * 60;
+// Plain values (no zod) live in ./constants so browser code can import them without pulling zod.
+export * from "./constants";
 
 export const HealthCheckSchema = z.object({
   status: z.literal("ok")
@@ -125,26 +123,6 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 /* - Share/drop/request/receipt timestamps are epoch SECONDS. Chat           */
 /*   timestamps (createdAt, expiresAt, deletedAt) are epoch MILLISECONDS.   */
 /* ------------------------------------------------------------------------ */
-
-export const AUTH_TOKEN_HEADER = "X-Auth-Token";
-export const MANAGE_TOKEN_HEADER = "X-Manage-Token";
-export const UPLOAD_TOKEN_HEADER = "X-Upload-Token";
-export const DELETE_TOKEN_HEADER = "X-Delete-Token";
-/** Per-download session token from POST /api/drops/:id/start. Required on chunk GETs and /consume. */
-export const DOWNLOAD_TOKEN_HEADER = "X-Download-Token";
-
-/** Plaintext cap the file-drop UI should enforce (25 MiB). */
-export const MAX_DROP_PLAINTEXT_BYTES = 26_214_400;
-/** Ciphertext cap the API enforces: plaintext cap + 28 bytes (12 IV + 16 tag) per chunk. */
-export const MAX_DROP_TOTAL_BYTES = 26_214_400 + 40 * 28;
-export const MAX_DROP_CHUNKS = 40;
-/** Max size of one uploaded (encrypted) chunk body in bytes. */
-export const MAX_DROP_CHUNK_BYTES = 1_100_000;
-export const MAX_REQUEST_RESPONSE_BYTES = 200_000;
-export const MAX_CHAT_BLOB_CHARS = 1_500_000;
-export const MIN_CHAT_TTL_SECONDS = 5;
-export const MAX_CHAT_TTL_SECONDS = 7 * 24 * 60 * 60;
-export const MAX_MANAGE_BATCH_ITEMS = 50;
 
 /** SHA-256 digest as unpadded base64url (always 43 chars). */
 export const TokenHashSchema = z
@@ -513,3 +491,111 @@ export type ChatStreamReadyEvent = z.infer<typeof ChatStreamReadyEventSchema>;
 export type ChatStreamMessagesEvent = z.infer<typeof ChatStreamMessagesEventSchema>;
 export type ChatStreamDeletedEvent = z.infer<typeof ChatStreamDeletedEventSchema>;
 export type ChatStreamBurnedEvent = z.infer<typeof ChatStreamBurnedEventSchema>;
+
+/* ------------------------------------------------------------------------ */
+/* Rate limits, usage stats, abuse reports, admin takedown                   */
+/* ------------------------------------------------------------------------ */
+
+/** What GET /api/stats counts: successful creates (drops when completed, chat rooms when first claimed). */
+export const UsageKindSchema = z.enum(["note", "secret", "drop", "request", "chat"]);
+
+/** GET /api/stats. Cached for 10 minutes (Cache-Control: public, max-age=600). */
+export const UsageStatsResponseSchema = z.object({
+  last30Days: z.object({
+    total: z.number().int().nonnegative(),
+    byKind: z.object({
+      note: z.number().int().nonnegative(),
+      secret: z.number().int().nonnegative(),
+      drop: z.number().int().nonnegative(),
+      request: z.number().int().nonnegative(),
+      chat: z.number().int().nonnegative()
+    })
+  }),
+  /** Epoch seconds. */
+  generatedAt: z.number().int()
+});
+
+export const ReportReasonSchema = z.enum(["malware", "phishing", "illegal", "spam", "other"]);
+
+/** POST /api/reports. Only kind + id identify the share: never the link or its fragment. */
+export const CreateReportRequestSchema = z.object({
+  kind: ShareKindSchema,
+  id: z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/, "Expected a share id"),
+  reason: ReportReasonSchema,
+  details: z.string().max(MAX_REPORT_DETAILS_CHARS).optional(),
+  /** Optional email for follow-up questions. */
+  contact: z.string().max(320).email().optional()
+});
+
+export const CreateReportResponseSchema = z.object({
+  id: z.string().min(1),
+  received: z.literal(true)
+});
+
+/** DELETE /api/admin/:kind/:id: content deleted (with any R2 objects), receipt marked revoked. */
+export const AdminTakedownResponseSchema = z.object({
+  kind: ShareKindSchema,
+  id: z.string().min(1),
+  /** False when the content was already gone. */
+  deleted: z.boolean(),
+  /** True when an active receipt was marked revoked, so the sender's "My links" shows it. */
+  receiptRevoked: z.boolean()
+});
+
+export type UsageKind = z.infer<typeof UsageKindSchema>;
+export type UsageStatsResponse = z.infer<typeof UsageStatsResponseSchema>;
+export type ReportReason = z.infer<typeof ReportReasonSchema>;
+export type CreateReportRequest = z.infer<typeof CreateReportRequestSchema>;
+export type CreateReportResponse = z.infer<typeof CreateReportResponseSchema>;
+export type AdminTakedownResponse = z.infer<typeof AdminTakedownResponseSchema>;
+
+/* ---- Read notifications (Web Push) ---- */
+/* POST/DELETE /api/manage/:kind/:id/watch with X-Manage-Token. The server keeps the browser's push */
+/* subscription until the share is used up, revoked or expires, and sends a Web Push (RFC 8291) on */
+/* the first open and when the share is used up. */
+
+const PushKeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9_-]+={0,2}$/, "Expected base64url");
+
+/** PushSubscription.toJSON() minus expirationTime. The endpoint must be a known browser push service. */
+export const PushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2048),
+  keys: z.object({
+    /** Uncompressed P-256 public key (65 bytes). */
+    p256dh: PushKeySchema,
+    /** 16-byte auth secret. */
+    auth: PushKeySchema
+  })
+});
+
+export const WatchShareRequestSchema = z.object({
+  subscription: PushSubscriptionSchema
+});
+
+/** DELETE body (optional). Without an endpoint, every browser watching the share is removed. */
+export const UnwatchShareRequestSchema = z.object({
+  endpoint: z.string().max(2048).optional()
+});
+
+export const WatchShareResponseSchema = z.object({
+  kind: ShareKindSchema,
+  id: z.string().min(1),
+  watching: z.boolean()
+});
+
+/** opened: first read / download / answer. used_up: the read that burned it or spent the last read or download. */
+export const PushEventNameSchema = z.enum(["opened", "used_up"]);
+
+/** The decrypted push message the service worker receives. `at` is epoch seconds. */
+export const PushEventPayloadSchema = z.object({
+  kind: ShareKindSchema,
+  id: z.string().min(1).max(64),
+  event: PushEventNameSchema,
+  at: z.number().int()
+});
+
+export type PushSubscriptionInput = z.infer<typeof PushSubscriptionSchema>;
+export type WatchShareRequest = z.infer<typeof WatchShareRequestSchema>;
+export type UnwatchShareRequest = z.infer<typeof UnwatchShareRequestSchema>;
+export type WatchShareResponse = z.infer<typeof WatchShareResponseSchema>;
+export type PushEventName = z.infer<typeof PushEventNameSchema>;
+export type PushEventPayload = z.infer<typeof PushEventPayloadSchema>;

@@ -15,7 +15,8 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { deriveInboxToken, openWithPrivateKey } from "@protectedshare/crypto";
-import { AUTH_TOKEN_HEADER, type PublicRequestResponse, type RequestResponseSealed } from "@protectedshare/contracts";
+import { type PublicRequestResponse, type RequestResponseSealed } from "@protectedshare/contracts";
+import { AUTH_TOKEN_HEADER } from "@protectedshare/contracts/constants";
 import { Button, Panel, PanelBody, Spinner, StatusChip, buttonVariants, cn } from "@protectedshare/ui";
 import AppLink from "../../../../components/app-link";
 import CopyField from "../../../../components/copy-field";

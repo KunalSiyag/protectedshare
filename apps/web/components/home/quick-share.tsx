@@ -101,20 +101,22 @@ function StaysHere({ items }: { items: LocalItem[] }) {
 export type QuickShareProps = {
   /** Headline and subhead, rendered on the server and placed above the composer. */
   intro: ReactNode;
+  /** Starts the composer with this text (e.g. text shared to the installed app). */
+  initialText?: string;
 };
 
 /**
  * The homepage hero: a working note composer on the left, and on the right the exact
  * request body our server would receive, re-sealed as you type with this session's key.
  */
-export default function QuickShare({ intro }: QuickShareProps) {
+export default function QuickShare({ intro, initialText }: QuickShareProps) {
   const fieldId = useId();
   const statusId = useId();
   const stripId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [session, setSession] = useState<Session | null>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText ?? "");
   const [expiry, setExpiry] = useState<Expiry>("86400");
   const [burn, setBurn] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);

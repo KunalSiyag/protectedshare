@@ -233,7 +233,7 @@ export default function RequestClient() {
   return (
     <ToolLayout
       eyebrow="Share"
-      title="Ask for a secret"
+      title="Ask someone to send you a password"
       description="Send someone a link. What they paste is encrypted in their browser to a key only you hold, and you open it from your private inbox link. Neither of you needs an account."
       meta={
         <>

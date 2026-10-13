@@ -1,5 +1,6 @@
 import AppLink from "../components/app-link";
 import SealMark from "../components/seal-mark";
+import { FREE_TOOLS } from "../lib/site-nav";
 
 const GITHUB_URL = "https://github.com/KunalSiyag/protectedshare";
 
@@ -13,21 +14,19 @@ const columns: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/request", label: "Secret request" },
       { href: "/chat", label: "Chat" },
       { href: "/notepad", label: "Notepad" },
+      { href: "/links", label: "My links" },
     ],
   },
   {
     title: "Free tools",
-    links: [
-      { href: "/tools/password-generator", label: "Password generator" },
-      { href: "/tools/encrypt-text", label: "Encrypt text" },
-      { href: "/links", label: "My links" },
-    ],
+    links: [...FREE_TOOLS.map((tool) => ({ href: tool.href, label: tool.label })), { href: "/tools", label: "All free tools" }],
   },
   {
     title: "Resources",
     links: [
       { href: "/security", label: "Security model" },
       { href: "/self-host", label: "Self-host" },
+      { href: "/integrations/claude", label: "Claude connector" },
       { href: "/pricing", label: "Pricing" },
       { href: "/blog", label: "Blog" },
     ],
@@ -39,6 +38,7 @@ const columns: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/vs/onetimesecret", label: "vs OneTimeSecret" },
       { href: "/vs/envshare", label: "vs EnvShare" },
       { href: "/vs/protectedtext", label: "vs ProtectedText" },
+      { href: "/vs", label: "All comparisons" },
     ],
   },
 ];
@@ -64,7 +64,7 @@ const linkClass =
 export default function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-line">
-      <div className="mx-auto grid max-w-content gap-x-8 gap-y-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))] lg:py-14">
+      <div className="mx-auto grid max-w-content gap-x-8 gap-y-10 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1.3fr)_repeat(4,minmax(0,1fr))] lg:py-14">
         <div className="max-w-[320px]">
           <AppLink href="/" className="inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em] text-ink">
             <SealMark size={20} />
@@ -83,7 +83,7 @@ export default function SiteFooter() {
             <span className="text-ink-3">· MIT</span>
           </a>
         </div>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4 md:col-span-1 lg:contents">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4 lg:contents">
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title}>
               <h2 className="eyebrow !text-[11px]">{column.title}</h2>

@@ -1,4 +1,4 @@
-import { ArrowUpRight, Binary, FileLock, FileUp, Inbox, KeyRound, LockKeyhole, MessagesSquare, NotebookPen, type LucideIcon } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Binary, FileLock, FileUp, Inbox, KeyRound, LockKeyhole, MessagesSquare, NotebookPen, type LucideIcon } from "lucide-react";
 import AppLink from "../app-link";
 
 type ToolRow = {
@@ -9,7 +9,12 @@ type ToolRow = {
   facts: string[];
 };
 
-type ToolGroup = { label: string; rows: ToolRow[] };
+type ToolGroup = {
+  label: string;
+  rows: ToolRow[];
+  /** Smaller tools listed by name only, in one line under the group. */
+  more?: { href: string; name: string }[];
+};
 
 export const TOOL_GROUPS: ToolGroup[] = [
   {
@@ -87,8 +92,18 @@ export const TOOL_GROUPS: ToolGroup[] = [
         facts: ["Password only", "Opens offline", "Nothing uploaded"],
       },
     ],
+    more: [
+      { href: "/tools/password-strength-checker", name: "Password strength checker" },
+      { href: "/tools/breached-password-checker", name: "Breached password checker" },
+      { href: "/tools/secret-key-generator", name: "Secret key generator" },
+      { href: "/tools/jwt-decoder", name: "JWT decoder" },
+      { href: "/tools/wifi-qr-code-generator", name: "WiFi QR code generator" },
+    ],
   },
 ];
+
+const moreLinkClass =
+  "rounded-[4px] text-small text-ink-2 underline decoration-line-strong underline-offset-[3px] outline-none transition-colors duration-150 hover:text-ink hover:decoration-ink focus-visible:ring-2 focus-visible:ring-seal/45";
 
 /** A dense index of every tool: the job, then the limits that decide which one you want. */
 export default function ToolIndex() {
@@ -142,6 +157,27 @@ export default function ToolIndex() {
               );
             })}
           </ul>
+          {group.more ? (
+            <div className="flex flex-col gap-2 border-b border-line py-3.5 md:flex-row md:items-baseline md:gap-6">
+              <p className="shrink-0 text-small font-medium text-ink-3 md:w-[230px]">More free tools</p>
+              <ul className="flex min-w-0 flex-1 flex-wrap gap-x-4 gap-y-1.5">
+                {group.more.map((tool) => (
+                  <li key={tool.href}>
+                    <AppLink href={tool.href} className={moreLinkClass}>
+                      {tool.name}
+                    </AppLink>
+                  </li>
+                ))}
+              </ul>
+              <AppLink
+                href="/tools"
+                className="inline-flex shrink-0 items-center gap-1 self-start rounded-[4px] text-small font-medium text-ink outline-none hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-seal/45 md:self-auto"
+              >
+                All free tools
+                <ArrowRight aria-hidden="true" className="size-3.5" />
+              </AppLink>
+            </div>
+          ) : null}
         </div>
       ))}
     </div>

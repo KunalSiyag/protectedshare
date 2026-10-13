@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { buttonVariants } from "@protectedshare/ui";
-import { BLOG_POSTS, getBlogPost, getBlogSlugs } from "../../../lib/blog";
+import { BLOG_POSTS, countWords, getBlogPost, getBlogRedirect, getBlogSlugs, getRelatedPosts } from "../../../lib/blog";
+import { personJsonLd } from "../../../lib/authors";
 import JsonLd from "../../../components/json-ld";
 import AppLink from "../../../components/app-link";
 import { Breadcrumb } from "../../../components/breadcrumb";
 import { MetaDot } from "../../../components/marketing";
-import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "../../../lib/seo";
+import { SITE_NAME, SITE_URL, ogImageUrl } from "../../../lib/seo";
 import Markdown, { extractHeadings } from "../markdown";
 
 type PageProps = {
@@ -29,7 +30,13 @@ const COMPARISONS = [
   { href: "/vs/onetimesecret", label: "vs OneTimeSecret" },
   { href: "/vs/envshare", label: "vs EnvShare" },
   { href: "/vs/protectedtext", label: "vs ProtectedText" },
+  { href: "/vs/bitwarden-send", label: "vs Bitwarden Send" },
 ] as const;
+
+const DEFAULT_PRACTICE = {
+  primary: { href: "/notes", label: "New secure note" },
+  secondary: { href: "/secrets", label: "Share a .env" },
+};
 
 /** A table of contents only earns its place on longer posts. */
 const TOC_MIN_HEADINGS = 3;
@@ -46,19 +53,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {};
   }
 
+  const url = `${SITE_URL}/blog/${post.slug}`;
+
+  // No images: the route's opengraph-image.tsx supplies og:image, and Next copies it to twitter:image.
   return {
-    title: post.title,
+    // Keep the full title under ~60 characters in results: skip the site suffix for long titles.
+    title: post.title.length + " | ProtectedShare".length > 60 ? { absolute: post.title } : post.title,
     description: post.description,
+    authors: [{ name: post.author.name, url: post.author.url }],
     alternates: {
-      canonical: `https://protectedshare.me/blog/${post.slug}`,
+      canonical: url,
     },
     openGraph: {
       title: post.title,
       description: post.description,
-      url: `https://protectedshare.me/blog/${post.slug}`,
+      url,
       type: "article",
+      siteName: SITE_NAME,
+      locale: "en_US",
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt,
+      authors: [post.author.url],
+      section: post.category,
     },
     twitter: {
       card: "summary_large_image",
@@ -73,27 +89,21 @@ export default async function BlogPostPage({ params }: PageProps) {
   const post = getBlogPost(slug);
 
   if (!post) {
+    const target = getBlogRedirect(slug);
+    if (target) permanentRedirect(target);
     notFound();
   }
 
+  const url = `${SITE_URL}/blog/${post.slug}`;
   const currentIndex = BLOG_POSTS.findIndex((item) => item.slug === post.slug);
   const previousPost = currentIndex > 0 ? BLOG_POSTS[currentIndex - 1] : undefined;
   const nextPost = currentIndex < BLOG_POSTS.length - 1 ? BLOG_POSTS[currentIndex + 1] : undefined;
-  const primaryTopic = post.title.split(" ")[0]?.toLowerCase() ?? "";
-  const relatedPosts = BLOG_POSTS.filter((item) => item.slug !== post.slug)
-    .map((item) => ({
-      item,
-      score:
-        (item.category === post.category ? 3 : 0) +
-        (primaryTopic && item.title.toLowerCase().includes(primaryTopic) ? 1 : 0),
-    }))
-    .sort((left, right) => right.score - left.score)
-    .slice(0, 3)
-    .map(({ item }) => item);
+  const relatedPosts = getRelatedPosts(post);
 
   const headings = extractHeadings(post.content);
   const showToc = headings.length >= TOC_MIN_HEADINGS;
   const updated = post.updatedAt !== post.publishedAt;
+  const practice = post.practice ?? DEFAULT_PRACTICE;
 
   return (
     <main className="w-full">
@@ -103,13 +113,10 @@ export default async function BlogPostPage({ params }: PageProps) {
           "@type": "BlogPosting",
           headline: post.title,
           description: post.description,
-          image: DEFAULT_OG_IMAGE,
+          image: ogImageUrl(`/blog/${post.slug}`),
           datePublished: post.publishedAt,
           dateModified: post.updatedAt,
-          author: {
-            "@type": "Organization",
-            name: "ProtectedShare Team",
-          },
+          author: personJsonLd(post.author),
           publisher: {
             "@type": "Organization",
             name: SITE_NAME,
@@ -120,10 +127,12 @@ export default async function BlogPostPage({ params }: PageProps) {
             },
           },
           articleSection: post.category,
+          wordCount: countWords(post.content),
           inLanguage: "en-US",
+          url,
           mainEntityOfPage: {
             "@type": "WebPage",
-            "@id": `https://protectedshare.me/blog/${post.slug}`,
+            "@id": url,
           },
         }}
       />
@@ -148,17 +157,37 @@ export default async function BlogPostPage({ params }: PageProps) {
               </h1>
               <p className="mt-4 text-[17px] leading-[27px] text-ink-2 sm:text-lead">{post.description}</p>
               <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-ink-3">
-                <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
+                <span>
+                  By{" "}
+                  <Link
+                    href={`/authors/${post.author.slug}`}
+                    rel="author"
+                    className="font-medium text-ink-2 underline decoration-line-strong underline-offset-[3px] transition-colors hover:text-ink hover:decoration-ink"
+                  >
+                    {post.author.name}
+                  </Link>
+                </span>
                 <MetaDot />
-                <span>{post.readingTime}</span>
+                {updated ? (
+                  <span>
+                    Updated <time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>
+                  </span>
+                ) : (
+                  <span>
+                    Published <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
+                  </span>
+                )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-ink-3">
                 {updated ? (
                   <>
-                    <MetaDot />
                     <span>
-                      Updated <time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>
+                      First published <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
                     </span>
+                    <MetaDot />
                   </>
                 ) : null}
+                <span>{post.readingTime}</span>
               </div>
             </header>
 
@@ -177,12 +206,14 @@ export default async function BlogPostPage({ params }: PageProps) {
                 <p className="mt-0.5 text-small text-ink-3">Encrypted in your browser. No account.</p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <AppLink href="/notes" className={buttonVariants({ variant: "primary", size: "sm" })}>
-                  New secure note
+                <AppLink href={practice.primary.href} className={buttonVariants({ variant: "primary", size: "sm" })}>
+                  {practice.primary.label}
                 </AppLink>
-                <AppLink href="/secrets" className={buttonVariants({ variant: "secondary", size: "sm" })}>
-                  Share a .env
-                </AppLink>
+                {practice.secondary ? (
+                  <AppLink href={practice.secondary.href} className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                    {practice.secondary.label}
+                  </AppLink>
+                ) : null}
               </div>
             </aside>
           </div>
@@ -265,9 +296,9 @@ export default async function BlogPostPage({ params }: PageProps) {
                 {item.label}
               </Link>
             ))}
-            <AppLink href="/chat" className="transition-colors hover:text-ink">
-              Encrypted chat
-            </AppLink>
+            <Link href="/vs" className="transition-colors hover:text-ink">
+              All comparisons
+            </Link>
           </p>
         </div>
       </div>

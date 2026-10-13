@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
+  Bell,
+  BellRing,
   Check,
   Copy,
   FileLock,
@@ -18,12 +20,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import {
-  MANAGE_TOKEN_HEADER,
-  type ManageBatchItem,
-  type ManageBatchResponse,
-  type ManageStatusResponse,
-} from "@protectedshare/contracts";
+import { type ManageBatchItem, type ManageBatchResponse, type ManageStatusResponse } from "@protectedshare/contracts";
+import { MANAGE_TOKEN_HEADER } from "@protectedshare/contracts/constants";
 import { Button, Input, Panel, Segmented, Spinner, StatusChip, buttonVariants, cn, type Tone } from "@protectedshare/ui";
 import AppLink from "../../components/app-link";
 import ConfirmDialog from "../../components/confirm-dialog";
@@ -36,6 +34,16 @@ import { useToast } from "../../components/toast";
 import { apiUrl } from "../../lib/api";
 import { copyText } from "../../lib/clipboard";
 import { addLink, clearLinks, removeLink, useMyLinks, type MyLink, type MyLinkKind } from "../../lib/my-links";
+import {
+  forgetWatched,
+  pruneWatched,
+  refreshServiceWorker,
+  unwatchLink,
+  usePushAvailability,
+  useWatchedKeys,
+  watchLink,
+  type WatchResult,
+} from "../../lib/push";
 
 const REFRESH_MS = 20_000;
 const BATCH = 50;
@@ -173,25 +181,59 @@ function IconAction({
   onClick,
   children,
   tone = "default",
+  pressed,
+  disabled,
 }: {
   label: string;
   onClick: () => void;
   children: React.ReactNode;
   tone?: "default" | "danger";
+  /** Makes it a toggle button (aria-pressed). */
+  pressed?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
+      aria-pressed={pressed}
+      disabled={disabled}
       title={label}
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-control text-ink-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-seal/45 [&_svg]:size-4",
-        tone === "danger" ? "hover:bg-danger-soft hover:text-danger" : "hover:bg-ink/[0.05] hover:text-ink"
+        "flex size-8 shrink-0 items-center justify-center rounded-control text-ink-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-seal/45 disabled:opacity-45 [&_svg]:size-4",
+        tone === "danger" ? "hover:bg-danger-soft hover:text-danger" : "hover:bg-ink/[0.05] hover:text-ink",
+        pressed && "bg-ink/[0.06] text-ink"
       )}
     >
       {children}
     </button>
+  );
+}
+
+const WATCH_VERB: Record<MyLinkKind, string> = { note: "opened", secret: "opened", drop: "downloaded", request: "answered" };
+
+const WATCH_TOASTS: Record<Exclude<WatchResult, "on">, { title: string; description: string }> = {
+  denied: { title: "Notifications are blocked", description: "Allow them for this site in your browser's settings, then try again." },
+  closed: { title: "Nothing left to watch", description: "This link is already used up or expired." },
+  limit: { title: "Already at the limit", description: "A link can notify up to 5 browsers." },
+  unavailable: { title: "Notifications aren't available", description: "This browser can't show them." },
+  failed: { title: "Couldn't turn on notifications", description: "Your browser couldn't set them up. Try again in a moment." },
+};
+
+type WatchControl = { on: boolean; busy: boolean; onToggle: () => void };
+
+/** Bell: "Notify me when it's opened" for one row (Web Push through this browser). */
+function WatchButton({ kind, watch }: { kind: MyLinkKind; watch: WatchControl }) {
+  return (
+    <IconAction
+      label={watch.on ? "Stop notifications for this link" : `Notify me when it's ${WATCH_VERB[kind]}`}
+      onClick={watch.onToggle}
+      pressed={watch.on}
+      disabled={watch.busy}
+    >
+      {watch.on ? <BellRing aria-hidden="true" /> : <Bell aria-hidden="true" />}
+    </IconAction>
   );
 }
 
@@ -221,6 +263,7 @@ function LinkRow({
   onQr,
   onRevoke,
   onForget,
+  watch,
 }: {
   link: MyLink;
   entry: StatusEntry | undefined;
@@ -228,6 +271,8 @@ function LinkRow({
   onQr: () => void;
   onRevoke: () => void;
   onForget: () => void;
+  /** Present when this browser can do read notifications. */
+  watch?: WatchControl;
 }) {
   const meta = KIND[link.kind];
   const Icon = meta.icon;
@@ -289,6 +334,7 @@ function LinkRow({
             <QrIcon aria-hidden="true" />
           </IconAction>
         ) : null}
+        {!status.done && watch ? <WatchButton kind={link.kind} watch={watch} /> : null}
         {status.revocable ? (
           <IconAction label="Revoke: delete it from the server" onClick={onRevoke} tone="danger">
             <Trash2 aria-hidden="true" />
@@ -317,10 +363,20 @@ export default function LinksClient() {
   const [revokeFor, setRevokeFor] = useState<MyLink | null>(null);
   const [revoking, setRevoking] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const pushAvailability = usePushAvailability();
+  const watched = useWatchedKeys();
+  const [watchBusy, setWatchBusy] = useState<ReadonlySet<string>>(() => new Set());
   const latest = useRef(links);
   latest.current = links;
 
   useEffect(() => setMounted(true), []);
+
+  // Keeps an existing /share-target worker current (it shows notifications) without registering
+  // one, and drops the labels of expired links from its IndexedDB mirror.
+  useEffect(() => {
+    void refreshServiceWorker();
+    void pruneWatched();
+  }, []);
 
   const refresh = useCallback(async () => {
     const current = latest.current;
@@ -360,6 +416,49 @@ export default function LinksClient() {
     () => links.map((link) => ({ link, entry: statuses.get(keyOf(link.kind, link.id)), status: describe(link, statuses.get(keyOf(link.kind, link.id)), now) })),
     [links, statuses, now]
   );
+
+  // A finished link has no watch left on the server; forget its local label too.
+  useEffect(() => {
+    if (!watched || watched.size === 0) return;
+    for (const { link, status } of described) {
+      if (status.done && watched.has(keyOf(link.kind, link.id))) void forgetWatched(link.kind, link.id);
+    }
+  }, [described, watched]);
+
+  const toggleWatch = async (link: MyLink) => {
+    const key = keyOf(link.kind, link.id);
+    const wasOn = watched?.has(key) ?? false;
+    setWatchBusy((previous) => new Set(previous).add(key));
+    try {
+      if (wasOn) {
+        toast(
+          (await unwatchLink(link))
+            ? { title: "Notifications off", description: "You won't hear about this link anymore." }
+            : { title: "Couldn't turn notifications off", description: "The server didn't respond. Nothing changed. Try again.", tone: "danger" }
+        );
+      } else {
+        // First await inside watchLink is the permission prompt, so it still counts as this click.
+        const result = await watchLink(link);
+        toast(
+          result === "on"
+            ? { title: "Notifications on", description: `Your browser will tell you when it's ${WATCH_VERB[link.kind]}.`, tone: "ok" }
+            : { ...WATCH_TOASTS[result], tone: result === "closed" || result === "limit" ? "neutral" : "danger" }
+        );
+      }
+    } finally {
+      setWatchBusy((previous) => {
+        const next = new Set(previous);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const watchFor = (link: MyLink): WatchControl | undefined => {
+    if (pushAvailability !== "available" || !watched) return undefined;
+    const key = keyOf(link.kind, link.id);
+    return { on: watched.has(key), busy: watchBusy.has(key), onToggle: () => void toggleWatch(link) };
+  };
   const counts = {
     all: described.length,
     active: described.filter((row) => !row.status.done).length,
@@ -390,6 +489,8 @@ export default function LinksClient() {
       } else {
         const data = (await response.json()) as ManageStatusResponse;
         setStatuses((prev) => new Map(prev).set(keyOf(link.kind, link.id), data));
+        // Revoking also ends its notifications on the server.
+        void forgetWatched(link.kind, link.id);
         toast({ title: "Link revoked", description: "It's deleted from the server. The link won't open anymore.", tone: "ok" });
       }
       setRevokeFor(null);
@@ -401,10 +502,15 @@ export default function LinksClient() {
   };
 
   const forget = (link: MyLink) => {
+    // Without the row there'd be no way to turn its notifications off, so they end here too.
+    const wasWatched = watched?.has(keyOf(link.kind, link.id)) ?? false;
+    if (wasWatched) void unwatchLink(link);
     removeLink(link.kind, link.id);
     toast({
       title: "Removed from this list",
-      description: "The link itself still works until it expires.",
+      description: wasWatched
+        ? "The link itself still works until it expires. Its notifications are off."
+        : "The link itself still works until it expires.",
       action: { label: "Undo", onClick: () => addLink(link) },
     });
   };
@@ -502,6 +608,7 @@ export default function LinksClient() {
                   onQr={() => setQrFor(link)}
                   onRevoke={() => setRevokeFor(link)}
                   onForget={() => forget(link)}
+                  watch={watchFor(link)}
                 />
               ))}
             </ul>
@@ -534,6 +641,13 @@ export default function LinksClient() {
               "Opened times come from the server's read receipt. It knows when, not who.",
               "Revoke deletes the ciphertext now. Forget only removes the row here.",
               "Receipts are kept until 30 days after a link expires, then purged.",
+              ...(pushAvailability === "available"
+                ? [
+                    "The bell turns on a notification for the first open and for the last read or download. Your browser's push service delivers it. The server keeps the push address until the link is used up or expires.",
+                  ]
+                : pushAvailability === "home-screen"
+                  ? ["On iPhone and iPad, open notifications work only in the Home Screen app: tap Share, then Add to Home Screen."]
+                  : []),
             ]}
           />
           {mounted && links.length > 0 ? (
@@ -590,6 +704,10 @@ export default function LinksClient() {
         description="This only empties the list in this browser. The links keep working until they expire, and you won't be able to revoke them from here."
         confirmLabel="Clear list"
         onConfirm={() => {
+          // The manage tokens go with the list, so end any notifications while they still can be.
+          for (const link of links) {
+            if (watched?.has(keyOf(link.kind, link.id))) void unwatchLink(link);
+          }
           clearLinks();
           setStatuses(new Map());
           setConfirmClear(false);

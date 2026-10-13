@@ -18,6 +18,7 @@ import {
 import type { ConsumeDropResponse, DropMetaResponse } from "@protectedshare/contracts";
 import { Button, Panel, PanelBody, PanelFooter, Spinner, StatusChip, buttonVariants, cn } from "@protectedshare/ui";
 import AppLink from "../../../components/app-link";
+import ReportAbuse from "../../../components/report-abuse";
 import ServerView from "../../../components/server-view";
 import ToolLayout, { ToolNotes } from "../../../components/tool-layout";
 import {
@@ -252,6 +253,7 @@ export default function DropClient({ id }: { id: string }) {
           "When the last allowed download finishes, the server deletes the files.",
         ]}
       />
+      {view.s !== "loading" ? <ReportAbuse kind="drop" id={id} className="ml-1" /> : null}
     </>
   );
 

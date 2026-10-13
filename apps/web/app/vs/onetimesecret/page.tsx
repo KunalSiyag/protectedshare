@@ -4,7 +4,7 @@ import ComparisonPage, { PS, type ComparisonRow, type Faq } from "../comparison"
 export const metadata: Metadata = {
   title: "Best Free OneTimeSecret Alternative",
   description:
-    "OneTimeSecret vs ProtectedShare: browser-side AES-256-GCM encryption, expiring links, 1 to 100 reads, .env sharing, encrypted file drops, secret requests and chat. Free, open source, no signup.",
+    "OneTimeSecret vs ProtectedShare: browser-side AES-256-GCM, 1 to 100 reads, .env sharing, encrypted file drops and secret requests. Open source, no signup.",
   keywords: [
     "onetimesecret alternative",
     "one time secret",

@@ -2,13 +2,13 @@ import Link from "next/link";
 import { BLOG_POSTS } from "../../lib/blog";
 import JsonLd from "../../components/json-ld";
 import AppLink from "../../components/app-link";
-import { PageHeader } from "../../components/marketing";
+import { MetaDot, PageHeader } from "../../components/marketing";
 import { itemListJsonLd, pageMetadata } from "../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Secure Note Sharing Guides",
+  title: "Guides to Sharing Passwords and Secrets",
   description:
-    "Guides on browser-side encryption, burn-after-read secrets, .env sharing, and expiring links.",
+    "Practical guides to sending passwords, API keys, .env files and documents safely, with sources, decision tables and honest limits.",
   path: "/blog",
 });
 
@@ -19,14 +19,18 @@ const COMPARISONS = [
   { href: "/vs/onetimesecret", label: "ProtectedShare vs OneTimeSecret" },
   { href: "/vs/envshare", label: "ProtectedShare vs EnvShare" },
   { href: "/vs/protectedtext", label: "ProtectedShare vs ProtectedText" },
+  { href: "/vs/bitwarden-send", label: "ProtectedShare vs Bitwarden Send" },
+  { href: "/vs", label: "All comparisons" },
 ] as const;
 
 const TOOLS = [
   { href: "/notes", label: "Secure note" },
   { href: "/secrets", label: "EnvShare for API keys" },
   { href: "/files", label: "Encrypted file drop" },
+  { href: "/request", label: "Ask for a secret" },
   { href: "/chat", label: "Encrypted chat room" },
   { href: "/notepad", label: "Encrypted notepad" },
+  { href: "/tools", label: "Free security tools" },
 ] as const;
 
 export default function BlogIndexPage() {
@@ -41,7 +45,7 @@ export default function BlogIndexPage() {
       <PageHeader
         eyebrow="Blog"
         title="Guides to sending secrets safely"
-        lead="Short, practical pieces on browser-side encryption, one-time links, sharing .env files, and the habits that keep credentials out of chat logs."
+        lead="Practical guides to sharing passwords, API keys, .env files and documents without leaving copies in chat logs and inboxes. Each one says what to do, why, and when a different tool is the better choice."
       />
 
       <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-16">
@@ -61,10 +65,18 @@ export default function BlogIndexPage() {
                       {post.title}
                     </span>
                     <span className="mt-1.5 block max-w-[62ch] text-small text-ink-2">{post.description}</span>
-                    <span className="mt-2 flex items-center gap-2 text-meta text-ink-3">
+                    <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-ink-3">
                       <span>{post.category}</span>
-                      <span aria-hidden="true" className="size-[3px] rounded-full bg-ink-3/60" />
+                      <MetaDot />
                       <span>{post.readingTime}</span>
+                      {post.updatedAt !== post.publishedAt ? (
+                        <>
+                          <MetaDot />
+                          <span>
+                            Updated <time dateTime={post.updatedAt}>{dateFormat.format(new Date(post.updatedAt))}</time>
+                          </span>
+                        </>
+                      ) : null}
                     </span>
                   </span>
                 </Link>

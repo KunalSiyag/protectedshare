@@ -24,21 +24,8 @@ import {
   generateToken,
   hashToken,
 } from "@protectedshare/crypto";
-import {
-  AUTH_TOKEN_HEADER,
-  DOWNLOAD_TOKEN_HEADER,
-  MANAGE_TOKEN_HEADER,
-  MAX_DROP_CHUNKS,
-  MAX_DROP_PLAINTEXT_BYTES,
-  UPLOAD_TOKEN_HEADER,
-  type CompleteDropResponse,
-  type ConsumeDropResponse,
-  type CreateDropRequest,
-  type CreateDropResponse,
-  type DropManifestResponse,
-  type DropMetaResponse,
-  type StartDropDownloadResponse,
-} from "@protectedshare/contracts";
+import { type CompleteDropResponse, type ConsumeDropResponse, type CreateDropRequest, type CreateDropResponse, type DropManifestResponse, type DropMetaResponse, type StartDropDownloadResponse } from "@protectedshare/contracts";
+import { AUTH_TOKEN_HEADER, DOWNLOAD_TOKEN_HEADER, MANAGE_TOKEN_HEADER, MAX_DROP_CHUNKS, MAX_DROP_PLAINTEXT_BYTES, UPLOAD_TOKEN_HEADER } from "@protectedshare/contracts/constants";
 import { apiUrl } from "./api";
 
 export const DROP_CHUNK_SIZE = 1_048_576;
@@ -49,7 +36,6 @@ export const MAX_DROP_MESSAGE = 2_000;
 export const DROP_CONCURRENCY = 3;
 const MAX_RETRIES = 3;
 
-export { MAX_DROP_PLAINTEXT_BYTES };
 
 export type DropFileEntry = { name: string; type: string; size: number; offset: number };
 export type DropManifest = { v: 1; files: DropFileEntry[]; message?: string; createdAt: number };

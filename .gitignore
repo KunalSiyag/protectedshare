@@ -5,4 +5,8 @@ dist
 .DS_Store
 *.log
 .impeccable/config.local.json
-
+.next-*
+.dev.vars
+.env*.local
+!apps/web/.env.local
+.launch-kit/

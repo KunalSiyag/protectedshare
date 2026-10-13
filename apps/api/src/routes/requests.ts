@@ -18,8 +18,10 @@ import {
   readJsonBody,
   rejectShareExpiry,
 } from "../lib/env";
+import { authFailed, createFloodGuard, limit } from "../lib/limits";
 import { createReceipt, recordReceiptEvent } from "../lib/receipts";
 import { verifyToken } from "../lib/tokens";
+import { recordUsage } from "../lib/usage";
 
 type RequestRow = {
   id: string;
@@ -49,6 +51,8 @@ export const requestsRoutes = new Hono<AppEnv>();
 
 requestsRoutes.post("/api/requests", async (c) => {
   const db = c.env.DB;
+  const flooded = await createFloodGuard(c);
+  if (flooded) return flooded;
   const read = await readJsonBody(c, 32_000);
   if (!read.ok) return read.response;
   const parsed = CreateRequestRequestSchema.safeParse(read.body);
@@ -75,6 +79,7 @@ requestsRoutes.post("/api/requests", async (c) => {
       request.inboxHash, request.respondHash ?? null, expiresAt, createdAt)
     .run();
   await createReceipt(db, { kind: "request", id, manageHash: request.manageTokenHash, maxReads: 1, createdAt, expiresAt });
+  recordUsage(c, "request");
 
   const response: CreateRequestResponse = { id };
   return c.json(response, 201);
@@ -97,6 +102,10 @@ requestsRoutes.get("/api/requests/:id", async (c) => {
 requestsRoutes.post("/api/requests/:id/respond", async (c) => {
   const db = c.env.DB;
   const id = c.req.param("id");
+  if (!isValidId(id)) return NOT_FOUND();
+  // One answer is accepted per request; anything past a handful of tries a minute is a flood.
+  const limited = await limit(c, "RL_RESPOND", `respond:${id}`, "Too many answers sent to this request. Wait a minute, then try again.");
+  if (limited) return limited;
   const read = await readJsonBody(c, MAX_REQUEST_RESPONSE_BYTES + 2_000);
   if (!read.ok) return read.response;
   const parsed = RespondToRequestRequestSchema.safeParse(read.body);
@@ -114,7 +123,8 @@ requestsRoutes.post("/api/requests/:id/respond", async (c) => {
     const token = c.req.header("x-auth-token")?.trim();
     if (!token) return jsonError("This link can't answer the request. It needs the full link.", "AUTH_REQUIRED", 401);
     if (!(await verifyToken(token, row.respond_hash))) {
-      return jsonError("This link can't answer the request.", "INVALID_AUTH", 401);
+      const failure = jsonError("This link can't answer the request.", "INVALID_AUTH", 401);
+      return authFailed(c, "request", row.id, failure, { lock: false });
     }
   }
 
@@ -148,7 +158,7 @@ requestsRoutes.get("/api/requests/:id/response", async (c) => {
   const token = c.req.header("x-auth-token")?.trim();
   if (!token) return jsonError("The inbox token is required.", "AUTH_REQUIRED", 401);
   if (!(await verifyToken(token, row.inbox_hash))) {
-    return jsonError("Wrong inbox key.", "INVALID_AUTH", 401);
+    return authFailed(c, "request", row.id, jsonError("Wrong inbox key.", "INVALID_AUTH", 401), { lock: false });
   }
   if (row.response_blob === null) {
     return jsonError("No response yet.", "NO_RESPONSE_YET", 404);

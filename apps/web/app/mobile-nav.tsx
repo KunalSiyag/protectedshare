@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { Menu, Plus, X } from "lucide-react";
+import { ArrowRight, Menu, Plus, X } from "lucide-react";
 import { buttonVariants, cn } from "@protectedshare/ui";
 import AppLink from "../components/app-link";
 import SealMark from "../components/seal-mark";
@@ -123,6 +123,17 @@ export default function MobileNav() {
                   );
                 })}
               </ul>
+              {group.more ? (
+                <AppLink
+                  href={group.more.href}
+                  onClick={close}
+                  aria-current={pathname === group.more.href ? "page" : undefined}
+                  className="ml-[52px] mt-0.5 inline-flex h-9 items-center gap-1 rounded-control px-0 text-small font-medium text-ink-2 outline-none focus-visible:ring-2 focus-visible:ring-seal/45 active:text-ink"
+                >
+                  {group.more.label}
+                  <ArrowRight aria-hidden="true" className="size-3.5" />
+                </AppLink>
+              ) : null}
             </section>
           ))}
 

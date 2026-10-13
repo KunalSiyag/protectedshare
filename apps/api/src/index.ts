@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { type HealthCheck } from "@protectedshare/contracts";
-import { type AppEnv, type Bindings, createId, getPasswordProofParam as getPasswordProof, jsonError, nowEpochSeconds } from "./lib/env";
+import { type AppEnv, type Bindings, createId, getPasswordProofParam as getPasswordProof, jsonError, notifyEmail, nowEpochSeconds } from "./lib/env";
 import { ensureSchema } from "./lib/schema";
 import { runScheduledPurge } from "./lib/cron";
 import { escapeHtml, singleLine } from "./lib/inquiries";
@@ -10,6 +10,10 @@ import { manageRoutes } from "./routes/manage";
 import { dropsRoutes } from "./routes/drops";
 import { requestsRoutes } from "./routes/requests";
 import { chatRoutes } from "./routes/chat";
+import { statsRoutes } from "./routes/stats";
+import { reportsRoutes } from "./routes/reports";
+import { notifyRoutes, purgeClosedWatchers } from "./routes/notify";
+import { createFloodGuard, verifyProofWithLock } from "./lib/limits";
 
 const app = new Hono<AppEnv>();
 
@@ -19,6 +23,7 @@ app.use(
     origin: "*",
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "X-Auth-Token", "X-Manage-Token", "X-Upload-Token", "X-Delete-Token", "X-Download-Token"],
+    exposeHeaders: ["Retry-After"],
     maxAge: 600,
   })
 );
@@ -42,6 +47,9 @@ app.route("/", manageRoutes);
 app.route("/", dropsRoutes);
 app.route("/", requestsRoutes);
 app.route("/", chatRoutes);
+app.route("/", statsRoutes);
+app.route("/", reportsRoutes);
+app.route("/", notifyRoutes);
 
 type WorkspacePayload = {
   encryptedBlob: string;
@@ -109,6 +117,8 @@ async function ensureWorkspaceSessionsTable(db: any): Promise<void> {
 
 // Workspace API handler functions for both /api/workspaces and /api/workspace
 const handleCreateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
+  const flooded = await createFloodGuard(c);
+  if (flooded) return flooded;
   await ensureWorkspacesTable(c.env.DB);
   const body = await c.req.json().catch(() => null) as CreateWorkspaceRequest | null;
   if (
@@ -203,9 +213,11 @@ const handleGetWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
     return jsonError("Notepad not found. Create one first.", "WORKSPACE_NOT_FOUND", 404);
   }
 
-  if (row.password_proof !== proof) {
-    return jsonError("Invalid username or password.", "INVALID_CREDENTIALS", 401);
-  }
+  // Password guesses are counted per notepad; too many lock it for a while (lib/limits.ts).
+  const denied = await verifyProofWithLock(c, "workspace", username, row.password_proof, proof, () =>
+    jsonError("Invalid username or password.", "INVALID_CREDENTIALS", 401)
+  );
+  if (denied) return denied;
 
   return c.json({
     username: row.username,
@@ -254,9 +266,10 @@ const handleUpdateWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
     return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
   }
 
-  if (row.password_proof !== body.passwordProof) {
-    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
-  }
+  const denied = await verifyProofWithLock(c, "workspace", username, row.password_proof, body.passwordProof, () =>
+    jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401)
+  );
+  if (denied) return denied;
 
   // Conflict check (OCC)
   if (typeof body.lastKnownUpdatedAt === "number" && row.updated_at > body.lastKnownUpdatedAt) {
@@ -318,9 +331,10 @@ const handleDeleteWorkspace = async (c: Context<{ Bindings: Bindings }>) => {
     return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
   }
 
-  if (row.password_proof !== proof) {
-    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
-  }
+  const denied = await verifyProofWithLock(c, "workspace", username, row.password_proof, proof, () =>
+    jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401)
+  );
+  if (denied) return denied;
 
   try {
     await c.env.DB.prepare("DELETE FROM workspaces WHERE username = ?")
@@ -359,9 +373,10 @@ const handleWorkspaceHeartbeat = async (c: Context<{ Bindings: Bindings }>) => {
     return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
   }
 
-  if (row.password_proof !== body.passwordProof) {
-    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
-  }
+  const denied = await verifyProofWithLock(c, "workspace", username, row.password_proof, body.passwordProof, () =>
+    jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401)
+  );
+  if (denied) return denied;
 
   const now = nowEpochSeconds();
 
@@ -414,9 +429,10 @@ const handleMigratePasswordProof = async (c: Context<{ Bindings: Bindings }>) =>
     return jsonError("Notepad not found.", "WORKSPACE_NOT_FOUND", 404);
   }
 
-  if (row.password_proof !== body.legacyProof) {
-    return jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401);
-  }
+  const denied = await verifyProofWithLock(c, "workspace", username, row.password_proof, body.legacyProof, () =>
+    jsonError("Invalid credentials.", "INVALID_CREDENTIALS", 401)
+  );
+  if (denied) return denied;
 
   try {
     await c.env.DB.prepare(
@@ -452,6 +468,8 @@ app.post("/api/workspaces/:username/migrate-proof", handleMigratePasswordProof);
 app.post("/api/workspace/:username/migrate-proof", handleMigratePasswordProof);
 
 app.post("/api/inquiries", async (c) => {
+  const flooded = await createFloodGuard(c);
+  if (flooded) return flooded;
   let body: { name?: unknown; email?: unknown; company?: unknown; message?: unknown };
   try {
     body = await c.req.json();
@@ -485,8 +503,7 @@ app.post("/api/inquiries", async (c) => {
   if (c.env.RESEND_API_KEY) {
     try {
       const emailBody = {
-        from: "ProtectedShare Deals <deals@protectedshare.me>",
-        to: "admin@protectedshare.me",
+        ...notifyEmail(c.env, "deals", "ProtectedShare Deals"),
         subject: `New Enterprise Deal Inquiry from ${singleLine(name)}`,
         html: `
           <h2>New Deal Inquiry</h2>
@@ -520,6 +537,7 @@ app.post("/api/inquiries", async (c) => {
 
 const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (_event, env) => {
   await runScheduledPurge(env);
+  await purgeClosedWatchers(env.DB);
 };
 
 export default {

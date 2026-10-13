@@ -1,0 +1,22 @@
+{
+  "name": "@protectedshare/mcp-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ProtectedShare MCP tools, shared by the remote connector (apps/mcp) and the local stdio server (packages/mcp-server).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.3.1",
+    "@protectedshare/crypto": "file:../crypto"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

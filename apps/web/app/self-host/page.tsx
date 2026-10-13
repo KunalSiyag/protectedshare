@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { ArrowUpRight, Container, Database, Globe, Timer } from "lucide-react";
 import { buttonVariants } from "@protectedshare/ui";
 import CodeBlock from "../../components/code-block";
@@ -8,7 +8,7 @@ import { pageMetadata } from "../../lib/seo";
 export const metadata = pageMetadata({
   title: "Self-Host on Cloudflare",
   description:
-    "Run the ProtectedShare API as a Cloudflare Worker with D1 and a 30-minute cleanup cron, and the web app from the GitHub Container Registry image or your own build.",
+    "Run the ProtectedShare API on Cloudflare Workers with D1, R2 and a cleanup cron, and the web app from the container image or your own build.",
   path: "/self-host",
 });
 
@@ -19,6 +19,24 @@ const WEB_WORKFLOW_URL = `${REPO_URL}/blob/main/.github/workflows/publish-web-im
 
 const code = "rounded-[5px] bg-surface-2 px-[5px] py-px font-mono text-[0.875em] text-ink";
 const linkClass = "font-medium text-ink underline decoration-line-strong underline-offset-[3px] hover:decoration-ink";
+
+/** A long setting name that may wrap after an underscore instead of overflowing the term column. */
+function SettingName({ children }: { children: string }) {
+  return (
+    <>
+      {children.split("_").map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 ? (
+            <>
+              _<wbr />
+            </>
+          ) : null}
+          {part}
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
@@ -47,12 +65,12 @@ const PIECES = [
   {
     icon: Database,
     title: "API",
-    body: "A Hono app on Cloudflare Workers with one D1 database. Stores ciphertext and metadata only.",
+    body: "A Hono app on Cloudflare Workers with one D1 database and an R2 bucket for file-drop chunks. Stores ciphertext and metadata only.",
   },
   {
     icon: Timer,
     title: "Cleanup cron",
-    body: "Runs every 30 minutes and deletes expired shares, drops, requests, receipts and idle chat rows.",
+    body: "Runs every 30 minutes and deletes expired shares, drops and their R2 chunks, requests, receipts, idle chat rows and other expired records.",
   },
 ] as const;
 
@@ -62,7 +80,7 @@ export default function SelfHostPage() {
       <PageHeader
         eyebrow="Self-host"
         title="Run your own ProtectedShare"
-        lead="Two pieces: a Cloudflare Worker with a D1 database for the API, and the Next.js web app pointed at it. Both are in the same MIT-licensed repo."
+        lead="Two pieces: a Cloudflare Worker with a D1 database and an R2 bucket for the API, and the Next.js web app pointed at it. Both are in the same MIT-licensed repo."
       >
         <a href={REPO_URL} className={buttonVariants({ variant: "primary" })}>
           Open the repo
@@ -92,42 +110,95 @@ export default function SelfHostPage() {
           description="Needs a Cloudflare account and Node 22. Run these from apps/api."
         >
           <ol className="max-w-[720px]">
-            <Step n={1} title="Create the database">
+            <Step n={1} title="Create the database and the bucket">
               <p>
                 Create a D1 database, then put the <code className={code}>database_id</code> it prints into{" "}
-                <code className={code}>apps/api/wrangler.toml</code>.
+                <code className={code}>apps/api/wrangler.toml</code>. Then create the R2 bucket that holds encrypted
+                file-drop chunks. It has to exist before you deploy, or the deploy fails.
               </p>
-              <CodeBlock label="Terminal" code={`cd apps/api\nnpx wrangler d1 create protectedshare`} />
+              <CodeBlock
+                label="Terminal"
+                code={`cd apps/api\nnpx wrangler d1 create protectedshare\nnpx wrangler r2 bucket create protectedshare-drops`}
+              />
+              <p>
+                Rather keep chunks in D1? Delete the <code className={code}>[[r2_buckets]]</code> block from{" "}
+                <code className={code}>wrangler.toml</code>; the API notices and stores them in the database. With R2, a
+                lifecycle rule is recommended. It expires anything a delete missed; the cron also sweeps orphaned chunks,
+                but each run scans only the first ~10,000 drops in the bucket:
+              </p>
+              <CodeBlock
+                label="Recommended"
+                code="npx wrangler r2 bucket lifecycle add protectedshare-drops expire-old-drops drops/ --expire-days 31"
+              />
             </Step>
 
             <Step n={2} title="Apply the schema">
               <p>
                 A new database takes the full schema in one go. <code className={code}>schema.sql</code> already includes
-                everything from migrations 0001 to 0005.
+                everything from migrations 0001 to 0008.
               </p>
               <CodeBlock code="npx wrangler d1 execute protectedshare --remote --file=schema.sql" label="New database" />
               <p>
-                Upgrading an older install? Apply the migrations you&apos;re missing, in order. For v2 that&apos;s{" "}
-                <code className={code}>0005_v2.sql</code>, which adds receipts, file drops, secret requests, chat rooms
-                and the v2 columns. If it reports a duplicate column, that column is already there and you can move on.
-                The Worker also creates missing tables and columns on first use.
+                Upgrading an older install? Apply the migrations you&apos;re missing, in order:{" "}
+                <code className={code}>0005_v2.sql</code> (receipts, file drops, secret requests, chat rooms),{" "}
+                <code className={code}>0006_security.sql</code> (download sessions, the request respond hash),{" "}
+                <code className={code}>0007_r2_limits_stats_reports.sql</code> (usage counts, abuse reports, lockouts,
+                chunk sizes) and <code className={code}>0008_push.sql</code> (read notifications). If one reports a
+                duplicate column, that column is already there and you can move on. The Worker also creates missing
+                tables and columns on first use.
               </p>
               <CodeBlock
-                code="npx wrangler d1 execute protectedshare --remote --file=migrations/0005_v2.sql"
-                label="Existing database"
+                code={`npx wrangler d1 execute protectedshare --remote --file=migrations/0007_r2_limits_stats_reports.sql
+npx wrangler d1 execute protectedshare --remote --file=migrations/0008_push.sql`}
+                label="Existing database, newest migrations"
               />
             </Step>
 
             <Step n={3} title="Deploy the Worker">
               <p>
                 <code className={code}>wrangler.toml</code> already declares the cleanup cron (
-                <code className={code}>*/30 * * * *</code>) and turns on Workers observability logs. Change either before
-                deploying if you want different behavior.
+                <code className={code}>*/30 * * * *</code>), Workers observability logs, the R2 binding and six rate
+                limiters. Each limiter&apos;s <code className={code}>namespace_id</code> (71001 to 71006) must be unique
+                within your Cloudflare account, so change any that clash. Delete a{" "}
+                <code className={code}>[[ratelimits]]</code> block to skip that check.
               </p>
               <CodeBlock code="npx wrangler deploy" label="Terminal" />
               <p>
-                Optional: set <code className={code}>RESEND_API_KEY</code> as a Worker secret if you want contact-form
-                messages emailed to you. Without it they&apos;re only saved in D1.
+                If your web app uses its built-in <code className={code}>/api</code> proxy, every request reaches the
+                Worker from your server&apos;s IP address, so <code className={code}>RL_CREATE</code> (600 new links a
+                minute per IP) becomes a cap for the whole site. Raise it or delete it. A rewrite like the hosted
+                site&apos;s Vercel one softens this but doesn&apos;t remove it: the Worker then sees the host&apos;s shared
+                egress IPs, so one client that reaches the limit holds up creates for everyone else on that IP until the
+                minute is up.
+              </p>
+              <p>
+                Optional Worker secrets: <code className={code}>RESEND_API_KEY</code> emails contact-form messages and
+                abuse reports (without it they&apos;re only saved in D1), and <code className={code}>ADMIN_TOKEN</code>,
+                at least 32 characters, turns on <code className={code}>DELETE /api/admin/:kind/:id</code> for takedowns.
+                The emails go to <code className={code}>NOTIFY_EMAIL_TO</code> (default admin@protectedshare.me) from{" "}
+                <code className={code}>NOTIFY_EMAIL_DOMAIN</code> (default protectedshare.me), which must be a domain
+                your Resend account has verified. Those two aren&apos;t secret: set them under{" "}
+                <code className={code}>[vars]</code> in <code className={code}>wrangler.toml</code>, or as secrets.
+              </p>
+              <CodeBlock code={`npx wrangler secret put RESEND_API_KEY\nnpx wrangler secret put ADMIN_TOKEN`} label="Optional" />
+            </Step>
+
+            <Step n={4} title="Turn on read notifications (optional)">
+              <p>
+                Generate a VAPID key pair and store it, with a contact address for push services, as Worker secrets.
+                Nothing is written to disk.
+              </p>
+              <CodeBlock
+                label="Terminal"
+                code={`npm run vapid:generate
+npx wrangler secret put VAPID_PUBLIC_KEY
+npx wrangler secret put VAPID_PRIVATE_KEY
+npx wrangler secret put VAPID_SUBJECT   # e.g. mailto:you@example.com`}
+              />
+              <p>
+                Then build the web app with <code className={code}>NEXT_PUBLIC_VAPID_PUBLIC_KEY</code> set to the same
+                public key. Without the three secrets the API refuses to register browsers; without the web setting the
+                notification bell doesn&apos;t appear. Rotating the keys quietly ends existing subscriptions.
               </p>
             </Step>
           </ol>
@@ -136,8 +207,10 @@ export default function SelfHostPage() {
         <RailSection title="Run the web app" description="Use the published image, or build it yourself.">
           <div className="flex max-w-[720px] flex-col gap-4 text-ui text-ink-2">
             <p>
-              The image on GitHub Container Registry is the same web app as protectedshare.me, without analytics. Point it
-              at your Worker with <code className={code}>API_BACKEND_URL</code>, read at runtime.
+              The image on GitHub Container Registry is the same web app as protectedshare.me, without analytics or read
+              notifications: <code className={code}>NEXT_PUBLIC_*</code> settings are baked in when the app is built, and
+              the image is built with none. Point it at your Worker with <code className={code}>API_BACKEND_URL</code>,
+              read at runtime.
             </p>
             <CodeBlock
               label="Docker"
@@ -146,12 +219,47 @@ docker run --rm -p 3000:3000 \\
   -e API_BACKEND_URL=https://protectedshare-api.<you>.workers.dev \\
   ghcr.io/kunalsiyag/protectedshare-web:latest`}
             />
-            <p>To build your own image from the repo root:</p>
+            <p>
+              To build your own image from the repo root (put any <code className={code}>NEXT_PUBLIC_*</code> values in{" "}
+              <code className={code}>apps/web/.env.production</code> first):
+            </p>
             <CodeBlock label="Docker" code="docker build -f apps/web/Dockerfile -t protectedshare-web ." />
             <p>
               Or deploy <code className={code}>apps/web</code> to any Next.js host with the same{" "}
-              <code className={code}>API_BACKEND_URL</code>. <code className={code}>NEXT_PUBLIC_GA_ID</code> turns on
-              Google Analytics, and it&apos;s read at build time. Leave it unset to ship without analytics.
+              <code className={code}>API_BACKEND_URL</code>, and set the build-time settings below there. Leave them
+              unset to ship without analytics or notifications. On Vercel, note that{" "}
+              <code className={code}>apps/web/vercel.json</code> rewrites <code className={code}>/api</code> straight to
+              protectedshare.me&apos;s API Worker, which is how the hosted site skips the proxy. Point that rewrite at
+              your own Worker, or delete the file to use the built-in proxy.
+            </p>
+          </div>
+        </RailSection>
+
+        <RailSection title="Run the MCP server" description="Optional. For Claude and other MCP clients.">
+          <div className="flex max-w-[720px] flex-col gap-4 text-ui text-ink-2">
+            <p>
+              The remote connector is a second Worker in <code className={code}>apps/mcp</code>. It encrypts in memory
+              and passes your API ciphertext and hashes to create a link, and a link&apos;s manage token to check or
+              revoke it.
+            </p>
+            <CodeBlock label="Terminal" code={`cd apps/mcp\nnpx wrangler deploy`} />
+            <p>
+              Before deploying, edit <code className={code}>apps/mcp/wrangler.toml</code>. Delete the{" "}
+              <code className={code}>routes</code> block (it claims <code className={code}>mcp.protectedshare.me</code>)
+              and use the workers.dev URL or your own domain. Point <code className={code}>SITE_URL</code> at your web
+              app. Keep the <code className={code}>[[services]]</code> binding if your API Worker is{" "}
+              <code className={code}>protectedshare-api</code> in the same account; otherwise delete it and set{" "}
+              <code className={code}>API_BASE_URL</code> (with neither, it calls protectedshare.me&apos;s API).{" "}
+              <code className={code}>ALLOWED_ORIGINS</code> lists the
+              hostnames allowed in an Origin header besides localhost. The optional limiters{" "}
+              <code className={code}>RL_MCP</code> (600 requests a minute per IP, <code className={code}>namespace_id</code>{" "}
+              71101) and <code className={code}>RL_MCP_CREATE</code> (120 calls a minute per IP to the tools that create
+              links, 71102) group IPv6 addresses by /64 and must not clash with other limiters in your account. The
+              Worker takes one JSON-RPC message per request and refuses batches.
+            </p>
+            <p>
+              The local server needs no deploy: point <code className={code}>npx protectedshare-mcp</code> at your
+              instance with <code className={code}>PROTECTEDSHARE_API_URL</code> (https, except for localhost).
             </p>
           </div>
         </RailSection>
@@ -169,8 +277,42 @@ docker run --rm -p 3000:3000 \\
                 detail: "Web app, build time, optional. Google Analytics measurement id. Your privacy page states whether it's on.",
               },
               {
+                term: <SettingName>NEXT_PUBLIC_CF_BEACON_TOKEN</SettingName>,
+                detail:
+                  "Web app, build time, optional. Cloudflare Web Analytics site token: cookieless, full page loads only, never on share pages. Your privacy page states whether it's on.",
+              },
+              {
+                term: <SettingName>NEXT_PUBLIC_VAPID_PUBLIC_KEY</SettingName>,
+                detail: "Web app, build time, optional. The Worker's VAPID public key. Without it, read notifications are off.",
+              },
+              {
+                term: <SettingName>NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION</SettingName>,
+                detail: "Web app, build time, optional. Google Search Console verification code for the site's meta tag.",
+              },
+              {
                 term: "DB",
                 detail: "Worker binding to your D1 database, in wrangler.toml.",
+              },
+              {
+                term: "DROPS_BUCKET",
+                detail: (
+                  <>
+                    Worker binding to the R2 bucket for file-drop chunks, in wrangler.toml (<code>[[r2_buckets]]</code>).
+                    Delete the block to keep chunks in D1.
+                  </>
+                ),
+              },
+              {
+                term: "RL_AUTH … RL_CREATE",
+                detail: (
+                  <>
+                    Worker, in wrangler.toml (<code>[[ratelimits]]</code>), optional. Per minute: 10 wrong keys or
+                    passwords per share, room or notepad (password-protected ones then lock for 10 minutes), 30 room
+                    joins and 120 messages per room, 10 answers per request, 5 reports per link (report emails: 5 a
+                    minute per Cloudflare location), and 600 creates per client IP (IPv6 by /64). Namespace ids must be
+                    unique in your account. A missing block skips that check.
+                  </>
+                ),
               },
               {
                 term: "[triggers] crons",
@@ -183,7 +325,43 @@ docker run --rm -p 3000:3000 \\
               },
               {
                 term: "RESEND_API_KEY",
-                detail: "Worker secret, optional. Emails contact-form messages to the admin address.",
+                detail: "Worker secret, optional. Emails contact-form messages and abuse reports to NOTIFY_EMAIL_TO through Resend.",
+              },
+              {
+                term: "NOTIFY_EMAIL_TO",
+                detail: "Worker variable or secret, optional. Where contact-form and abuse-report emails go. Default admin@protectedshare.me.",
+              },
+              {
+                term: <SettingName>NOTIFY_EMAIL_DOMAIN</SettingName>,
+                detail:
+                  "Worker variable or secret, optional. The domain those emails are sent from (deals@ and reports@). Default protectedshare.me. It must be verified in your Resend account.",
+              },
+              {
+                term: "ADMIN_TOKEN",
+                detail: (
+                  <>
+                    Worker secret, optional, at least 32 characters. Turns on <code>DELETE /api/admin/:kind/:id</code>{" "}
+                    (header <code>X-Admin-Token</code>) to take a share down. Unset or shorter, that route answers 404.
+                  </>
+                ),
+              },
+              {
+                term: (
+                  <>
+                    VAPID_PUBLIC_KEY
+                    <br />
+                    VAPID_PRIVATE_KEY
+                    <br />
+                    VAPID_SUBJECT
+                  </>
+                ),
+                detail: (
+                  <>
+                    Worker secrets, optional. Read notifications. Generate the pair with{" "}
+                    <code>npm run vapid:generate -w @protectedshare/api</code>; the subject is a <code>mailto:</code> or{" "}
+                    <code>https:</code> address push services can reach you at.
+                  </>
+                ),
               },
             ]}
           />
@@ -197,7 +375,7 @@ docker run --rm -p 3000:3000 \\
               </a>{" "}
               deploys the Worker on pushes to main that touch the API, if the repository has{" "}
               <code className={code}>CLOUDFLARE_API_TOKEN</code> and <code className={code}>CLOUDFLARE_ACCOUNT_ID</code>{" "}
-              secrets. It doesn&apos;t run migrations; apply those yourself.
+              secrets. It doesn&apos;t run migrations or create the R2 bucket; do those yourself first.
             </p>
             <p>
               <a href={WEB_WORKFLOW_URL} className={linkClass}>
@@ -216,10 +394,11 @@ docker run --rm -p 3000:3000 \\
 cd apps/api && npx wrangler d1 execute protectedshare --local --file=schema.sql && cd ../..
 echo "API_BACKEND_URL=http://localhost:8787" > apps/web/.env.local
 npm run dev:api   # API on http://localhost:8787
-npm run dev:web   # web on http://localhost:3000`}
+npm run dev:web   # web on http://localhost:3000
+npm run dev:mcp   # optional: MCP on http://localhost:8790/mcp`}
             />
             <p>
-              Run the two dev servers in separate terminals. Set <code className={code}>API_BACKEND_URL</code> as above;
+              Run each dev server in its own terminal. Set <code className={code}>API_BACKEND_URL</code> as above;
               without it the web app proxies to the hosted API.
             </p>
             <a

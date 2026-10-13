@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import ComparisonPage, { PS, type ComparisonRow, type Faq } from "../comparison";
 
 const DESCRIPTION =
-  "Privnote vs ProtectedShare, compared honestly: browser-side AES-256-GCM encryption, self-destructing links, read limits, .env sharing, encrypted file drops, open source, no signup and no ads.";
+  "Privnote vs ProtectedShare: browser-side AES-256-GCM, self-destructing links, read limits and encrypted file drops. Open source, no signup, no ads.";
 
 export const metadata: Metadata = {
-  title: "Best Free Privnote Alternative (Zero-Knowledge)",
+  title: "Privnote Alternative (Zero-Knowledge)",
   description: DESCRIPTION,
   keywords: [
     "Privnote alternative",
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
     canonical: "https://protectedshare.me/vs/privnote",
   },
   openGraph: {
-    title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
+    title: "Privnote Alternative (Zero-Knowledge) — ProtectedShare",
     description: DESCRIPTION,
     url: "https://protectedshare.me/vs/privnote",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Best Free Privnote Alternative (Zero-Knowledge) — ProtectedShare",
+    title: "Privnote Alternative (Zero-Knowledge) — ProtectedShare",
     description: DESCRIPTION,
   },
 };

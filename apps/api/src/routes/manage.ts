@@ -6,36 +6,39 @@ import {
   type ManageBatchResponse,
   type ShareKind,
 } from "@protectedshare/contracts";
-import { type AppEnv, isValidId, jsonError, nowEpochSeconds, readJsonBody } from "../lib/env";
+import { type AppEnv, type Bindings, isValidId, jsonError, nowEpochSeconds, readJsonBody } from "../lib/env";
+import { deleteDropObjects } from "../lib/drop-storage";
 import { type ReceiptRow, toManageStatus } from "../lib/receipts";
 import { verifyToken } from "../lib/tokens";
 
 export const manageRoutes = new Hono<AppEnv>();
 
+const CONTENT_TABLE: Record<Exclude<ShareKind, "drop">, string> = { note: "notes", secret: "secrets", request: "requests" };
+
 /**
- * Deletes the content behind a receipt (ciphertext rows, file chunks, download sessions).
- * Only the row created together with the receipt is touched (`created_at` must match), so a
- * receipt can never delete a newer share that happens to reuse the id.
+ * Deletes the content behind a share (ciphertext rows; for drops also chunk rows, download
+ * sessions and R2 objects). Returns true if a content row was deleted.
+ *
+ * With `createdAt` only the row created together with the receipt is touched, so a receipt can
+ * never delete a newer share that happens to reuse the id. `null` (admin takedown) deletes
+ * whatever lives under the id.
  */
-export async function deleteShareContent(db: D1Database, kind: ShareKind, id: string, createdAt: number): Promise<void> {
-  switch (kind) {
-    case "note":
-      await db.prepare("DELETE FROM notes WHERE id = ? AND created_at = ?").bind(id, createdAt).run();
-      return;
-    case "secret":
-      await db.prepare("DELETE FROM secrets WHERE id = ? AND created_at = ?").bind(id, createdAt).run();
-      return;
-    case "drop":
-      await db.batch([
-        db.prepare("DELETE FROM drops WHERE id = ? AND created_at = ?").bind(id, createdAt),
-        db.prepare("DELETE FROM drop_chunks WHERE drop_id = ? AND NOT EXISTS (SELECT 1 FROM drops WHERE id = ?)").bind(id, id),
-        db.prepare("DELETE FROM drop_sessions WHERE drop_id = ? AND NOT EXISTS (SELECT 1 FROM drops WHERE id = ?)").bind(id, id),
-      ]);
-      return;
-    case "request":
-      await db.prepare("DELETE FROM requests WHERE id = ? AND created_at = ?").bind(id, createdAt).run();
-      return;
+export async function deleteShareContent(env: Bindings, kind: ShareKind, id: string, createdAt: number | null): Promise<boolean> {
+  const db = env.DB;
+  const match = createdAt === null ? "" : " AND created_at = ?2";
+  const binds = createdAt === null ? [id] : [id, createdAt];
+  if (kind !== "drop") {
+    const result = await db.prepare(`DELETE FROM ${CONTENT_TABLE[kind]} WHERE id = ?1${match}`).bind(...binds).run();
+    return (result.meta?.changes ?? 0) > 0;
   }
+  const [removed] = await db.batch<{ chunk_count: number }>([
+    db.prepare(`DELETE FROM drops WHERE id = ?1${match} RETURNING chunk_count`).bind(...binds),
+    db.prepare("DELETE FROM drop_chunks WHERE drop_id = ?1 AND NOT EXISTS (SELECT 1 FROM drops WHERE id = ?1)").bind(id),
+    db.prepare("DELETE FROM drop_sessions WHERE drop_id = ?1 AND NOT EXISTS (SELECT 1 FROM drops WHERE id = ?1)").bind(id),
+  ]);
+  const gone = removed?.results?.[0];
+  if (gone) await deleteDropObjects(env, [{ id, chunkCount: gone.chunk_count }]);
+  return !!gone;
 }
 
 async function loadAuthorizedReceipt(
@@ -78,7 +81,7 @@ manageRoutes.delete("/api/manage/:kind/:id", async (c) => {
 
   // Consumed/revoked receipts have no content left to delete; never touch a newer share.
   if (row.status === "active") {
-    await deleteShareContent(db, row.kind, row.id, row.created_at);
+    await deleteShareContent(c.env, row.kind, row.id, row.created_at);
   }
   const nextStatus = row.status === "consumed" ? "consumed" : "revoked";
   await db.prepare("UPDATE share_receipts SET status = ?, updated_at = ? WHERE kind = ? AND id = ?")
