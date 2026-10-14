@@ -1,6 +1,7 @@
 import { MAX_DROP_CHUNKS } from "@protectedshare/contracts";
 import type { Bindings } from "./env";
 import { isValidId } from "./env";
+import { reserveR2Ops } from "./drop-budget";
 
 /**
  * File-drop chunk bytes live in R2 when the DROPS_BUCKET binding exists, under
@@ -51,7 +52,8 @@ export async function deleteDropObjects(env: Bindings, drops: Array<{ id: string
 
 /**
  * Removes chunk objects whose drop row is gone (deleted while an upload was still writing,
- * or a delete that failed). Walks `drops/<id>/` prefixes a page at a time.
+ * or a delete that failed). Walks `drops/<id>/` prefixes a page at a time. Each page is an R2
+ * list (a Class A operation), so it stops early once today's write cap is reached.
  */
 export async function sweepOrphanDropObjects(env: Bindings, maxPages = 10): Promise<number> {
   const bucket = dropBucket(env);
@@ -59,6 +61,7 @@ export async function sweepOrphanDropObjects(env: Bindings, maxPages = 10): Prom
   let cursor: string | undefined;
   let removed = 0;
   for (let page = 0; page < maxPages; page++) {
+    if (!(await reserveR2Ops(env, "class_a"))) break;
     const listing = await bucket.list({ prefix: PREFIX, delimiter: "/", cursor, limit: 1000 });
     const ids = listing.delimitedPrefixes
       .map((prefix) => prefix.slice(PREFIX.length).replace(/\/$/, ""))

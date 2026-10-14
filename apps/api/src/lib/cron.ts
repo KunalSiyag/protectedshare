@@ -1,6 +1,7 @@
 import type { Bindings } from "./env";
 import { nowEpochSeconds } from "./env";
 import { deleteDropObjects, sweepOrphanDropObjects } from "./drop-storage";
+import { CHUNK_SIZE_SQL, R2_OPS_RETENTION_DAYS } from "./drop-budget";
 import { ensureSchema } from "./schema";
 import { USAGE_RETENTION_DAYS, utcDay } from "./usage";
 
@@ -59,7 +60,14 @@ export async function runScheduledPurge(env: Bindings): Promise<void> {
     ["DELETE FROM auth_lockouts WHERE until <= ?", [now]],
     ["DELETE FROM abuse_reports WHERE created_at <= ?", [now - REPORT_RETENTION_SECONDS]],
     ["DELETE FROM usage_daily WHERE day < ?", [utcDay(nowMs - USAGE_RETENTION_DAYS * DAY_MS)]],
+    ["DELETE FROM r2_ops_daily WHERE day < ?", [utcDay(nowMs - R2_OPS_RETENTION_DAYS * DAY_MS)]],
   ];
+  // Once a day (the 00:00 UTC run), recount the file-drop storage total. The triggers keep it
+  // exact; this only corrects a chunk written while the schema was first being set up.
+  const runAt = new Date(nowMs);
+  if (runAt.getUTCHours() === 0 && runAt.getUTCMinutes() < 30) {
+    statements.push([`UPDATE drop_storage SET bytes = (SELECT COALESCE(SUM(${CHUNK_SIZE_SQL}), 0) FROM drop_chunks) WHERE id = 1`, []]);
+  }
 
   for (const [sql, params, collect] of statements) {
     try {

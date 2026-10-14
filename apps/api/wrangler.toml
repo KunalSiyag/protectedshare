@@ -2,6 +2,14 @@ name = "protectedshare-api"
 main = "src/index.ts"
 compatibility_date = "2025-05-10"
 
+# The hosted site's browsers call the API here directly (NEXT_PUBLIC_API_ORIGIN in the web app), so
+# API traffic never passes through the web host. Needs the protectedshare.me zone in this Cloudflare
+# account; the first deploy creates the DNS record and certificate. The workers.dev URL keeps
+# working (the web app's /api relay and older pages use it). Self-hosting? Change or delete this.
+routes = [{ pattern = "api.protectedshare.me", custom_domain = true }]
+# Keep protectedshare-api.<account>.workers.dev on too: the relay and older pages still call it.
+workers_dev = true
+
 [observability]
 enabled = true
 
@@ -24,6 +32,20 @@ crons = ["*/30 * * * *"]
 [[r2_buckets]]
 binding = "DROPS_BUCKET"
 bucket_name = "protectedshare-drops"
+
+# Spending guard (src/lib/drop-budget.ts). Cloudflare can't cap spending, and R2 bills anything
+# past its monthly free allowance (10 GB-month stored, 1 million Class A writes, 10 million
+# Class B reads; egress is free), rounded up to a whole unit. So the API caps file drops itself:
+# at a cap it refuses new uploads or downloads (503 { code: "DROP_CAPACITY" }) instead of billing.
+# These values stay inside the free allowance: 9 GB stored, and 30,000 writes and 300,000 reads
+# per UTC day (930,000 and 9.3 million over a 31-day month). The allowance covers the whole
+# Cloudflare account, so lower them if other projects there use R2. Raising them can cost money:
+# each GB stored past 10 is $0.015 a month (a 1,000 GB cap, if filled, is about $15 a month).
+# Without these lines the same defaults apply.
+[vars]
+DROP_STORAGE_LIMIT_GB = 9
+R2_CLASS_A_DAILY_LIMIT = 30000
+R2_CLASS_B_DAILY_LIMIT = 300000
 
 # Rate limits (Workers Rate Limiting binding). Counted per Cloudflare location and eventually
 # consistent. Each namespace_id must be unique within the Cloudflare account. Every limiter is
@@ -62,11 +84,11 @@ namespace_id = "71005"
 simple = { limit = 5, period = 60 }
 
 # Creates per client IP, IPv6 grouped by /64 (notes, secrets, drops, requests, reports, inquiries,
-# notepads). It only stops floods. Trade-off: the hosted site's /api is rewritten by Vercel straight
-# to this Worker, so CF-Connecting-IP is a Vercel egress IP shared by many visitors, and anyone who
-# sends this many creates in a minute holds up creates for everyone else on that IP until the
-# minute is up. The limit is high to make that hard, not impossible; keying on visitors needs a
-# proxy that passes the real client IP in a form this Worker can trust.
+# notepads). It only stops floods. The hosted site's browsers call this Worker directly
+# (api.protectedshare.me), so CF-Connecting-IP is the visitor's own address. Requests relayed through
+# a web host (its /api proxy or rewrite, or pages built before the switch) arrive from that host's
+# shared IPs instead, which is why the limit stays high: one client reaching it there holds up
+# creates for everyone else on that IP until the minute is up.
 # Self-hosting the web app with its built-in /api proxy? Every request then arrives from your
 # server's IP, so this becomes a site-wide cap: raise it or delete this block.
 [[ratelimits]]

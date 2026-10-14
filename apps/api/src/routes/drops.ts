@@ -22,6 +22,15 @@ import {
   rejectShareExpiry,
 } from "../lib/env";
 import { deleteDropObjects, dropBucket, dropChunkKey, dropChunkPrefix } from "../lib/drop-storage";
+import {
+  CHUNK_SIZE_SQL,
+  dailyLimitReached,
+  dropBudget,
+  hasR2Headroom,
+  reserveR2Ops,
+  storageFull,
+  wouldOverfillStorage,
+} from "../lib/drop-budget";
 import { authFailed, createFloodGuard } from "../lib/limits";
 import { createReceipt, recordReceiptEvent } from "../lib/receipts";
 import { hashToken, randomToken, verifyToken } from "../lib/tokens";
@@ -48,9 +57,6 @@ const NOT_FOUND = () => jsonError("File drop not found or expired.", "DROP_NOT_F
 export const DROP_SESSION_TTL_SECONDS = 60 * 60;
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,256}$/;
-
-/** Bytes a chunk row accounts for: `size`, or the inline BLOB on rows written before R2. */
-const CHUNK_SIZE_SQL = "COALESCE(size, LENGTH(data))";
 
 export const dropsRoutes = new Hono<AppEnv>();
 
@@ -137,6 +143,13 @@ dropsRoutes.post("/api/drops", async (c) => {
   const expiryError = rejectShareExpiry(expiresAt, createdAt);
   if (expiryError) return expiryError;
 
+  // Spending guard: refuse up front a drop that can't fit, rather than partway through its upload.
+  // Only a check; each chunk reserves its own bytes and R2 write (one per chunk, one for /complete).
+  if (await wouldOverfillStorage(c.env, request.totalBytes)) return storageFull();
+  if (dropBucket(c.env) && !(await hasR2Headroom(c.env, "class_a", request.chunkCount + 1))) {
+    return dailyLimitReached("upload");
+  }
+
   let id: string;
   try {
     id = await generateUniqueId(db, "drops", 10);
@@ -185,19 +198,25 @@ dropsRoutes.put("/api/drops/:id/chunks/:idx", async (c) => {
     return jsonError(`A chunk can be at most ${MAX_DROP_CHUNK_BYTES} bytes.`, "CHUNK_TOO_LARGE", 413);
   }
 
-  // Reserve the bytes in D1 first. One statement: the size check and the write happen
-  // atomically, so parallel PUTs can't push the stored total past the declared totalBytes,
-  // and nothing lands after /complete. With R2 the row holds only the size; the bytes follow.
+  // Spending guard: every R2 put is reserved against today's write cap before it's made.
   const bucket = dropBucket(c.env);
+  if (bucket && !(await reserveR2Ops(c.env, "class_a"))) return dailyLimitReached("upload");
+
+  // Reserve the bytes in D1 first. One statement: the size checks and the write happen
+  // atomically, so parallel PUTs can't push the stored total past the declared totalBytes or
+  // the storage cap (drop_storage, kept by triggers), and nothing lands after /complete. With R2
+  // the row holds only the size; the bytes follow.
   const written = await db.prepare(
     `INSERT INTO drop_chunks (drop_id, idx, data, size)
-     SELECT ?1, ?2, ${bucket ? "X''" : "?4"}, ?3
+     SELECT ?1, ?2, ${bucket ? "X''" : "?5"}, ?3
      WHERE (SELECT COALESCE(SUM(${CHUNK_SIZE_SQL}), 0) FROM drop_chunks WHERE drop_id = ?1 AND idx != ?2) + ?3
            <= (SELECT total_bytes FROM drops WHERE id = ?1 AND is_complete = 0)
+       AND (SELECT bytes FROM drop_storage WHERE id = 1)
+           - COALESCE((SELECT ${CHUNK_SIZE_SQL} FROM drop_chunks WHERE drop_id = ?1 AND idx = ?2), 0) + ?3 <= ?4
      ON CONFLICT(drop_id, idx) DO UPDATE SET data = excluded.data, size = excluded.size
      RETURNING idx`
   )
-    .bind(...(bucket ? [drop.id, idx, body.byteLength] : [drop.id, idx, body.byteLength, body]))
+    .bind(drop.id, idx, body.byteLength, dropBudget(c.env).storageBytes, ...(bucket ? [] : [body]))
     .first<{ idx: number }>();
   if (!written) {
     const current = await loadDrop(db, drop.id);
@@ -205,6 +224,10 @@ dropsRoutes.put("/api/drops/:id/chunks/:idx", async (c) => {
       return jsonError("This drop is already sealed.", "DROP_ALREADY_COMPLETE", 409);
     }
     if (!current) return NOT_FOUND();
+    const existing = await db.prepare(`SELECT ${CHUNK_SIZE_SQL} AS size FROM drop_chunks WHERE drop_id = ? AND idx = ?`)
+      .bind(drop.id, idx)
+      .first<{ size: number }>();
+    if (await wouldOverfillStorage(c.env, body.byteLength, existing?.size ?? 0)) return storageFull();
     return jsonError("Upload exceeds the declared totalBytes.", "DROP_TOO_LARGE", 413);
   }
 
@@ -249,6 +272,7 @@ dropsRoutes.post("/api/drops/:id/complete", async (c) => {
       .bind(drop.id, drop.chunk_count)
       .all<{ idx: number; size: number }>();
     if (reserved.length > 0) {
+      if (!(await reserveR2Ops(c.env, "class_a"))) return dailyLimitReached("upload");
       const listing = await bucket.list({ prefix: dropChunkPrefix(drop.id), limit: 1000 });
       const stored = new Map(listing.objects.map((object) => [object.key, object.size]));
       const missing = reserved.filter((row) => stored.get(dropChunkKey(drop.id, row.idx)) !== row.size);
@@ -315,6 +339,11 @@ dropsRoutes.post("/api/drops/:id/start", async (c) => {
   const drop = auth.row;
   const now = nowEpochSeconds();
 
+  // Spending guard: a download reads every chunk once. Checked before the download is spent.
+  if (dropBucket(c.env) && !(await hasR2Headroom(c.env, "class_b", drop.chunk_count))) {
+    return dailyLimitReached("download", "This didn't use up a download.");
+  }
+
   const updated = await db.prepare(
     `UPDATE drops SET downloads_remaining = downloads_remaining - 1
      WHERE id = ? AND is_complete = 1 AND downloads_remaining >= 1 AND expires_at > ?
@@ -372,6 +401,7 @@ dropsRoutes.get("/api/drops/:id/chunks/:idx", async (c) => {
   if (!bucket) {
     return jsonError("This server can't read file-drop storage right now.", "CHUNK_STORAGE_UNAVAILABLE", 503);
   }
+  if (!(await reserveR2Ops(c.env, "class_b"))) return dailyLimitReached("download");
   const object = await bucket.get(dropChunkKey(row.id, idx));
   if (!object) return jsonError("Chunk not found.", "CHUNK_NOT_FOUND", 404);
   return new Response(object.body, { status: 200, headers: { ...headers, "Content-Length": String(object.size) } });

@@ -632,10 +632,10 @@ inboxToken  = HKDF-SHA256(SHA-256(priv), zero salt, info = "ps/v2/inbox")`}
           <Section id="infrastructure" title="Hosting and logs">
             <p>
               The hosted API is a Cloudflare Worker with a D1 database, and encrypted file-drop chunks live in a Cloudflare
-              R2 bucket. Your browser never calls it directly: every{" "}
-              <C>/api</C> request goes to the web app&apos;s host, which relays it to the Worker. So two hosts see IP
-              addresses, request metadata and the ciphertext passing through: whichever host runs the web app, and
-              Cloudflare. Neither sees a key, which never leaves the fragment. Workers observability logging is on for
+              R2 bucket. On protectedshare.me your browser calls it directly, at <C>api.protectedshare.me</C>, so
+              Cloudflare sees IP addresses, request metadata and the ciphertext passing through, and the web app&apos;s
+              host sees page loads. A self-hosted web app can instead relay <C>/api</C> requests to the Worker, and then
+              its host sees them too. Nobody sees a key, which never leaves the fragment. Workers observability logging is on for
               the API: it records request metadata and the errors the code logs, and the code doesn&apos;t log request
               bodies.
             </p>

@@ -136,8 +136,8 @@ export default function PrivacyPage() {
               </li>
               <li>No accounts, no email sign-up, no ads. The app itself sets no cookies.</li>
               <li>
-                Our hosts see IP addresses and request details, like any website: the web app&apos;s host, which also
-                relays the website&apos;s API calls, and Cloudflare, which runs the API. The contact form stores what you
+                Our hosts see IP addresses and request details, like any website: the web app&apos;s host for page
+                loads, and Cloudflare, which runs the API your browser calls. The contact form stores what you
                 type into it.
               </li>
               <li>
@@ -298,8 +298,7 @@ export default function PrivacyPage() {
               counts are per link, room or request: wrong keys or passwords, people joining and posting in a chat room,
               answers sent to a request, reports about a link. Creating a note, secret, file drop, request or notepad,
               sending a report and sending a contact message are also counted per IP address (an IPv6 address counts by
-              its /64 block). For requests the website relays, that is usually our web host&apos;s address, shared by
-              many visitors, rather than yours. That address is used only for this one-minute count inside Cloudflare.
+              its /64 block). That address is used only for this one-minute count inside Cloudflare.
               We don&apos;t write it to our database.
             </p>
             <p>
@@ -314,6 +313,12 @@ export default function PrivacyPage() {
               secrets, file drops, requests, chat rooms). The counters hold no ids, no content and nothing about who
               created what, and they&apos;re deleted after 400 days. The last 30 days&apos; totals are public through
               the API, and the homepage shows the overall number once it reaches 250.
+            </p>
+            <p>
+              So that file drops stop at their storage limits instead of running up a bill, the server also keeps the
+              total size of the file-drop chunks it holds and a count of storage reads and writes for each day. These
+              hold no ids, no content and nothing about who sent or downloaded what. The daily counts are deleted after
+              90 days.
             </p>
           </Section>
 
@@ -429,9 +434,8 @@ export default function PrivacyPage() {
               limited period.
             </p>
             <p>
-              Your browser doesn&apos;t call the API directly. Every API request goes to the host that serves the web
-              app, which relays it to Cloudflare. So that host sees the same kind of request information, for page loads
-              and API calls, along with the ciphertext passing through. We don&apos;t write IP addresses into our
+              Your browser calls the API on Cloudflare directly, at api.protectedshare.me. The host that serves the web
+              app sees the same kind of request information for page loads. We don&apos;t write IP addresses into our
               database. Request paths include share ids, never the key after the <code>#</code>.
             </p>
             <p>

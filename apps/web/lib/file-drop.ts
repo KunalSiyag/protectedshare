@@ -51,7 +51,8 @@ export type DropErrorCode =
   | "network"
   | "server"
   | "damaged"
-  | "session_expired";
+  | "session_expired"
+  | "capacity";
 
 export class DropError extends Error {
   code: DropErrorCode;
@@ -92,6 +93,8 @@ async function readError(response: Response): Promise<{ message?: string; code?:
 async function errorFromResponse(response: Response, fallback: string): Promise<DropError> {
   const { message, code } = await readError(response);
   if (!code) return new DropError("network", "The server didn't answer properly. Trying again usually fixes this.", response.status);
+  // A storage or daily cap (the API's spending guard). Retrying now can't help, so it isn't retried.
+  if (code === "DROP_CAPACITY") return new DropError("capacity", message ?? "File drop is at capacity right now. Try again later.", response.status);
   if (code === "DOWNLOAD_TOKEN_REQUIRED" || code === "INVALID_DOWNLOAD_TOKEN") {
     return new DropError("session_expired", "This download's hour-long window closed before every piece arrived.", response.status);
   }
@@ -299,6 +302,7 @@ function putChunk(
       }
       // No API error code: an intermediary failed (proxy 502, dev server 404). Retry.
       if (!code) return reject(new DropError("network", `The upload hit a hiccup (${xhr.status}).`, xhr.status));
+      if (code === "DROP_CAPACITY") return reject(new DropError("capacity", message ?? "File drop is at capacity right now. Try again later.", xhr.status));
       if (xhr.status === 413) return reject(new DropError("too_large", message ?? "A chunk was too large for the server.", 413));
       if (xhr.status === 404) return reject(new DropError("not_found", "The upload expired on the server. Start again.", 404));
       reject(new DropError("server", message ?? `Upload failed (${xhr.status}).`, xhr.status));

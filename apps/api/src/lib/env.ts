@@ -13,6 +13,12 @@ export type Bindings = {
   NOTIFY_EMAIL_TO?: string;
   /** Sender domain for those emails; must be verified in Resend. Default: protectedshare.me. */
   NOTIFY_EMAIL_DOMAIN?: string;
+  /** Spending guard (lib/drop-budget.ts): file-drop storage cap in GB. Default 9. */
+  DROP_STORAGE_LIMIT_GB?: string | number;
+  /** R2 writes (Class A) allowed per UTC day. Default 30,000. */
+  R2_CLASS_A_DAILY_LIMIT?: string | number;
+  /** R2 reads (Class B) allowed per UTC day. Default 300,000. */
+  R2_CLASS_B_DAILY_LIMIT?: string | number;
 } & RateLimitBindings;
 
 /** Recipient and sender addresses for operator emails (contact form, abuse reports). */
