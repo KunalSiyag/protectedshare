@@ -76,9 +76,10 @@ export function ipBucket(ip: string): string {
 /**
  * Generous per-IP guard for endpoints that create rows (shares, requests, reports, inquiries,
  * notepads). It keys on CF-Connecting-IP, which Cloudflare sets and clients can't forge.
- * Behind the hosted site's /api rewrite that is a Vercel egress IP shared by many visitors, so
- * the limit in wrangler.toml is set well above what real people produce, and one client that
- * reaches it still holds up creates for everyone else on that IP for the rest of the minute.
+ * Browsers on the hosted site call the Worker directly, so that is the visitor's address. Requests
+ * relayed through a web host carry the host's shared IP instead, so the limit in wrangler.toml is
+ * set well above what real people produce, and one client that reaches it there still holds up
+ * creates for everyone else on that IP for the rest of the minute.
  * Loopback (wrangler dev) is not a client, so local development is never limited.
  */
 export async function createFloodGuard(c: AppContext): Promise<Response | null> {

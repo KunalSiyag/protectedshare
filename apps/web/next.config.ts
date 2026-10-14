@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { apiOrigin } from "./lib/api";
 import { BLOG_REDIRECTS } from "./lib/blog-redirects";
 
 // Google Analytics hosts, allowed only when NEXT_PUBLIC_GA_ID is set at build time.
@@ -13,6 +14,9 @@ const GA_CONNECT_HOSTS = [
 // Cloudflare Web Analytics hosts, allowed only when NEXT_PUBLIC_CF_BEACON_TOKEN is set at build time.
 const CF_BEACON_SCRIPT_HOSTS = ["https://static.cloudflareinsights.com"];
 const CF_BEACON_CONNECT_HOSTS = ["https://cloudflareinsights.com"];
+
+// The API Worker, when the browser calls it directly (NEXT_PUBLIC_API_ORIGIN, see lib/api.ts).
+const API_ORIGIN = apiOrigin(process.env.NEXT_PUBLIC_API_ORIGIN);
 
 // Called from the browser by /tools/breached-password-checker only.
 const PWNED_PASSWORDS_API = "https://api.pwnedpasswords.com";
@@ -73,6 +77,7 @@ export function contentSecurityPolicy({ dev, analytics, cloudflareAnalytics = fa
       "connect-src",
       [
         "'self'",
+        ...(API_ORIGIN ? [API_ORIGIN] : []),
         ...(dev ? ["ws:"] : []),
         ...(analytics ? GA_CONNECT_HOSTS : []),
         ...(cloudflareAnalytics ? CF_BEACON_CONNECT_HOSTS : []),

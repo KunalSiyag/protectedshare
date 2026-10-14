@@ -135,7 +135,7 @@ export default function SelfHostPage() {
             <Step n={2} title="Apply the schema">
               <p>
                 A new database takes the full schema in one go. <code className={code}>schema.sql</code> already includes
-                everything from migrations 0001 to 0008.
+                everything from migrations 0001 to 0009.
               </p>
               <CodeBlock code="npx wrangler d1 execute protectedshare --remote --file=schema.sql" label="New database" />
               <p>
@@ -143,13 +143,15 @@ export default function SelfHostPage() {
                 <code className={code}>0005_v2.sql</code> (receipts, file drops, secret requests, chat rooms),{" "}
                 <code className={code}>0006_security.sql</code> (download sessions, the request respond hash),{" "}
                 <code className={code}>0007_r2_limits_stats_reports.sql</code> (usage counts, abuse reports, lockouts,
-                chunk sizes) and <code className={code}>0008_push.sql</code> (read notifications). If one reports a
+                chunk sizes), <code className={code}>0008_push.sql</code> (read notifications) and{" "}
+                <code className={code}>0009_drop_budget.sql</code> (the file-drop spending guard). If one reports a
                 duplicate column, that column is already there and you can move on. The Worker also creates missing
                 tables and columns on first use.
               </p>
               <CodeBlock
                 code={`npx wrangler d1 execute protectedshare --remote --file=migrations/0007_r2_limits_stats_reports.sql
-npx wrangler d1 execute protectedshare --remote --file=migrations/0008_push.sql`}
+npx wrangler d1 execute protectedshare --remote --file=migrations/0008_push.sql
+npx wrangler d1 execute protectedshare --remote --file=migrations/0009_drop_budget.sql`}
                 label="Existing database, newest migrations"
               />
             </Step>
@@ -166,10 +168,10 @@ npx wrangler d1 execute protectedshare --remote --file=migrations/0008_push.sql`
               <p>
                 If your web app uses its built-in <code className={code}>/api</code> proxy, every request reaches the
                 Worker from your server&apos;s IP address, so <code className={code}>RL_CREATE</code> (600 new links a
-                minute per IP) becomes a cap for the whole site. Raise it or delete it. A rewrite like the hosted
-                site&apos;s Vercel one softens this but doesn&apos;t remove it: the Worker then sees the host&apos;s shared
-                egress IPs, so one client that reaches the limit holds up creates for everyone else on that IP until the
-                minute is up.
+                minute per IP) becomes a cap for the whole site. Raise it or delete it. A host&apos;s rewrite softens this
+                but doesn&apos;t remove it: the Worker then sees the host&apos;s shared egress IPs. Setting{" "}
+                <code className={code}>NEXT_PUBLIC_API_ORIGIN</code> removes it, because browsers then call the Worker
+                themselves.
               </p>
               <p>
                 Optional Worker secrets: <code className={code}>RESEND_API_KEY</code> emails contact-form messages and
@@ -229,8 +231,10 @@ docker run --rm -p 3000:3000 \\
               <code className={code}>API_BACKEND_URL</code>, and set the build-time settings below there. Leave them
               unset to ship without analytics or notifications. On Vercel, note that{" "}
               <code className={code}>apps/web/vercel.json</code> rewrites <code className={code}>/api</code> straight to
-              protectedshare.me&apos;s API Worker, which is how the hosted site skips the proxy. Point that rewrite at
-              your own Worker, or delete the file to use the built-in proxy.
+              protectedshare.me&apos;s API Worker. Point that rewrite at your own Worker, or delete the file to use the
+              built-in proxy. Better: give the Worker its own domain and set{" "}
+              <code className={code}>NEXT_PUBLIC_API_ORIGIN</code> to it, so browsers call it directly and API traffic
+              (file drops included) doesn&apos;t count against your web host&apos;s bandwidth.
             </p>
           </div>
         </RailSection>
@@ -290,6 +294,11 @@ docker run --rm -p 3000:3000 \\
                 detail: "Web app, build time, optional. Google Search Console verification code for the site's meta tag.",
               },
               {
+                term: <SettingName>NEXT_PUBLIC_API_ORIGIN</SettingName>,
+                detail:
+                  "Web app, build time, optional. The API Worker's own origin, e.g. https://api.example.com. Browsers then call it directly (it's added to the CSP), so API traffic never passes through the web host. Unset, the app relays /api to API_BACKEND_URL.",
+              },
+              {
                 term: "DB",
                 detail: "Worker binding to your D1 database, in wrangler.toml.",
               },
@@ -299,6 +308,22 @@ docker run --rm -p 3000:3000 \\
                   <>
                     Worker binding to the R2 bucket for file-drop chunks, in wrangler.toml (<code>[[r2_buckets]]</code>).
                     Delete the block to keep chunks in D1.
+                  </>
+                ),
+              },
+              {
+                term: (
+                  <>
+                    <SettingName>DROP_STORAGE_LIMIT_GB</SettingName>, <SettingName>R2_CLASS_A_DAILY_LIMIT</SettingName>,{" "}
+                    <SettingName>R2_CLASS_B_DAILY_LIMIT</SettingName>
+                  </>
+                ),
+                detail: (
+                  <>
+                    Worker variables in wrangler.toml (<code>[vars]</code>), optional. The spending guard: file drops stop
+                    taking new uploads or downloads at these caps instead of running up an R2 bill. Defaults: 9 GB stored,
+                    30,000 R2 writes and 300,000 reads per UTC day, which stay inside R2&apos;s free allowance for the
+                    month. Raising them can cost money.
                   </>
                 ),
               },

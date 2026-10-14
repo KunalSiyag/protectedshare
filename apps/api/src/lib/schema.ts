@@ -1,6 +1,6 @@
 /**
- * Self-healing schema. Mirrors schema.sql + migrations/0005_v2.sql, 0006_security.sql and
- * 0007_r2_limits_stats_reports.sql (+ 0008_push.sql) so a Worker
+ * Self-healing schema. Mirrors schema.sql + migrations/0005_v2.sql, 0006_security.sql,
+ * 0007_r2_limits_stats_reports.sql, 0008_push.sql and 0009_drop_budget.sql so a Worker
  * pointed at an older D1 database upgrades it on first use. Runs once per isolate.
  */
 
@@ -201,6 +201,41 @@ const POST_COLUMN_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_chat_messages_expires_at ON chat_messages (expires_at)`,
 ];
 
+/**
+ * 0009: the file-drop spending guard (lib/drop-budget.ts). Needs drop_chunks.size, so it runs after
+ * the column additions, in one batch so no chunk lands between the first count and the triggers.
+ */
+const BUDGET_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS drop_storage (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    bytes INTEGER NOT NULL DEFAULT 0
+  )`,
+  `INSERT OR IGNORE INTO drop_storage (id, bytes)
+    SELECT 1, COALESCE(SUM(COALESCE(size, LENGTH(data))), 0) FROM drop_chunks`,
+  `CREATE TRIGGER IF NOT EXISTS drop_storage_on_chunk_insert
+    AFTER INSERT ON drop_chunks
+    BEGIN
+      UPDATE drop_storage SET bytes = bytes + COALESCE(NEW.size, LENGTH(NEW.data)) WHERE id = 1;
+    END`,
+  `CREATE TRIGGER IF NOT EXISTS drop_storage_on_chunk_update
+    AFTER UPDATE OF data, size ON drop_chunks
+    BEGIN
+      UPDATE drop_storage
+      SET bytes = bytes - COALESCE(OLD.size, LENGTH(OLD.data)) + COALESCE(NEW.size, LENGTH(NEW.data))
+      WHERE id = 1;
+    END`,
+  `CREATE TRIGGER IF NOT EXISTS drop_storage_on_chunk_delete
+    AFTER DELETE ON drop_chunks
+    BEGIN
+      UPDATE drop_storage SET bytes = bytes - COALESCE(OLD.size, LENGTH(OLD.data)) WHERE id = 1;
+    END`,
+  `CREATE TABLE IF NOT EXISTS r2_ops_daily (
+    day TEXT PRIMARY KEY,
+    class_a INTEGER NOT NULL DEFAULT 0,
+    class_b INTEGER NOT NULL DEFAULT 0
+  )`,
+];
+
 function isIgnorableAlterError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /duplicate column/i.test(message) || /no such table/i.test(message);
@@ -225,6 +260,11 @@ async function runEnsure(db: D1Database): Promise<void> {
     } catch (error) {
       console.error("Schema ensure failed:", sql, error);
     }
+  }
+  try {
+    await db.batch(BUDGET_STATEMENTS.map((sql) => db.prepare(sql)));
+  } catch (error) {
+    console.error("Schema ensure failed: file-drop budget tables", error);
   }
 }
 
