@@ -102,7 +102,16 @@ export default function SiteFooter() {
       </div>
       <div className="border-t border-line">
         <div className="mx-auto flex max-w-content flex-col gap-3 px-4 py-5 text-meta text-ink-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>© {new Date().getFullYear()} ProtectedShare. Open source under the MIT license.</p>
+          <p>
+            © {new Date().getFullYear()} ProtectedShare. Open source under the MIT license. Also by us:{" "}
+            <a
+              href="https://appfinder.tech/"
+              rel="noopener"
+              className="rounded-[4px] text-ink-2 outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-seal/45"
+            >
+              AppFinder
+            </a>
+          </p>
           <ul className="flex flex-wrap gap-x-5 gap-y-2">
             {legal.map((link) => (
               <li key={link.href}>
